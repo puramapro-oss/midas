@@ -1,0 +1,17 @@
+{
+  "name": "MIDAS Trading AI",
+  "short_name": "MIDAS",
+  "description": "L'IA qui transforme vos trades en or",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#06080F",
+  "theme_color": "#FFD700",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}

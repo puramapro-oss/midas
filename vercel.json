@@ -1,0 +1,13 @@
+{
+  "framework": "nextjs",
+  "functions": {
+    "src/app/api/chat/route.ts": { "maxDuration": 120 },
+    "src/app/api/analysis/coordinator/route.ts": { "maxDuration": 120 },
+    "src/app/api/backtest/run/route.ts": { "maxDuration": 120 }
+  },
+  "crons": [
+    { "path": "/api/cron/reset-counters", "schedule": "0 0 * * *" },
+    { "path": "/api/signals/generate", "schedule": "*/15 * * * *" },
+    { "path": "/api/cron/health-check", "schedule": "*/5 * * * *" }
+  ]
+}
