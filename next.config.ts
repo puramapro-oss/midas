@@ -8,6 +8,7 @@ const securityHeaders = [
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
   { key: 'X-XSS-Protection', value: '1; mode=block' },
+  { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' http://72.62.191.111:8000 https://api.coingecko.com https://api.alternative.me https://cryptopanic.com https://api.stripe.com wss:; frame-src https://js.stripe.com" },
 ];
 
 const nextConfig: NextConfig = {
