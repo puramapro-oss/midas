@@ -3,9 +3,9 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  typescript: true,
-});
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, { typescript: true });
+}
 
 async function getAuthUser() {
   const cookieStore = await cookies();
@@ -30,6 +30,7 @@ export async function POST() {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
     }
 
+    const stripe = getStripe();
     const { data: profile } = await supabase
       .from('profiles')
       .select('stripe_customer_id')

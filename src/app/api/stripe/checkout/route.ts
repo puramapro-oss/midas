@@ -6,9 +6,9 @@ import Stripe from 'stripe';
 import { PLANS } from '@/lib/stripe/plans';
 import type { MidasPlan, BillingPeriod } from '@/types/stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  typescript: true,
-});
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, { typescript: true });
+}
 
 const bodySchema = z.object({
   plan: z.enum(['pro', 'ultra']),
@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
     }
 
+    const stripe = getStripe();
     const body = await request.json();
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {

@@ -9,10 +9,12 @@ import type { MidasPlan } from '@/types/stripe';
 
 // --- Redis Client ---
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL ?? '',
-  token: process.env.UPSTASH_REDIS_REST_TOKEN ?? '',
-});
+function getRedis() {
+  return new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL ?? '',
+    token: process.env.UPSTASH_REDIS_REST_TOKEN ?? '',
+  });
+}
 
 // --- Rate Limit Configs par plan ---
 
@@ -79,7 +81,7 @@ function getLimiter(prefix: string, config: RateLimitConfig): Ratelimit {
   if (cached) return cached;
 
   const limiter = new Ratelimit({
-    redis,
+    redis: getRedis(),
     limiter: Ratelimit.slidingWindow(config.requests, config.window),
     prefix,
     analytics: true,
