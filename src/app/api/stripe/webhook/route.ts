@@ -3,15 +3,13 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { PLANS, getPlanByPriceId } from '@/lib/stripe/plans';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  typescript: true,
-});
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, { typescript: true });
+}
 
-const adminSupabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { db: { schema: 'midas' as string } }
-);
+function getAdminSupabase() {
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+}
 
 export async function POST(request: Request) {
   try {
@@ -27,6 +25,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Webhook secret non configure' }, { status: 500 });
     }
 
+    const stripe = getStripe();
+    const adminSupabase = getAdminSupabase();
     let event: Stripe.Event;
 
     try {

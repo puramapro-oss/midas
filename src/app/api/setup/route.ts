@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabase() {
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+}
 
 const SETUP_SECRET = process.env.CRON_SECRET || 'midas-setup';
 
@@ -14,6 +13,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
   }
 
+  const supabase = getSupabase();
   const results: { step: string; status: string; error?: string }[] = [];
 
   // Execute each SQL statement individually via rpc or raw query

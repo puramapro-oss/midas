@@ -4,10 +4,12 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { SUPER_ADMIN_EMAIL } from '@/lib/utils/constants';
 
-const adminDb = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getAdminDb() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 async function getAuthUser() {
   const cookieStore = await cookies();
@@ -35,6 +37,8 @@ export async function GET() {
     if (user.email !== SUPER_ADMIN_EMAIL) {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 });
     }
+
+    const adminDb = getAdminDb();
 
     // Count profiles by plan
     const { count: totalUsers } = await adminDb

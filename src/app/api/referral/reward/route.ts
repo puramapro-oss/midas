@@ -5,10 +5,9 @@ import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { SUPER_ADMIN_EMAIL } from '@/lib/utils/constants';
 
-const adminDb = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getAdminDb() {
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+}
 
 const bodySchema = z.object({
   referralId: z.string().uuid(),
@@ -49,6 +48,7 @@ export async function POST(request: Request) {
     }
 
     const { referralId } = parsed.data;
+    const adminDb = getAdminDb();
 
     // Fetch referral
     const { data: referral, error: fetchError } = await adminDb

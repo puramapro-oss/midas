@@ -2,10 +2,9 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
-const adminDb = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getAdminDb() {
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+}
 
 const bodySchema = z.object({
   referralCode: z.string().min(1).max(50),
@@ -21,6 +20,7 @@ export async function POST(request: Request) {
     }
 
     const { referralCode, referredUserId } = parsed.data;
+    const adminDb = getAdminDb();
 
     // Look up the referral code
     const { data: codeRecord, error: codeError } = await adminDb
