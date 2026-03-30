@@ -12,6 +12,7 @@ const PUBLIC_ROUTES = new Set([
 const PUBLIC_PREFIXES = [
   '/legal/',
   '/api/cron/',
+  '/api/market/',
 ];
 
 const AUTH_ROUTES = new Set(['/login', '/register']);
@@ -66,6 +67,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|robots\\.txt|manifest\\.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot|txt|json)$).*)',
   ],
 };
