@@ -47,8 +47,9 @@ export function useProfile(userId: string | null): UseProfileReturn {
   }, [userId, supabase]);
 
   useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
+    void fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   // Real-time subscription for profile updates
   useRealtime({
