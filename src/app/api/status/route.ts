@@ -37,21 +37,21 @@ export async function GET() {
       services.stripe = { status: 'down', latency_ms: Date.now() - stripeStart }
     }
 
-    // Binance
+    // Binance — ping endpoint (any 2xx/4xx = reachable, only timeout/network = down)
     const binanceStart = Date.now()
     try {
       const res = await fetch('https://api.binance.com/api/v3/ping', {
         signal: AbortSignal.timeout(5000),
       })
       services.binance = {
-        status: res.ok ? 'operational' : 'degraded',
+        status: res.status < 500 ? 'operational' : 'degraded',
         latency_ms: Date.now() - binanceStart,
       }
     } catch {
       services.binance = { status: 'down', latency_ms: Date.now() - binanceStart }
     }
 
-    // Anthropic
+    // Anthropic — test API key validity (any response except 401/403 = key works)
     const anthropicStart = Date.now()
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -62,14 +62,14 @@ export async function GET() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20241022',
+          model: 'claude-haiku-4-5-20251001',
           max_tokens: 1,
           messages: [{ role: 'user', content: 'ping' }],
         }),
         signal: AbortSignal.timeout(8000),
       })
       services.anthropic = {
-        status: res.ok ? 'operational' : 'degraded',
+        status: res.status === 401 || res.status === 403 ? 'degraded' : 'operational',
         latency_ms: Date.now() - anthropicStart,
       }
     } catch {
