@@ -6,6 +6,7 @@ const PUBLIC_ROUTES = new Set([
   '/',
   '/login',
   '/register',
+  '/forgot-password',
   '/pricing',
   '/status',
   '/changelog',
@@ -21,7 +22,7 @@ const PUBLIC_PREFIXES = [
   '/go/',
 ];
 
-const AUTH_ROUTES = new Set(['/login', '/register']);
+const AUTH_ROUTES = new Set(['/login', '/register', '/forgot-password']);
 
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_ROUTES.has(pathname)) return true;

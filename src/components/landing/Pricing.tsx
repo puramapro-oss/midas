@@ -261,16 +261,17 @@ export function Pricing() {
                 </div>
 
                 {/* CTA */}
-                <button
-                  type="button"
-                  className={`w-full py-3 px-6 rounded-xl text-sm font-semibold transition-all duration-300 mb-8 font-[var(--font-dm-sans)] ${
+                <a
+                  href={plan.monthlyPrice === 0 ? '/register' : '/register?plan=' + plan.name.toLowerCase()}
+                  className={`w-full py-3 px-6 rounded-xl text-sm font-semibold transition-all duration-300 mb-8 font-[var(--font-dm-sans)] text-center block ${
                     plan.popular
                       ? 'bg-[#FFD700] text-[#06080F] hover:bg-[#FFD700]/90 shadow-lg shadow-[#FFD700]/20 hover:shadow-[#FFD700]/40'
                       : 'bg-white/5 text-white border border-white/10 hover:bg-white/10 hover:border-white/20'
                   }`}
+                  data-testid={`cta-${plan.name.toLowerCase()}`}
                 >
                   {plan.cta}
-                </button>
+                </a>
 
                 {/* Features */}
                 <div className="space-y-3 flex-1">

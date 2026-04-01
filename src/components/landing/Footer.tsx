@@ -11,13 +11,14 @@ const footerLinks = {
     { label: 'FAQ', href: '#faq' },
   ],
   legal: [
-    { label: 'Conditions generales', href: '/terms' },
-    { label: 'Confidentialite', href: '/privacy' },
-    { label: 'Mentions legales', href: '/legal' },
-    { label: 'Disclaimer', href: '/disclaimer' },
+    { label: 'Conditions generales', href: '/legal/cgu' },
+    { label: 'Confidentialite', href: '/legal/privacy' },
+    { label: 'Mentions legales', href: '/legal/mentions' },
+    { label: 'Disclaimer', href: '/legal/disclaimer' },
   ],
   support: [
-    { label: 'Centre d\'aide', href: '/help' },
+    { label: 'Centre d\'aide', href: '/changelog' },
+    { label: 'Statut', href: '/status' },
     { label: 'Contact', href: 'mailto:support@purama.dev' },
   ],
 }

@@ -196,24 +196,28 @@ export default function Hero() {
           variants={itemVariants}
           className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
         >
-          <Button
-            size="lg"
-            variant="primary"
-            icon={<ArrowRight className="w-5 h-5" />}
-            className="text-base px-8 py-4"
-            data-testid="cta-signup"
-          >
-            Commencer gratuitement
-          </Button>
-          <Button
-            size="lg"
-            variant="secondary"
-            icon={<Play className="w-5 h-5" />}
-            className="text-base px-8 py-4"
-            data-testid="cta-demo"
-          >
-            Voir la demo
-          </Button>
+          <a href="/register" data-testid="cta-signup">
+            <Button
+              size="lg"
+              variant="primary"
+              icon={<ArrowRight className="w-5 h-5" />}
+              className="text-base px-8 py-4"
+              type="button"
+            >
+              Commencer gratuitement
+            </Button>
+          </a>
+          <a href="/login" data-testid="cta-demo">
+            <Button
+              size="lg"
+              variant="secondary"
+              icon={<Play className="w-5 h-5" />}
+              className="text-base px-8 py-4"
+              type="button"
+            >
+              Voir la demo
+            </Button>
+          </a>
         </motion.div>
 
         {/* Animated Stats */}
