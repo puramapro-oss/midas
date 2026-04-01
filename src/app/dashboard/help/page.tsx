@@ -127,7 +127,7 @@ const GUIDE_CARDS: GuideCard[] = [
     description: 'Apprends les bases : connexion exchange, premier bot, lecture des signaux.',
     icon: <BookOpen className="h-5 w-5" />,
     color: 'text-[#FFD700]',
-    href: '#',
+    href: '/dashboard/help/connect-binance',
   },
   {
     title: 'Strat\u00e9gies de trading',

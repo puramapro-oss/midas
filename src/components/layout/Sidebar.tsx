@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
   TrendingUp,
+  CandlestickChart,
   Bot,
   FlaskConical,
   MessageSquare,
@@ -14,13 +15,22 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  Signal,
+  PieChart,
+  Bell,
+  Trophy,
 } from 'lucide-react';
 import MidasLogo from './MidasLogo';
 
 const navItems = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard', testId: 'sidebar-dashboard' },
+  { label: 'Trading', icon: CandlestickChart, href: '/dashboard/trading', testId: 'sidebar-trading' },
   { label: 'Marchés', icon: TrendingUp, href: '/dashboard/markets', testId: 'sidebar-markets' },
+  { label: 'Portfolio', icon: PieChart, href: '/dashboard/portfolio', testId: 'sidebar-portfolio' },
+  { label: 'Signaux', icon: Signal, href: '/dashboard/signals', testId: 'sidebar-signals' },
   { label: 'Mes Bots', icon: Bot, href: '/dashboard/bots', testId: 'sidebar-bots' },
+  { label: 'Alertes', icon: Bell, href: '/dashboard/alerts', testId: 'sidebar-alerts' },
+  { label: 'Leaderboard', icon: Trophy, href: '/dashboard/leaderboard', testId: 'sidebar-leaderboard' },
   { label: 'Backtesting', icon: FlaskConical, href: '/dashboard/backtesting', testId: 'sidebar-backtesting' },
   { label: 'Chat IA', icon: MessageSquare, href: '/dashboard/chat', testId: 'sidebar-chat' },
 ];

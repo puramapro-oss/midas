@@ -6,13 +6,19 @@ const PUBLIC_ROUTES = new Set([
   '/',
   '/login',
   '/register',
+  '/pricing',
+  '/status',
+  '/changelog',
+  '/offline',
   '/api/stripe/webhook',
+  '/api/status',
 ]);
 
 const PUBLIC_PREFIXES = [
   '/legal/',
   '/api/cron/',
   '/api/market/',
+  '/go/',
 ];
 
 const AUTH_ROUTES = new Set(['/login', '/register']);

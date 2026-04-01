@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, TrendingUp, Bot, MessageSquare, Settings } from 'lucide-react';
+import { LayoutDashboard, CandlestickChart, PieChart, MessageSquare, Settings } from 'lucide-react';
 
 const items = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
-  { label: 'Marchés', icon: TrendingUp, href: '/dashboard/markets' },
-  { label: 'Bots', icon: Bot, href: '/dashboard/bots' },
+  { label: 'Trading', icon: CandlestickChart, href: '/dashboard/trading' },
+  { label: 'Portfolio', icon: PieChart, href: '/dashboard/portfolio' },
   { label: 'Chat', icon: MessageSquare, href: '/dashboard/chat' },
-  { label: 'Réglages', icon: Settings, href: '/dashboard/settings' },
+  { label: 'Reglages', icon: Settings, href: '/dashboard/settings' },
 ];
 
 export default function BottomNav() {

@@ -46,9 +46,9 @@ const plans: Plan[] = [
   {
     name: 'Pro',
     icon: <Sparkles className="h-5 w-5" />,
-    monthlyPrice: 33,
-    yearlyPrice: 265,
-    yearlyMonthly: 22,
+    monthlyPrice: 39,
+    yearlyPrice: 313,
+    yearlyMonthly: 26,
     description: 'Pour les traders serieux qui veulent un avantage reel.',
     cta: 'Passer a Pro',
     popular: true,
@@ -68,9 +68,9 @@ const plans: Plan[] = [
   {
     name: 'Ultra',
     icon: <Crown className="h-5 w-5" />,
-    monthlyPrice: 77,
-    yearlyPrice: 619,
-    yearlyMonthly: 52,
+    monthlyPrice: 79,
+    yearlyPrice: 635,
+    yearlyMonthly: 53,
     description: 'La puissance maximale pour les traders professionnels.',
     cta: 'Devenir Ultra',
     features: [

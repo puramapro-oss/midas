@@ -39,7 +39,7 @@ export const PLANS: Record<MidasPlan, PlanConfig> = {
   },
   pro: {
     name: 'Pro',
-    price: { monthly: 33, yearly: 265 },
+    price: { monthly: 39, yearly: 313 },
     priceId: {
       monthly: process.env.STRIPE_PRO_MONTHLY_PRICE_ID ?? '',
       yearly: process.env.STRIPE_PRO_YEARLY_PRICE_ID ?? '',
@@ -64,7 +64,7 @@ export const PLANS: Record<MidasPlan, PlanConfig> = {
   },
   ultra: {
     name: 'Ultra',
-    price: { monthly: 77, yearly: 619 },
+    price: { monthly: 79, yearly: 635 },
     priceId: {
       monthly: process.env.STRIPE_ULTRA_MONTHLY_PRICE_ID ?? '',
       yearly: process.env.STRIPE_ULTRA_YEARLY_PRICE_ID ?? '',
