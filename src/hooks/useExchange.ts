@@ -14,6 +14,8 @@ interface ExchangeConnection {
 
 interface UseExchangeReturn {
   connections: ExchangeConnection[];
+  connected: boolean;
+  balance: number;
   loading: boolean;
   connectExchange: (exchange: string, apiKey: string, secret: string) => Promise<boolean>;
   testConnection: (exchange: string, apiKey: string, secret: string) => Promise<boolean>;
@@ -153,8 +155,13 @@ export function useExchange(): UseExchangeReturn {
     fetchConnections();
   }, [fetchConnections]);
 
+  const connected = connections.some((c) => c.status === 'connected');
+  const balance = 0; // Real balance fetched via /api/exchange/balance when connected
+
   return {
     connections,
+    connected,
+    balance,
     loading,
     connectExchange,
     testConnection,

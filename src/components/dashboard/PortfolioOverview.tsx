@@ -1,67 +1,71 @@
 'use client';
 
-import { TrendingUp, TrendingDown, DollarSign, Target } from 'lucide-react';
-import EquityCurve from '@/components/charts/EquityCurve';
-
-const stats = [
-  {
-    label: 'Balance',
-    value: '$12,450',
-    change: null,
-    icon: DollarSign,
-    color: 'var(--gold-primary)',
-  },
-  {
-    label: 'P&L Jour',
-    value: '+$234',
-    change: '+1.9%',
-    icon: TrendingUp,
-    positive: true,
-    color: '#10B981',
-  },
-  {
-    label: 'P&L Total',
-    value: '+$2,450',
-    change: '+24.5%',
-    icon: TrendingUp,
-    positive: true,
-    color: '#10B981',
-  },
-  {
-    label: 'Win Rate',
-    value: '68%',
-    change: null,
-    icon: Target,
-    color: '#06B6D4',
-  },
-];
-
-function generateEquityData() {
-  const data = [];
-  let value = 10000;
-  const now = new Date();
-
-  for (let i = 90; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    value += (Math.random() - 0.42) * 150;
-    value = Math.max(value, 8000);
-    data.push({
-      date: date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
-      value: Math.round(value * 100) / 100,
-    });
-  }
-
-  return data;
-}
-
-const equityData = generateEquityData();
+import { DollarSign, Target, TrendingUp, Link2 } from 'lucide-react';
+import { usePerformance } from '@/hooks/usePerformance';
+import { useExchange } from '@/hooks/useExchange';
 
 export default function PortfolioOverview() {
+  const perf = usePerformance();
+  const { connected, balance } = useExchange();
+
+  if (!connected) {
+    return (
+      <div data-testid="portfolio-overview">
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm p-8 text-center">
+          <div className="w-12 h-12 rounded-xl bg-[#FFD700]/10 flex items-center justify-center mx-auto mb-4">
+            <Link2 className="w-6 h-6 text-[#FFD700]" />
+          </div>
+          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+            Connecte ton exchange
+          </h3>
+          <p className="text-sm text-[var(--text-tertiary)] mb-4 max-w-md mx-auto">
+            Pour voir ton solde, tes positions et tes performances, connecte ton exchange dans les parametres.
+          </p>
+          <a
+            href="/dashboard/settings/exchanges"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#FFD700]/10 border border-[#FFD700]/20 text-[#FFD700] text-sm font-semibold hover:bg-[#FFD700]/20 transition-all"
+          >
+            Connecter un exchange
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  const stats = [
+    {
+      label: 'Balance',
+      value: `$${balance.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}`,
+      icon: DollarSign,
+      color: 'var(--gold-primary)',
+    },
+    {
+      label: 'P&L Total',
+      value: perf.totalPnl >= 0
+        ? `+$${perf.totalPnl.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}`
+        : `-$${Math.abs(perf.totalPnl).toLocaleString('fr-FR', { minimumFractionDigits: 2 })}`,
+      change: perf.totalTrades > 0 ? `${perf.totalPnl >= 0 ? '+' : ''}${((perf.totalPnl / Math.max(balance, 1)) * 100).toFixed(1)}%` : null,
+      positive: perf.totalPnl >= 0,
+      icon: TrendingUp,
+      color: perf.totalPnl >= 0 ? '#10B981' : '#EF4444',
+    },
+    {
+      label: 'Win Rate',
+      value: perf.totalTrades > 0 ? `${perf.winRate.toFixed(1)}%` : '0%',
+      icon: Target,
+      color: '#06B6D4',
+    },
+    {
+      label: 'Trades',
+      value: perf.totalTrades.toString(),
+      icon: TrendingUp,
+      color: 'var(--gold-primary)',
+    },
+  ];
+
   return (
     <div data-testid="portfolio-overview">
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {stats.map((stat) => (
           <div
             key={stat.label}
@@ -69,47 +73,19 @@ export default function PortfolioOverview() {
             data-testid={`kpi-${stat.label.toLowerCase().replace(/[^a-z]/g, '-')}`}
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-[var(--text-tertiary)] font-medium">
-                {stat.label}
-              </span>
-              <stat.icon
-                className="w-4 h-4"
-                style={{ color: stat.color }}
-              />
+              <span className="text-xs text-[var(--text-tertiary)] font-medium">{stat.label}</span>
+              <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
             </div>
-            <p
-              className="text-xl font-bold text-[var(--text-primary)]"
-              style={{ fontFamily: 'var(--font-jetbrains-mono)' }}
-            >
+            <p className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
               {stat.value}
             </p>
-            {stat.change && (
-              <div className="flex items-center gap-1 mt-1">
-                {stat.positive ? (
-                  <TrendingUp className="w-3 h-3 text-emerald-400" />
-                ) : (
-                  <TrendingDown className="w-3 h-3 text-red-400" />
-                )}
-                <span
-                  className={`text-xs font-medium ${
-                    stat.positive ? 'text-emerald-400' : 'text-red-400'
-                  }`}
-                  style={{ fontFamily: 'var(--font-jetbrains-mono)' }}
-                >
-                  {stat.change}
-                </span>
-              </div>
+            {'change' in stat && stat.change && (
+              <span className={`text-xs font-medium ${stat.positive ? 'text-emerald-400' : 'text-red-400'}`} style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
+                {stat.change}
+              </span>
             )}
           </div>
         ))}
-      </div>
-
-      {/* Equity curve */}
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm p-5">
-        <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3 font-[family-name:var(--font-orbitron)]">
-          Courbe de Capital
-        </h3>
-        <EquityCurve data={equityData} />
       </div>
     </div>
   );
