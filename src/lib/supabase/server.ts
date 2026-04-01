@@ -9,7 +9,7 @@ export async function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      db: { schema: 'midas' as string },
+      db: { schema: 'public' },
       auth: {
         autoRefreshToken: true,
         persistSession: true,
@@ -40,7 +40,7 @@ export function createServiceClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
-      db: { schema: 'midas' as string },
+      db: { schema: 'public' },
       auth: {
         autoRefreshToken: false,
         persistSession: false,

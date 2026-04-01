@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     const adminSupabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { db: { schema: 'midas' as string } }
+      { db: { schema: 'public' } }
     );
 
     // Deactivate old signals

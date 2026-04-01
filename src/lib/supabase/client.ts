@@ -5,7 +5,7 @@ export function createClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      db: { schema: 'midas' as string },
+      db: { schema: 'public' },
       auth: {
         autoRefreshToken: true,
         persistSession: true,

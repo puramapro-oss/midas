@@ -17,7 +17,7 @@ interface UseRealtimeParams<T extends Record<string, unknown> = Record<string, u
 
 export function useRealtime<T extends Record<string, unknown> = Record<string, unknown>>({
   table,
-  schema = 'midas',
+  schema = 'public',
   filter,
   onInsert,
   onUpdate,
