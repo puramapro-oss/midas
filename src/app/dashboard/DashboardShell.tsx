@@ -25,23 +25,24 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   void chatOpen;
 
   return (
-    <div className="min-h-screen bg-[#06080F] text-white" data-testid="dashboard-layout">
-      <div className="hidden md:block">
-        <Sidebar />
-      </div>
-      <div className="md:ml-64">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-white flex" data-testid="dashboard-layout">
+      {/* Sidebar — desktop only */}
+      <Sidebar />
+
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col min-h-screen min-w-0">
         <Header
           profile={profile}
           onSignOut={handleSignOut}
           onOpenChat={handleOpenChat}
         />
-        <main className="p-4 md:p-6 pb-24 md:pb-6">
+        <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6 bg-[var(--bg-primary)]">
           {children}
         </main>
       </div>
-      <div className="md:hidden">
-        <BottomNav />
-      </div>
+
+      {/* Bottom nav — mobile only */}
+      <BottomNav />
       <DisclaimerBanner />
     </div>
   );

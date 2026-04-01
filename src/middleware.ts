@@ -19,6 +19,7 @@ const PUBLIC_PREFIXES = [
   '/legal/',
   '/api/cron/',
   '/api/market/',
+  '/api/auth/',
   '/go/',
 ];
 

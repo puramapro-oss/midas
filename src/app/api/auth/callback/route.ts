@@ -10,7 +10,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=missing_code`)
   }
 
-  const response = NextResponse.redirect(`${origin}${next}`)
+  // Default redirect target
+  let redirectTo = `${origin}${next}`
+
+  const response = NextResponse.redirect(redirectTo)
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,24 +32,13 @@ export async function GET(request: NextRequest) {
     }
   )
 
-  const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+  const { error } = await supabase.auth.exchangeCodeForSession(code)
 
   if (error) {
     return NextResponse.redirect(`${origin}/login?error=auth_failed`)
   }
 
-  // Check if this is a first-time user (no onboarding completed)
-  if (data.user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('onboarding_completed')
-      .eq('id', data.user.id)
-      .single()
-
-    if (profile && !profile.onboarding_completed) {
-      return NextResponse.redirect(`${origin}/onboarding`)
-    }
-  }
-
+  // Session cookies are now set on `response` — redirect to dashboard
+  // Don't check onboarding here to avoid losing cookies on extra redirects
   return response
 }
