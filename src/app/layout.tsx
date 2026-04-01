@@ -33,11 +33,11 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "MIDAS - Trading IA | Analyse de march\u00e9s en temps r\u00e9el",
+    default: "MIDAS - Trading IA | Analyse de marches en temps reel",
     template: "%s | MIDAS",
   },
   description:
-    "MIDAS est votre assistant de trading propuls\u00e9 par l\u2019intelligence artificielle. Analyse technique, signaux en temps r\u00e9el, gestion de portefeuille et strat\u00e9gies automatis\u00e9es pour trader plus intelligemment.",
+    "MIDAS est votre assistant de trading propulse par l'intelligence artificielle. Analyse technique, signaux en temps reel, gestion de portefeuille et strategies automatisees pour trader plus intelligemment.",
   keywords: [
     "trading IA",
     "analyse technique",
@@ -48,8 +48,8 @@ export const metadata: Metadata = {
     "portefeuille",
     "MIDAS",
     "Purama",
-    "march\u00e9s financiers",
-    "trading automatis\u00e9",
+    "marches financiers",
+    "trading automatise",
   ],
   authors: [{ name: "Purama" }],
   creator: "Purama",
@@ -63,9 +63,9 @@ export const metadata: Metadata = {
     locale: "fr_FR",
     url: "https://midas.purama.dev",
     siteName: "MIDAS",
-    title: "MIDAS - Trading IA | Analyse de march\u00e9s en temps r\u00e9el",
+    title: "MIDAS - Trading IA | Analyse de marches en temps reel",
     description:
-      "Assistant de trading IA : analyse technique, signaux en temps r\u00e9el, gestion de portefeuille et strat\u00e9gies automatis\u00e9es.",
+      "Assistant de trading IA : analyse technique, signaux en temps reel, gestion de portefeuille et strategies automatisees.",
     images: [
       {
         url: "/api/og",
@@ -79,7 +79,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "MIDAS - Trading IA",
     description:
-      "Assistant de trading IA : analyse technique, signaux en temps r\u00e9el et strat\u00e9gies automatis\u00e9es.",
+      "Assistant de trading IA : analyse technique, signaux en temps reel et strategies automatisees.",
     images: ["/api/og"],
   },
   robots: {

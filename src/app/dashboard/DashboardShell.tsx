@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import BottomNav from '@/components/layout/BottomNav';
 import Header from '@/components/layout/Header';
+import ChatModal from '@/components/chat/ChatModal';
 import DisclaimerBanner from '@/components/shared/DisclaimerBanner';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -21,8 +22,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const handleOpenChat = () => {
     setChatOpen((prev) => !prev);
   };
-
-  void chatOpen;
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] text-white flex" data-testid="dashboard-layout">
@@ -43,6 +42,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
       {/* Bottom nav — mobile only */}
       <BottomNav />
+
+      {/* Chat modal — accessible from every dashboard page */}
+      <ChatModal isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+
       <DisclaimerBanner />
     </div>
   );

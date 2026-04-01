@@ -41,8 +41,8 @@ const SAMPLE_CONVERSATIONS: ConversationItem[] = [
   },
   {
     id: 'conv-2',
-    title: 'Strat\u00e9gie ETH Grid',
-    lastMessage: 'Pour une strat\u00e9gie grid sur ETH...',
+    title: 'Strategie ETH Grid',
+    lastMessage: 'Pour une strategie grid sur ETH...',
     date: '28 mars',
     messageCount: 8,
   },
@@ -59,7 +59,7 @@ const SAMPLE_MESSAGES: ChatMessage[] = [
   {
     id: 'msg-1',
     role: 'user',
-    content: 'Analyse BTC pour la semaine prochaine. Quels sont les niveaux cl\u00e9s \u00e0 surveiller ?',
+    content: 'Analyse BTC pour la semaine prochaine. Quels sont les niveaux cles a surveiller ?',
     timestamp: '14:32',
   },
   {
@@ -67,26 +67,26 @@ const SAMPLE_MESSAGES: ChatMessage[] = [
     role: 'assistant',
     content: `**Analyse BTC/USDT \u2014 Semaine du 30 mars 2026**
 
-**Tendance g\u00e9n\u00e9rale :** Hausse progressive depuis le 15 mars avec un momentum positif. Le RSI 14 est \u00e0 62, pas encore en surachat.
+**Tendance generale :** Hausse progressive depuis le 15 mars avec un momentum positif. Le RSI 14 est a 62, pas encore en surachat.
 
-**Niveaux cl\u00e9s :**
-- **Support majeur :** 84\u2009200 $ (MA 50 + ancien sommet)
-- **Support secondaire :** 82\u2009800 $ (fibonacci 0.618)
-- **R\u00e9sistance 1 :** 88\u2009500 $ (plus haut mensuel)
-- **R\u00e9sistance 2 :** 91\u2009000 $ (zone psychologique)
+**Niveaux cles :**
+- **Support majeur :** 84 200 $ (MA 50 + ancien sommet)
+- **Support secondaire :** 82 800 $ (fibonacci 0.618)
+- **Resistance 1 :** 88 500 $ (plus haut mensuel)
+- **Resistance 2 :** 91 000 $ (zone psychologique)
 
-**Signal IA MIDAS :** \ud83d\udfe2 **Achat mod\u00e9r\u00e9** \u2014 entr\u00e9e optimale entre 85\u2009000\u2009$ et 85\u2009800\u2009$ avec SL \u00e0 83\u2009500\u2009$ et TP \u00e0 88\u2009500\u2009$.
+**Signal IA MIDAS :** \ud83d\udfe2 **Achat modere** \u2014 entree optimale entre 85 000 $ et 85 800 $ avec SL a 83 500 $ et TP a 88 500 $.
 
-**Volume :** En hausse de +18% sur 7 jours, confirmant l\u2019int\u00e9r\u00eat acheteur.
+**Volume :** En hausse de +18% sur 7 jours, confirmant l'interet acheteur.
 
-\u26a0\ufe0f *Ceci n\u2019est pas un conseil financier. Fais toujours tes propres recherches.*`,
+\u26a0\ufe0f *Ceci n'est pas un conseil financier. Fais toujours tes propres recherches.*`,
     timestamp: '14:33',
   },
 ];
 
 const SUGGESTED_QUESTIONS = [
   'Analyse technique ETH cette semaine',
-  'Quelle strat\u00e9gie pour un march\u00e9 lat\u00e9ral ?',
+  'Quelle strategie pour un marche lateral ?',
   'Compare DCA vs Grid Trading',
   'Meilleur moment pour acheter SOL ?',
 ];
@@ -124,7 +124,7 @@ export default function ChatPage() {
         id: `msg-${Date.now() + 1}`,
         role: 'assistant',
         content:
-          'Je suis MIDAS, ton assistant trading IA. Cette r\u00e9ponse est un exemple de d\u00e9monstration. En production, je t\u2019apporterais une analyse d\u00e9taill\u00e9e avec des donn\u00e9es de march\u00e9 en temps r\u00e9el, des niveaux techniques et des recommandations personnalis\u00e9es.',
+          "Je suis MIDAS, ton assistant trading IA. Cette reponse est un exemple de demonstration. En production, je t'apporterais une analyse detaillee avec des donnees de marche en temps reel, des niveaux techniques et des recommandations personnalisees.",
         timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, aiMessage]);
@@ -347,7 +347,7 @@ export default function ChatPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Pose une question sur le march\u00e9..."
+                placeholder="Pose une question sur le marche..."
                 rows={1}
                 className="w-full min-h-[44px] max-h-32 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.03] text-sm text-white placeholder:text-white/20 outline-none resize-none transition-all duration-200 hover:border-white/[0.12] focus:border-[#FFD700]/50 focus:shadow-[0_0_12px_rgba(255,215,0,0.15)]"
                 data-testid="chat-input"

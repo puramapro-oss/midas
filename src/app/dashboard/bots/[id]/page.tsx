@@ -334,7 +334,7 @@ export default function BotDetailPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/[0.04]">
-                {['Date', 'Side', 'Entr\u00e9e', 'Sortie', 'Quantit\u00e9', 'P&L', 'Dur\u00e9e'].map(
+                {['Date', 'Side', 'Entree', 'Sortie', 'Quantite', 'P&L', 'Duree'].map(
                   (header) => (
                     <th
                       key={header}

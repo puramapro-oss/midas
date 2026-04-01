@@ -46,7 +46,7 @@ export const PLANS: Record<MidasPlan, PlanConfig> = {
     },
     features: [
       'Questions IA illimitees',
-      '2 trades automatiques par jour',
+      '30 trades automatiques par jour',
       '2 exchanges connectes',
       '5 positions simultanees',
       'Backtest 12 mois',
@@ -55,7 +55,7 @@ export const PLANS: Record<MidasPlan, PlanConfig> = {
     ],
     limits: {
       dailyQuestions: 999999,
-      dailyTrades: 2,
+      dailyTrades: 30,
       maxExchanges: 2,
       maxPositions: 5,
       backtestMonths: 12,

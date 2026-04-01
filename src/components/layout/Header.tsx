@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { MessageSquare } from 'lucide-react';
 import MidasLogo from './MidasLogo';
 import UserMenu from './UserMenu';
@@ -53,9 +54,9 @@ export default function Header({ profile, onSignOut, onOpenChat }: HeaderProps) 
     >
       {/* Left: logo on mobile */}
       <div className="flex items-center gap-4">
-        <div className="md:hidden">
-          <MidasLogo size="sm" glow data-testid="header-logo" />
-        </div>
+        <Link href="/dashboard" className="md:hidden" data-testid="header-logo">
+          <MidasLogo size="sm" glow />
+        </Link>
         <div className="flex items-center gap-2.5">
           <PulseDot color="green" label="LIVE" />
           <LiveClock />

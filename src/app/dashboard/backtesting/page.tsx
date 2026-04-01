@@ -206,13 +206,13 @@ export default function BacktestingPage() {
             onChange={setPair}
           />
           <Select
-            label="P\u00e9riode"
+            label="Periode"
             options={periodOptions}
             value={period}
             onChange={setPeriod}
           />
           <Select
-            label="Strat\u00e9gie"
+            label="Strategie"
             options={strategyOptions}
             value={strategy}
             onChange={setStrategy}

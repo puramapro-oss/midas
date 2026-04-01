@@ -27,7 +27,7 @@ const kpis = [
     label: 'MRR Estime',
     icon: DollarSign,
     format: (v: number) => `${v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-    suffix: '\u00A0\u20AC',
+    suffix: ' EUR',
   },
   {
     key: 'tradesToday' as const,

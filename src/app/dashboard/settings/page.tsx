@@ -35,12 +35,12 @@ const TABS = [
   { id: 'trading', label: 'Trading', icon: <TrendingUp className="h-4 w-4" /> },
   { id: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
   { id: 'interface', label: 'Interface', icon: <Palette className="h-4 w-4" /> },
-  { id: 'donnees', label: 'Donn\u00e9es', icon: <Database className="h-4 w-4" /> },
+  { id: 'donnees', label: 'Donnees', icon: <Database className="h-4 w-4" /> },
 ];
 
 const riskOptions = [
   { value: 'conservative', label: 'Conservateur' },
-  { value: 'moderate', label: 'Mod\u00e9r\u00e9' },
+  { value: 'moderate', label: 'Modere' },
   { value: 'aggressive', label: 'Agressif' },
 ];
 
@@ -52,7 +52,7 @@ const timezoneOptions = [
 ];
 
 const languageOptions = [
-  { value: 'fr', label: 'Fran\u00e7ais' },
+  { value: 'fr', label: 'Francais' },
   { value: 'en', label: 'English' },
 ];
 
@@ -63,7 +63,7 @@ export default function SettingsPage() {
   // Profil state
   const [fullName, setFullName] = useState('Tissma');
   const [email] = useState('matiss.frasne@gmail.com');
-  const [bio, setBio] = useState('Trader passionn\u00e9 depuis 2020');
+  const [bio, setBio] = useState('Trader passionne depuis 2020');
 
   // Trading state
   const [riskProfile, setRiskProfile] = useState('moderate');
@@ -175,7 +175,7 @@ export default function SettingsPage() {
             />
 
             <Slider
-              label="Stop Loss par d\u00e9faut"
+              label="Stop Loss par defaut"
               min={1}
               max={15}
               step={0.5}
@@ -185,7 +185,7 @@ export default function SettingsPage() {
             />
 
             <Slider
-              label="Take Profit par d\u00e9faut"
+              label="Take Profit par defaut"
               min={1}
               max={30}
               step={0.5}
@@ -195,7 +195,7 @@ export default function SettingsPage() {
             />
 
             <Slider
-              label="Perte journali\u00e8re max"
+              label="Perte journaliere max"
               min={1}
               max={20}
               step={0.5}
@@ -209,7 +209,7 @@ export default function SettingsPage() {
                 checked={autoTrade}
                 onChange={setAutoTrade}
                 label="Trading automatique"
-                description="Autorise les bots \u00e0 ex\u00e9cuter des trades"
+                description="Autorise les bots a executer des trades"
               />
               <Toggle
                 checked={shieldActive}
@@ -258,26 +258,26 @@ export default function SettingsPage() {
                 <Toggle
                   checked={notifTrades}
                   onChange={setNotifTrades}
-                  label="Ex\u00e9cution de trades"
+                  label="Execution de trades"
                   description="Quand un bot ouvre ou ferme une position"
                 />
                 <Toggle
                   checked={notifSignals}
                   onChange={setNotifSignals}
                   label="Nouveaux signaux"
-                  description="Quand l\u2019IA d\u00e9tecte une opportunit\u00e9"
+                  description="Quand l'IA detecte une opportunite"
                 />
                 <Toggle
                   checked={notifPnl}
                   onChange={setNotifPnl}
-                  label="R\u00e9cap P&L quotidien"
-                  description="R\u00e9sum\u00e9 de ta performance chaque soir"
+                  label="Recap P&L quotidien"
+                  description="Resume de ta performance chaque soir"
                 />
                 <Toggle
                   checked={notifNews}
                   onChange={setNotifNews}
-                  label="Actualit\u00e9s march\u00e9"
-                  description="\u00c9v\u00e9nements importants du march\u00e9 crypto"
+                  label="Actualites marche"
+                  description="Evenements importants du marche crypto"
                 />
               </div>
             </div>
@@ -336,13 +336,13 @@ export default function SettingsPage() {
                 checked={compactMode}
                 onChange={setCompactMode}
                 label="Mode compact"
-                description="R\u00e9duit l\u2019espacement pour afficher plus de donn\u00e9es"
+                description="Reduit l'espacement pour afficher plus de donnees"
               />
               <Toggle
                 checked={animations}
                 onChange={setAnimations}
                 label="Animations"
-                description="Active les animations de l\u2019interface"
+                description="Active les animations de l'interface"
               />
               <Toggle
                 checked={sounds}
