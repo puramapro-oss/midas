@@ -8,7 +8,7 @@ import { analyzeOnChain } from '@/lib/agents/onchain-agent';
 import { analyzeCalendar } from '@/lib/agents/calendar-agent';
 import { analyzeTechnical } from '@/lib/agents/technical-agent';
 import { analyzePatterns } from '@/lib/agents/pattern-agent';
-import { publishHeartbeat } from '@/lib/agents/agent-bus';
+import { publishHeartbeat, publishSignal, type AgentName as BusAgentName } from '@/lib/agents/agent-bus';
 import { fetchKlines } from '@/lib/exchange/binance-public';
 import type { AgentResult, Candle } from '@/lib/agents/types';
 
@@ -116,6 +116,30 @@ export async function POST(req: NextRequest) {
             data: {},
             timestamp: new Date(),
           },
+    );
+
+    // Publish heartbeats + signals for ALL agents (even those that don't self-publish)
+    await Promise.all(
+      results.map(async (r, i) => {
+        const status = settled[i].status === 'fulfilled' ? 'running' : 'error';
+        const name = (labels[i] as BusAgentName) ?? 'master';
+        await publishHeartbeat({
+          name,
+          status,
+          last_beat_ms: Date.now(),
+          last_error: settled[i].status === 'rejected' ? String((settled[i] as PromiseRejectedResult).reason) : null,
+          metrics: { score: r.score, confidence: r.confidence },
+        });
+        await publishSignal({
+          agent: name,
+          type: `${r.agent_name}_signal`,
+          symbol: pair,
+          direction: r.signal,
+          confidence: r.confidence,
+          reasoning: r.reasoning.slice(0, 200),
+          ts: Date.now(),
+        });
+      }),
     );
 
     const consensus = computeConsensus(results);
