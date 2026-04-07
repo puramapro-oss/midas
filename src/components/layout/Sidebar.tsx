@@ -19,6 +19,11 @@ import {
   PieChart,
   Bell,
   Trophy,
+  Gift,
+  Wallet,
+  BookOpen,
+  Handshake,
+  Coins,
 } from 'lucide-react';
 import MidasLogo from './MidasLogo';
 
@@ -31,11 +36,18 @@ const navItems = [
   { label: 'Mes Bots', icon: Bot, href: '/dashboard/bots', testId: 'sidebar-bots' },
   { label: 'Alertes', icon: Bell, href: '/dashboard/alerts', testId: 'sidebar-alerts' },
   { label: 'Leaderboard', icon: Trophy, href: '/dashboard/leaderboard', testId: 'sidebar-leaderboard' },
+  { label: 'Paper Trading', icon: FlaskConical, href: '/dashboard/paper', testId: 'sidebar-paper' },
+  { label: 'Earn', icon: Coins, href: '/dashboard/earn', testId: 'sidebar-earn' },
   { label: 'Backtesting', icon: FlaskConical, href: '/dashboard/backtesting', testId: 'sidebar-backtesting' },
   { label: 'Chat IA', icon: MessageSquare, href: '/dashboard/chat', testId: 'sidebar-chat' },
+  { label: 'Parrainage', icon: Gift, href: '/dashboard/referral', testId: 'sidebar-referral' },
+  { label: 'Classement', icon: Trophy, href: '/dashboard/classement', testId: 'sidebar-classement' },
+  { label: 'Wallet', icon: Wallet, href: '/dashboard/wallet', testId: 'sidebar-wallet' },
+  { label: 'Partenariat', icon: Handshake, href: '/dashboard/partenaire', testId: 'sidebar-partenaire' },
 ];
 
 const bottomItems = [
+  { label: 'Guide', icon: BookOpen, href: '/dashboard/guide', testId: 'sidebar-guide' },
   { label: 'Aide', icon: HelpCircle, href: '/dashboard/help', testId: 'sidebar-help' },
   { label: 'Paramètres', icon: Settings, href: '/dashboard/settings', testId: 'sidebar-settings' },
 ];
