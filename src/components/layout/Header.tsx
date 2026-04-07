@@ -5,12 +5,12 @@ import Link from 'next/link';
 import { MessageSquare } from 'lucide-react';
 import MidasLogo from './MidasLogo';
 import UserMenu from './UserMenu';
+import NotificationBell from './NotificationBell';
 import PulseDot from '@/components/shared/PulseDot';
 import type { Profile } from '@/types/database';
 
 interface HeaderProps {
   profile: Profile | null;
-  onSignOut: () => void;
   onOpenChat: () => void;
 }
 
@@ -46,7 +46,7 @@ function LiveClock() {
   );
 }
 
-export default function Header({ profile, onSignOut, onOpenChat }: HeaderProps) {
+export default function Header({ profile, onOpenChat }: HeaderProps) {
   return (
     <header
       className="sticky top-0 z-30 h-16 flex items-center justify-between px-4 md:px-6 bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-[var(--border-subtle)]"
@@ -73,7 +73,8 @@ export default function Header({ profile, onSignOut, onOpenChat }: HeaderProps) 
           <MessageSquare className="w-4 h-4" />
           <span className="hidden sm:inline">Assistant IA</span>
         </button>
-        <UserMenu profile={profile} onSignOut={onSignOut} />
+        <NotificationBell />
+        <UserMenu profile={profile} />
       </div>
     </header>
   );

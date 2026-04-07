@@ -75,6 +75,11 @@ export default function TaxPage() {
     URL.revokeObjectURL(url);
   };
 
+  const downloadPdf = () => {
+    if (!report) return;
+    window.location.href = `/api/tax/${report.year}/pdf`;
+  };
+
   return (
     <div className="space-y-6 p-4 md:p-6" data-testid="tax-page">
       <motion.div
@@ -115,11 +120,20 @@ export default function TaxPage() {
           <button
             onClick={downloadJson}
             disabled={!report}
-            data-testid="tax-download"
-            className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl text-amber-300 transition disabled:opacity-50"
+            data-testid="tax-download-json"
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white/80 transition disabled:opacity-50"
           >
             <Download className="size-4" />
-            Export JSON
+            JSON
+          </button>
+          <button
+            onClick={downloadPdf}
+            disabled={!report}
+            data-testid="tax-download-pdf"
+            className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-xl transition disabled:opacity-50"
+          >
+            <Download className="size-4" />
+            PDF Cerfa 2086
           </button>
         </div>
       </motion.div>
