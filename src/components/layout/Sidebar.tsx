@@ -24,6 +24,7 @@ import {
   BookOpen,
   Handshake,
   Coins,
+  FileText,
 } from 'lucide-react';
 import MidasLogo from './MidasLogo';
 
@@ -33,6 +34,7 @@ const navItems = [
   { label: 'Marchés', icon: TrendingUp, href: '/dashboard/markets', testId: 'sidebar-markets' },
   { label: 'Portfolio', icon: PieChart, href: '/dashboard/portfolio', testId: 'sidebar-portfolio' },
   { label: 'Signaux', icon: Signal, href: '/dashboard/signals', testId: 'sidebar-signals' },
+  { label: 'Agents IA', icon: Bot, href: '/dashboard/agents', testId: 'sidebar-agents' },
   { label: 'Mes Bots', icon: Bot, href: '/dashboard/bots', testId: 'sidebar-bots' },
   { label: 'Alertes', icon: Bell, href: '/dashboard/alerts', testId: 'sidebar-alerts' },
   { label: 'Leaderboard', icon: Trophy, href: '/dashboard/leaderboard', testId: 'sidebar-leaderboard' },
@@ -43,6 +45,7 @@ const navItems = [
   { label: 'Parrainage', icon: Gift, href: '/dashboard/referral', testId: 'sidebar-referral' },
   { label: 'Classement', icon: Trophy, href: '/dashboard/classement', testId: 'sidebar-classement' },
   { label: 'Wallet', icon: Wallet, href: '/dashboard/wallet', testId: 'sidebar-wallet' },
+  { label: 'Fiscalité', icon: FileText, href: '/dashboard/tax', testId: 'sidebar-tax' },
   { label: 'Partenariat', icon: Handshake, href: '/dashboard/partenaire', testId: 'sidebar-partenaire' },
 ];
 
