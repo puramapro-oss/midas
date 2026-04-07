@@ -5,13 +5,13 @@
 // =============================================================================
 
 export interface TaxTradeRow {
-  symbol: string;
+  pair: string;
   side: string;
   entry_price: number | null;
   exit_price: number | null;
-  quantity: number | null;
-  pnl_usd: number | null;
-  fees_usd?: number | null;
+  amount: number | null;
+  pnl: number | null;
+  fee?: number | null;
   status: string | null;
   created_at: string;
   closed_at?: string | null;
@@ -62,8 +62,8 @@ export function computeFrTaxReport(year: number, trades: TaxTradeRow[]): FrTaxRe
   const pairMap = new Map<string, { trades: number; net: number }>();
 
   for (const t of closedThisYear) {
-    const pnl = Number(t.pnl_usd ?? 0);
-    const qty = Number(t.quantity ?? 0);
+    const pnl = Number(t.pnl ?? 0);
+    const qty = Number(t.amount ?? 0);
     const entry = Number(t.entry_price ?? 0);
     const exit = Number(t.exit_price ?? 0);
 
@@ -82,10 +82,10 @@ export function computeFrTaxReport(year: number, trades: TaxTradeRow[]): FrTaxRe
     monthlyMap.set(monthKey, m);
 
     // By pair
-    const p = pairMap.get(t.symbol) ?? { trades: 0, net: 0 };
+    const p = pairMap.get(t.pair) ?? { trades: 0, net: 0 };
     p.trades += 1;
     p.net += pnl;
-    pairMap.set(t.symbol, p);
+    pairMap.set(t.pair, p);
   }
 
   const totalGainsEur = totalGainsUsd * USD_EUR_RATE;

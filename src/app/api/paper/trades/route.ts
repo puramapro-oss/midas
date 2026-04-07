@@ -35,7 +35,7 @@ export async function GET() {
       .from('trades')
       .select('*')
       .eq('user_id', user.id)
-      .eq('is_paper', true)
+      .eq('is_paper_trade', true)
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -45,9 +45,9 @@ export async function GET() {
 
     const list = trades ?? [];
     const closed = list.filter((t) => t.status === 'closed');
-    const wins = closed.filter((t) => Number(t.pnl_usd ?? t.pnl ?? 0) > 0).length;
-    const losses = closed.filter((t) => Number(t.pnl_usd ?? t.pnl ?? 0) < 0).length;
-    const totalPnl = closed.reduce((s, t) => s + Number(t.pnl_usd ?? t.pnl ?? 0), 0);
+    const wins = closed.filter((t) => Number(t.pnl ?? 0) > 0).length;
+    const losses = closed.filter((t) => Number(t.pnl ?? 0) < 0).length;
+    const totalPnl = closed.reduce((s, t) => s + Number(t.pnl ?? 0), 0);
     const open = list.filter((t) => t.status === 'open').length;
 
     return NextResponse.json({

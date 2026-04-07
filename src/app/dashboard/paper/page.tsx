@@ -8,16 +8,15 @@ import Badge from '@/components/ui/Badge';
 
 interface PaperTrade {
   id: string;
-  symbol: string;
+  pair: string;
   side: 'buy' | 'sell';
-  entry_price: number;
+  entry_price: number | null;
   exit_price: number | null;
-  quantity: number;
-  pnl_usd: number | null;
-  pnl_pct: number | null;
+  amount: number | null;
+  pnl: number | null;
+  pnl_percent: number | null;
   status: 'open' | 'closed' | 'cancelled';
   strategy: string | null;
-  confidence: number | null;
   created_at: string;
   closed_at: string | null;
 }
@@ -193,10 +192,10 @@ export default function PaperTradingPage() {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {trades.map((t) => {
-                  const pnl = Number(t.pnl_usd ?? 0);
+                  const pnl = Number(t.pnl ?? 0);
                   return (
                     <tr key={t.id} className="hover:bg-white/[0.02] transition">
-                      <td className="px-4 py-3 font-semibold text-white">{t.symbol}</td>
+                      <td className="px-4 py-3 font-semibold text-white">{t.pair}</td>
                       <td className="px-4 py-3">
                         {t.side === 'buy' ? (
                           <Badge variant="success">

@@ -10,12 +10,12 @@ import { publishHeartbeat, publishSignal } from './agent-bus';
 
 interface TradeRow {
   id: string;
-  symbol: string;
+  pair: string;
   strategy: string | null;
-  pnl_usd: number | null;
+  pnl: number | null;
   status: string | null;
   created_at: string;
-  is_paper: boolean | null;
+  is_paper_trade: boolean | null;
 }
 
 /**
@@ -33,8 +33,8 @@ export async function analyzeMemory(pair: string): Promise<AgentResult> {
     const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
     const { data, error } = await supabase
       .from('trades')
-      .select('id, symbol, strategy, pnl_usd, status, created_at, is_paper')
-      .eq('symbol', pair)
+      .select('id, pair, strategy, pnl, status, created_at, is_paper_trade')
+      .eq('pair', pair)
       .eq('status', 'closed')
       .gte('created_at', since)
       .limit(500);
@@ -56,11 +56,11 @@ export async function analyzeMemory(pair: string): Promise<AgentResult> {
         : `Aucun trade historique sur ${pair} (90j) — pas de pattern à exploiter`,
     );
   } else {
-    const wins = trades.filter((t) => Number(t.pnl_usd ?? 0) > 0).length;
-    const losses = trades.filter((t) => Number(t.pnl_usd ?? 0) < 0).length;
+    const wins = trades.filter((t) => Number(t.pnl ?? 0) > 0).length;
+    const losses = trades.filter((t) => Number(t.pnl ?? 0) < 0).length;
     const total = wins + losses;
     const winrate = total > 0 ? wins / total : 0;
-    const totalPnl = trades.reduce((s, t) => s + Number(t.pnl_usd ?? 0), 0);
+    const totalPnl = trades.reduce((s, t) => s + Number(t.pnl ?? 0), 0);
 
     reasons.push(
       `${trades.length} trades sur ${pair} (90j), winrate ${(winrate * 100).toFixed(0)}%, P&L cumulé ${totalPnl.toFixed(2)}$`,

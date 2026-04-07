@@ -46,9 +46,9 @@ export async function GET(
 
     const { data: trades, error } = await supabase
       .from('trades')
-      .select('id, symbol, side, entry_price, exit_price, quantity, pnl_usd, fees, status, created_at, closed_at, is_paper')
+      .select('id, pair, side, entry_price, exit_price, amount, pnl, fee, status, created_at, closed_at, is_paper_trade')
       .eq('user_id', user.id)
-      .or(`is_paper.is.null,is_paper.eq.false`)
+      .or(`is_paper_trade.is.null,is_paper_trade.eq.false`)
       .gte('created_at', yearStart)
       .lt('created_at', yearEnd)
       .limit(5000);
@@ -58,13 +58,13 @@ export async function GET(
     }
 
     const rows: TaxTradeRow[] = (trades ?? []).map((t) => ({
-      symbol: t.symbol,
+      pair: t.pair,
       side: t.side,
       entry_price: t.entry_price,
       exit_price: t.exit_price,
-      quantity: t.quantity,
-      pnl_usd: t.pnl_usd,
-      fees_usd: t.fees,
+      amount: t.amount,
+      pnl: t.pnl,
+      fee: t.fee,
       status: t.status,
       created_at: t.created_at,
       closed_at: t.closed_at,
