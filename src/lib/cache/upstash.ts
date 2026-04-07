@@ -2,9 +2,25 @@ import { Redis } from '@upstash/redis';
 
 const PREFIX = 'midas:';
 
-export const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+let _redis: Redis | null = null;
+function getRedis(): Redis {
+  if (_redis) return _redis;
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+  if (!url || !token || !url.startsWith('https://')) {
+    throw new Error('Upstash Redis env vars missing or invalid');
+  }
+  _redis = new Redis({ url, token });
+  return _redis;
+}
+
+// Proxy that lazy-instantiates the client only on first method call
+export const redis = new Proxy({} as Redis, {
+  get(_target, prop: string) {
+    const client = getRedis() as unknown as Record<string, unknown>;
+    const value = client[prop];
+    return typeof value === 'function' ? value.bind(client) : value;
+  },
 });
 
 function prefixKey(key: string): string {
