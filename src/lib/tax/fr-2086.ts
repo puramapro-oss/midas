@@ -9,9 +9,9 @@ export interface TaxTradeRow {
   side: string;
   entry_price: number | null;
   exit_price: number | null;
-  amount: number | null;
+  quantity: number | null;
   pnl: number | null;
-  fee?: number | null;
+  fees?: number | null;
   status: string | null;
   created_at: string;
   closed_at?: string | null;
@@ -63,7 +63,7 @@ export function computeFrTaxReport(year: number, trades: TaxTradeRow[]): FrTaxRe
 
   for (const t of closedThisYear) {
     const pnl = Number(t.pnl ?? 0);
-    const qty = Number(t.amount ?? 0);
+    const qty = Number(t.quantity ?? 0);
     const entry = Number(t.entry_price ?? 0);
     const exit = Number(t.exit_price ?? 0);
 

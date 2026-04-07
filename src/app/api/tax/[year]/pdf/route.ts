@@ -10,7 +10,7 @@ async function getAuthClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      db: { schema: 'midas' },
+      // public schema
       cookies: {
         getAll() { return cookieStore.getAll(); },
         setAll(cookiesToSet) {
@@ -47,11 +47,11 @@ export async function GET(
 
     const { data: trades, error } = await supabase
       .from('trades')
-      .select('id, pair, side, entry_price, exit_price, amount, pnl, fee, status, created_at, closed_at, is_paper_trade')
+      .select('id, pair, side, entry_price, exit_price, quantity, pnl, fees, status, opened_at, closed_at, is_paper_trade')
       .eq('user_id', user.id)
       .or(`is_paper_trade.is.null,is_paper_trade.eq.false`)
-      .gte('created_at', yearStart)
-      .lt('created_at', yearEnd)
+      .gte('opened_at', yearStart)
+      .lt('opened_at', yearEnd)
       .limit(5000);
 
     if (error) {
@@ -63,11 +63,11 @@ export async function GET(
       side: t.side,
       entry_price: t.entry_price,
       exit_price: t.exit_price,
-      amount: t.amount,
+      quantity: t.quantity,
       pnl: t.pnl,
-      fee: t.fee,
+      fees: t.fees,
       status: t.status,
-      created_at: t.created_at,
+      created_at: t.opened_at,
       closed_at: t.closed_at,
     }));
 

@@ -8,7 +8,7 @@ async function getAuthClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      db: { schema: 'midas' },
+      // public schema (live trades table since migration 5704dc9)
       cookies: {
         getAll() { return cookieStore.getAll(); },
         setAll(cookiesToSet) {

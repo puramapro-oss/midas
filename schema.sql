@@ -60,63 +60,93 @@ CREATE INDEX IF NOT EXISTS idx_signals_pair ON midas.signals(pair);
 CREATE INDEX IF NOT EXISTS idx_signals_status ON midas.signals(status);
 CREATE INDEX IF NOT EXISTS idx_signals_created ON midas.signals(created_at);
 
--- Trades executes (live DB schema — IMPORTANT: voir migration en bas du fichier)
+-- =============================================================================
+-- Trades executés (LIVE = public.trades depuis migration commit 5704dc9)
+-- midas.trades est legacy, conservé pour rétro-compat mais l'app ne l'utilise plus.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.trades (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  bot_id UUID,
+  exchange_connection_id UUID,
+  exchange TEXT,
+  pair TEXT NOT NULL,
+  side TEXT NOT NULL CHECK (side IN ('buy', 'sell', 'BUY', 'SELL')),
+  type TEXT DEFAULT 'market',
+  strategy TEXT,
+  is_paper_trade BOOLEAN DEFAULT false,
+  entry_price DECIMAL(20,8),
+  current_price DECIMAL(20,8),
+  exit_price DECIMAL(20,8),
+  quantity DECIMAL(20,8),
+  quote_amount DECIMAL(20,8),
+  stop_loss DECIMAL(20,8),
+  take_profit DECIMAL(20,8),
+  trailing_stop DECIMAL(20,8),
+  trailing_stop_activated BOOLEAN DEFAULT false,
+  pnl DECIMAL(20,8),
+  pnl_pct DECIMAL(10,4),
+  fees DECIMAL(20,8) DEFAULT 0,
+  status TEXT DEFAULT 'open' CHECK (status IN ('open', 'closed', 'cancelled')),
+  close_reason TEXT,
+  result TEXT,
+  composite_score DECIMAL(5,4),
+  technical_score DECIMAL(5,4),
+  sentiment_score DECIMAL(5,4),
+  onchain_score DECIMAL(5,4),
+  confidence DECIMAL(5,4),
+  risk_reward_ratio DECIMAL(8,4),
+  indicators_snapshot JSONB,
+  agent_results JSONB,
+  ai_reasoning TEXT,
+  exchange_order_id TEXT,
+  exchange_response JSONB,
+  opened_at TIMESTAMPTZ DEFAULT now(),
+  closed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_trades_user ON public.trades(user_id);
+CREATE INDEX IF NOT EXISTS idx_trades_pair ON public.trades(pair);
+CREATE INDEX IF NOT EXISTS idx_trades_status ON public.trades(status);
+CREATE INDEX IF NOT EXISTS idx_trades_paper ON public.trades(is_paper_trade);
+CREATE INDEX IF NOT EXISTS idx_trades_opened ON public.trades(opened_at);
+CREATE INDEX IF NOT EXISTS idx_trades_created ON public.trades(created_at);
+
+ALTER TABLE public.trades ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "trades_user_select" ON public.trades;
+CREATE POLICY "trades_user_select" ON public.trades
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "trades_user_insert" ON public.trades;
+CREATE POLICY "trades_user_insert" ON public.trades
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "trades_user_update" ON public.trades;
+CREATE POLICY "trades_user_update" ON public.trades
+  FOR UPDATE USING (auth.uid() = user_id);
+
+-- Legacy midas.trades (figée — ne plus utiliser, public.trades est la source)
 CREATE TABLE IF NOT EXISTS midas.trades (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   signal_id UUID REFERENCES midas.signals(id),
   pair TEXT NOT NULL,
-  side TEXT NOT NULL CHECK (side IN ('buy', 'sell', 'BUY', 'SELL')),
-  strategy TEXT,
+  direction TEXT,
   entry_price DECIMAL(20,8),
   exit_price DECIMAL(20,8),
-  amount DECIMAL(20,8),
-  stop_loss DECIMAL(20,8),
-  take_profit DECIMAL(20,8),
+  quantity DECIMAL(20,8),
   pnl DECIMAL(20,8),
   pnl_percent DECIMAL(10,4),
-  fee DECIMAL(20,8) DEFAULT 0,
-  status TEXT DEFAULT 'open' CHECK (status IN ('open', 'closed', 'cancelled')),
+  fees DECIMAL(20,8) DEFAULT 0,
+  status TEXT DEFAULT 'open',
   exchange TEXT,
-  exchange_connection_id UUID,
   exchange_order_id TEXT,
-  is_paper_trade BOOLEAN DEFAULT false,
-  bot_id UUID,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now(),
+  is_paper BOOLEAN DEFAULT false,
+  opened_at TIMESTAMPTZ DEFAULT now(),
   closed_at TIMESTAMPTZ
 );
-
-CREATE INDEX IF NOT EXISTS idx_trades_user ON midas.trades(user_id);
-CREATE INDEX IF NOT EXISTS idx_trades_pair ON midas.trades(pair);
-CREATE INDEX IF NOT EXISTS idx_trades_status ON midas.trades(status);
-CREATE INDEX IF NOT EXISTS idx_trades_paper ON midas.trades(is_paper_trade);
-CREATE INDEX IF NOT EXISTS idx_trades_created ON midas.trades(created_at);
-
--- Migration idempotente pour DB existantes (anciens noms de colonnes)
-DO $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.columns
-             WHERE table_schema='midas' AND table_name='trades' AND column_name='direction') THEN
-    ALTER TABLE midas.trades RENAME COLUMN direction TO side;
-  END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns
-             WHERE table_schema='midas' AND table_name='trades' AND column_name='quantity') THEN
-    ALTER TABLE midas.trades RENAME COLUMN quantity TO amount;
-  END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns
-             WHERE table_schema='midas' AND table_name='trades' AND column_name='fees') THEN
-    ALTER TABLE midas.trades RENAME COLUMN fees TO fee;
-  END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns
-             WHERE table_schema='midas' AND table_name='trades' AND column_name='is_paper') THEN
-    ALTER TABLE midas.trades RENAME COLUMN is_paper TO is_paper_trade;
-  END IF;
-  IF EXISTS (SELECT 1 FROM information_schema.columns
-             WHERE table_schema='midas' AND table_name='trades' AND column_name='opened_at') THEN
-    ALTER TABLE midas.trades RENAME COLUMN opened_at TO created_at;
-  END IF;
-END $$;
 
 -- Bot config par utilisateur
 CREATE TABLE IF NOT EXISTS midas.bot_config (

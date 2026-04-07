@@ -8,9 +8,11 @@ import { analyzeOnChain } from '@/lib/agents/onchain-agent';
 import { analyzeCalendar } from '@/lib/agents/calendar-agent';
 import { analyzeTechnical } from '@/lib/agents/technical-agent';
 import { analyzePatterns } from '@/lib/agents/pattern-agent';
+import { analyzeRisk } from '@/lib/agents/risk-agent';
+import { analyzeExecution } from '@/lib/agents/execution-agent';
 import { publishHeartbeat, publishSignal, type AgentName as BusAgentName } from '@/lib/agents/agent-bus';
-import { fetchKlines } from '@/lib/exchange/binance-public';
-import type { AgentResult, Candle } from '@/lib/agents/types';
+import { fetchKlinesWithSource } from '@/lib/exchange/binance-public';
+import type { AgentResult, Candle, MarketRegime } from '@/lib/agents/types';
 
 const ALL_AGENTS = [
   'macro',
@@ -21,6 +23,8 @@ const ALL_AGENTS = [
   'calendar',
   'technical',
   'pattern',
+  'risk',
+  'execution',
 ] as const;
 
 type AgentName = (typeof ALL_AGENTS)[number];
@@ -49,16 +53,26 @@ export async function POST(req: NextRequest) {
       metrics: { dispatch: requested.length },
     });
 
-    // Fetch candles only if a candle-based agent is requested
+    // Fetch candles si n'importe quel agent qui en a besoin est demandé
+    const needsCandles =
+      requested.includes('technical') ||
+      requested.includes('pattern') ||
+      requested.includes('risk') ||
+      requested.includes('execution');
+
     let candles: Candle[] = [];
-    if (requested.includes('technical') || requested.includes('pattern')) {
+    let candleSource = 'none';
+    if (needsCandles) {
       try {
-        candles = await fetchKlines(pair, interval, 200);
+        const result = await fetchKlinesWithSource(pair, interval, 200);
+        candles = result.candles;
+        candleSource = result.source;
         await publishHeartbeat({
           name: 'market_data',
-          status: 'running',
+          status: candles.length > 0 ? 'running' : 'error',
           last_beat_ms: Date.now(),
-          metrics: { candles: candles.length, interval },
+          last_error: candles.length === 0 ? 'no candles from any source' : null,
+          metrics: { candles: candles.length, interval, source: candleSource },
         });
       } catch (e) {
         await publishHeartbeat({
@@ -99,6 +113,47 @@ export async function POST(req: NextRequest) {
         case 'pattern':
           if (candles.length > 0) tasks.push(analyzePatterns(pair, candles));
           break;
+        case 'risk': {
+          if (candles.length > 0) {
+            const lastClose = candles[candles.length - 1].close;
+            tasks.push(
+              analyzeRisk({
+                pair,
+                action: 'buy',
+                entry_price: lastClose,
+                stop_loss: lastClose * 0.97,
+                take_profit: lastClose * 1.06,
+                position_size_pct: 2,
+                account_balance: 10_000,
+                current_drawdown_pct: 0,
+                open_positions: 0,
+                daily_trades_count: 0,
+                regime: 'ranging' as MarketRegime,
+                candles,
+                composite_score: 0.3,
+                confidence: 0.7,
+              }),
+            );
+          }
+          break;
+        }
+        case 'execution': {
+          if (candles.length > 0) {
+            const lastClose = candles[candles.length - 1].close;
+            tasks.push(
+              analyzeExecution({
+                pair,
+                action: 'buy',
+                entry_price: lastClose,
+                stop_loss: lastClose * 0.97,
+                take_profit: lastClose * 1.06,
+                position_size_usd: 200,
+                candles,
+              }),
+            );
+          }
+          break;
+        }
       }
       labels.push(a);
     }
@@ -149,6 +204,7 @@ export async function POST(req: NextRequest) {
       interval,
       agents_run: labels,
       candles_count: candles.length,
+      candles_source: candleSource,
       results,
       consensus,
       ts: Date.now(),
