@@ -38,7 +38,7 @@ const faqItems: FAQItem[] = [
   {
     question: 'Combien coute MIDAS ?',
     answer:
-      'MIDAS propose 3 plans. Le plan Free est gratuit pour toujours avec 5 questions par jour, le paper trading et 1 exchange connecte. Le plan Pro a 33€/mois (ou 22€/mois en annuel avec -33%) inclut le chat illimite, 2 trades automatiques par jour, le backtesting et le SHIELD complet. Le plan Ultra a 77€/mois (ou 52€/mois en annuel) offre les trades illimites, le whale tracking, le sentiment analysis et le support prioritaire. Vous pouvez commencer gratuitement et passer a un plan superieur a tout moment.',
+      'MIDAS propose 3 plans. Le plan Free est gratuit pour toujours avec 5 questions par jour, le paper trading et 1 exchange connecte. Le plan Pro a 39€/mois (ou 26€/mois en annuel avec -33%) inclut le chat illimite, 2 trades automatiques par jour, le backtesting et le SHIELD complet. Le plan Ultra a 79€/mois (ou 53€/mois en annuel) offre les trades illimites, le whale tracking, le sentiment analysis et le support prioritaire. Vous pouvez commencer gratuitement et passer a un plan superieur a tout moment.',
   },
   {
     question: 'Qu\'est-ce que le paper trading ?',
@@ -53,7 +53,7 @@ const faqItems: FAQItem[] = [
   {
     question: 'Comment fonctionne MIDAS SHIELD ?',
     answer:
-      'MIDAS SHIELD est notre systeme de protection avance qui veille sur vos positions 24h/24. Il comprend plusieurs couches de securite : des stop-loss intelligents qui s\'adaptent a la volatilite du marche, une detection d\'anomalies qui identifie les mouvements suspects avant les crashs, une gestion automatique du risque qui ajuste la taille de vos positions, et des alertes en temps reel sur votre telephone. Pendant le crash de fevrier 2026, le SHIELD a protege 94% des positions de nos utilisateurs Pro et Ultra.',
+      'MIDAS SHIELD est notre systeme de protection a 7 niveaux qui veille sur vos positions 24h/24. Il comprend des stop-loss dynamiques adaptes a la volatilite (ATR), un anti-drawdown qui reduit la taille des positions sous stress, une detection de flash crash qui liquide les positions en moins de 60 secondes, un cooldown automatique apres 3 pertes consecutives, une decorrelation de portefeuille (max 30% par secteur), un verrouillage d\'une partie du capital, et un kill switch total activable en un clic. Toutes les couches sont detaillees dans la section SHIELD de la landing.',
   },
   {
     question: 'Puis-je annuler mon abonnement a tout moment ?',

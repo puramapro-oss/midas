@@ -28,80 +28,9 @@ const signalBadgeVariant: Record<MarketPair['signal'], 'success' | 'warning' | '
   'Vente Forte': 'danger',
 }
 
-const SAMPLE_PAIRS: MarketPair[] = [
-  {
-    symbol: 'BTC/USDT',
-    name: 'Bitcoin',
-    price: 67234.50,
-    change24h: 2.3,
-    volume: '2.4B',
-    signal: 'Achat Fort',
-    sparklineData: [64200, 64800, 65100, 64900, 65800, 66200, 66000, 66800, 67100, 67234],
-  },
-  {
-    symbol: 'ETH/USDT',
-    name: 'Ethereum',
-    price: 3421.80,
-    change24h: -0.8,
-    volume: '1.1B',
-    signal: 'Neutre',
-    sparklineData: [3500, 3480, 3460, 3450, 3430, 3420, 3440, 3410, 3425, 3421],
-  },
-  {
-    symbol: 'SOL/USDT',
-    name: 'Solana',
-    price: 178.42,
-    change24h: 5.1,
-    volume: '890M',
-    signal: 'Achat Fort',
-    sparklineData: [162, 165, 168, 170, 169, 172, 174, 175, 177, 178],
-  },
-  {
-    symbol: 'BNB/USDT',
-    name: 'BNB',
-    price: 612.30,
-    change24h: 1.2,
-    volume: '520M',
-    signal: 'Achat',
-    sparklineData: [600, 602, 605, 603, 607, 608, 610, 609, 611, 612],
-  },
-  {
-    symbol: 'XRP/USDT',
-    name: 'Ripple',
-    price: 0.6234,
-    change24h: -2.4,
-    volume: '340M',
-    signal: 'Vente',
-    sparklineData: [0.65, 0.648, 0.645, 0.64, 0.638, 0.635, 0.632, 0.628, 0.625, 0.623],
-  },
-  {
-    symbol: 'ADA/USDT',
-    name: 'Cardano',
-    price: 0.4521,
-    change24h: 3.7,
-    volume: '280M',
-    signal: 'Achat',
-    sparklineData: [0.42, 0.425, 0.43, 0.428, 0.435, 0.44, 0.442, 0.448, 0.45, 0.452],
-  },
-  {
-    symbol: 'AVAX/USDT',
-    name: 'Avalanche',
-    price: 38.67,
-    change24h: -1.5,
-    volume: '210M',
-    signal: 'Neutre',
-    sparklineData: [40, 39.8, 39.5, 39.2, 39.0, 38.8, 39.1, 38.9, 38.7, 38.67],
-  },
-  {
-    symbol: 'DOGE/USDT',
-    name: 'Dogecoin',
-    price: 0.1823,
-    change24h: 8.2,
-    volume: '450M',
-    signal: 'Achat Fort',
-    sparklineData: [0.16, 0.162, 0.165, 0.168, 0.17, 0.172, 0.175, 0.178, 0.18, 0.182],
-  },
-]
+// Aucune donnée marché bidon : tant que l'API prix live n'est pas branchée
+// sur cette page, on affiche l'empty state plutôt que des chiffres inventés.
+const SAMPLE_PAIRS: MarketPair[] = []
 
 const filterTabs: { id: FilterTab; label: string }[] = [
   { id: 'all', label: 'Tous' },

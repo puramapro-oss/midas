@@ -42,13 +42,15 @@ interface AgentVote {
   icon: string
 }
 
+// Liste statique des 6 agents — aucune valeur numérique bidon.
+// Les votes et scores réels arriveront quand /api/ai/analyze sera câblé ici.
 const SAMPLE_AGENTS: AgentVote[] = [
-  { agent: 'technical', label: 'Technique', signal: 'BUY', confidence: 82, icon: '📊' },
-  { agent: 'sentiment', label: 'Sentiment', signal: 'BUY', confidence: 71, icon: '💭' },
-  { agent: 'onchain', label: 'On-Chain', signal: 'HOLD', confidence: 55, icon: '🔗' },
-  { agent: 'calendar', label: 'Calendrier', signal: 'BUY', confidence: 65, icon: '📅' },
-  { agent: 'pattern', label: 'Patterns', signal: 'BUY', confidence: 78, icon: '📐' },
-  { agent: 'risk', label: 'Risque', signal: 'BUY', confidence: 74, icon: '🛡' },
+  { agent: 'technical', label: 'Technique', signal: 'HOLD', confidence: 0, icon: '📊' },
+  { agent: 'sentiment', label: 'Sentiment', signal: 'HOLD', confidence: 0, icon: '💭' },
+  { agent: 'onchain', label: 'On-Chain', signal: 'HOLD', confidence: 0, icon: '🔗' },
+  { agent: 'calendar', label: 'Calendrier', signal: 'HOLD', confidence: 0, icon: '📅' },
+  { agent: 'pattern', label: 'Patterns', signal: 'HOLD', confidence: 0, icon: '📐' },
+  { agent: 'risk', label: 'Risque', signal: 'HOLD', confidence: 0, icon: '🛡' },
 ]
 
 interface CandleData {
@@ -60,30 +62,23 @@ interface CandleData {
   volume: number
 }
 
-function generateSampleCandles(count: number): CandleData[] {
-  const candles: CandleData[] = []
-  let price = 67000
-  const now = Math.floor(Date.now() / 1000)
-
-  for (let i = count; i > 0; i--) {
-    const open = price
-    const change = (Math.random() - 0.48) * 400
-    const close = open + change
-    const high = Math.max(open, close) + Math.random() * 200
-    const low = Math.min(open, close) - Math.random() * 200
-    const volume = 500 + Math.random() * 2000
-
-    candles.push({
-      time: now - i * 3600,
-      open,
-      high,
-      low,
-      close,
-      volume,
-    })
-    price = close
+async function fetchRealCandles(pair: string, timeframe: string): Promise<CandleData[]> {
+  const res = await fetch(
+    `/api/market/candles?pair=${encodeURIComponent(pair)}&timeframe=${timeframe}&limit=200`,
+    { cache: 'no-store' }
+  )
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const data = (await res.json()) as {
+    candles: Array<{ timestamp: number; open: number; high: number; low: number; close: number; volume: number }>
   }
-  return candles
+  return data.candles.map((c) => ({
+    time: Math.floor(c.timestamp / 1000),
+    open: c.open,
+    high: c.high,
+    low: c.low,
+    close: c.close,
+    volume: c.volume,
+  }))
 }
 
 function formatPrice(price: number): string {
@@ -111,14 +106,23 @@ export default function TradingPage() {
   const { prices } = useMarketStore()
   const currentPrice = prices[selectedPair]
 
-  // Generate sample data on mount
+  // Fetch real candles from Binance via /api/market/candles
   useEffect(() => {
+    let cancelled = false
     setLoading(true)
-    const timer = setTimeout(() => {
-      setCandles(generateSampleCandles(100))
-      setLoading(false)
-    }, 500)
-    return () => clearTimeout(timer)
+    fetchRealCandles(selectedPair, selectedTimeframe)
+      .then((data) => {
+        if (!cancelled) setCandles(data)
+      })
+      .catch(() => {
+        if (!cancelled) setCandles([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [selectedPair, selectedTimeframe])
 
   // Initialize lightweight-charts
@@ -374,51 +378,14 @@ export default function TradingPage() {
                 </button>
               </div>
 
-              {/* Signal badge */}
-              <div className="text-center mb-4">
-                <div
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border ${signalColors.BUY.bg} ${signalColors.BUY.border}`}
-                >
-                  <TrendingUp className="h-4 w-4 text-emerald-400" />
-                  <span className="text-lg font-bold text-emerald-400">BUY</span>
+              {/* Empty state — aucun signal tant que /api/ai/analyze n'a pas tourné */}
+              <div className="text-center py-4">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border bg-white/[0.04] border-white/[0.08] mb-3">
+                  <span className="text-sm font-semibold text-white/60">Aucun signal actif</span>
                 </div>
-                <div className="mt-2">
-                  <span
-                    className="text-2xl font-bold text-[#FFD700]"
-                    style={{ fontFamily: 'var(--font-jetbrains-mono)' }}
-                  >
-                    78%
-                  </span>
-                  <span className="text-xs text-white/40 ml-1">confiance</span>
-                </div>
-              </div>
-
-              {/* Key levels */}
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-white/40">Entry</span>
-                  <span className="text-[var(--text-primary)] font-medium" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
-                    $67,234
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/40">Stop Loss</span>
-                  <span className="text-red-400 font-medium" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
-                    $65,800
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/40">Take Profit</span>
-                  <span className="text-emerald-400 font-medium" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
-                    $70,500
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/40">R:R</span>
-                  <span className="text-[#FFD700] font-medium" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
-                    1:2.3
-                  </span>
-                </div>
+                <p className="text-xs text-white/40 leading-relaxed max-w-[220px] mx-auto">
+                  Clique sur rafraichir pour lancer une analyse IA complete sur {selectedPair}.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -505,62 +472,13 @@ export default function TradingPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full" data-testid="recent-signals-table">
-              <thead>
-                <tr className="border-b border-white/[0.06]">
-                  <th className="text-left text-[10px] font-medium text-white/30 uppercase tracking-wider pb-3">Paire</th>
-                  <th className="text-center text-[10px] font-medium text-white/30 uppercase tracking-wider pb-3">Signal</th>
-                  <th className="text-right text-[10px] font-medium text-white/30 uppercase tracking-wider pb-3">Entry</th>
-                  <th className="text-right text-[10px] font-medium text-white/30 uppercase tracking-wider pb-3">SL</th>
-                  <th className="text-right text-[10px] font-medium text-white/30 uppercase tracking-wider pb-3">TP</th>
-                  <th className="text-right text-[10px] font-medium text-white/30 uppercase tracking-wider pb-3">R:R</th>
-                  <th className="text-right text-[10px] font-medium text-white/30 uppercase tracking-wider pb-3">Confiance</th>
-                  <th className="text-right text-[10px] font-medium text-white/30 uppercase tracking-wider pb-3 hidden sm:table-cell">Heure</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  { pair: 'BTC/USDT', signal: 'BUY' as const, entry: '$67,234', sl: '$65,800', tp: '$70,500', rr: '1:2.3', confidence: 78, time: '14:32' },
-                  { pair: 'SOL/USDT', signal: 'BUY' as const, entry: '$178.40', sl: '$172.00', tp: '$190.00', rr: '1:1.8', confidence: 74, time: '14:15' },
-                  { pair: 'ETH/USDT', signal: 'HOLD' as const, entry: '-', sl: '-', tp: '-', rr: '-', confidence: 52, time: '14:00' },
-                  { pair: 'AVAX/USDT', signal: 'SELL' as const, entry: '$38.67', sl: '$40.20', tp: '$35.00', rr: '1:2.4', confidence: 68, time: '13:45' },
-                ].map((row, i) => {
-                  const colors = signalColors[row.signal]
-                  return (
-                    <motion.tr
-                      key={row.pair + i}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.05 }}
-                      className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors"
-                    >
-                      <td className="py-3 text-sm font-medium text-[var(--text-primary)]">{row.pair}</td>
-                      <td className="py-3 text-center">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${colors.bg} ${colors.text} ${colors.border}`}>
-                          {row.signal}
-                        </span>
-                      </td>
-                      <td className="py-3 text-right text-xs text-[var(--text-secondary)]" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>{row.entry}</td>
-                      <td className="py-3 text-right text-xs text-red-400/70" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>{row.sl}</td>
-                      <td className="py-3 text-right text-xs text-emerald-400/70" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>{row.tp}</td>
-                      <td className="py-3 text-right text-xs text-[#FFD700]/70" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>{row.rr}</td>
-                      <td className="py-3 text-right">
-                        <span
-                          className={`text-xs font-medium ${
-                            row.confidence >= 70 ? 'text-emerald-400' : row.confidence >= 60 ? 'text-[#FFD700]' : 'text-white/40'
-                          }`}
-                          style={{ fontFamily: 'var(--font-jetbrains-mono)' }}
-                        >
-                          {row.confidence}%
-                        </span>
-                      </td>
-                      <td className="py-3 text-right text-xs text-white/30 hidden sm:table-cell">{row.time}</td>
-                    </motion.tr>
-                  )
-                })}
-              </tbody>
-            </table>
+          {/* Empty state — aucun signal fabriqué, tout passera par /api/signals */}
+          <div className="py-10 text-center">
+            <Clock className="h-6 w-6 text-white/20 mx-auto mb-2" />
+            <p className="text-sm text-white/50">Aucun signal recent</p>
+            <p className="text-xs text-white/30 mt-1">
+              Les signaux generes par les 6 agents s&apos;afficheront ici des qu&apos;une analyse sera lancee.
+            </p>
           </div>
         </CardContent>
       </Card>

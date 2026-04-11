@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
@@ -12,6 +12,7 @@ import {
   BarChart3,
   Link2,
   AlertTriangle,
+  Loader2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
@@ -39,50 +40,10 @@ interface PairData {
   }
 }
 
-const SAMPLE_DATA: Record<string, PairData> = {
-  'btc-usdt': {
-    symbol: 'BTC/USDT',
-    displayName: 'Bitcoin / Tether',
-    price: 67234.50,
-    change24h: 2.3,
-    high24h: 67890.00,
-    low24h: 65120.00,
-    volume: '2.4B',
-    signal: 'Achat Fort',
-    signalColor: '#10B981',
-    reasoning:
-      'Le BTC montre une forte dynamique haussiere avec un support solide a 65 000$. Le RSI est a 62 (zone neutre-haussiere), le MACD vient de croiser positivement, et les volumes sont en augmentation de 34% par rapport a la moyenne 7 jours. La domination BTC est stable a 52%, soutenue par des flux institutionnels positifs. Les donnees on-chain montrent une accumulation par les whales avec une diminution des reserves sur les exchanges.',
-    scores: { composite: 78, technical: 82, sentiment: 71, onChain: 80 },
-  },
-  'eth-usdt': {
-    symbol: 'ETH/USDT',
-    displayName: 'Ethereum / Tether',
-    price: 3421.80,
-    change24h: -0.8,
-    high24h: 3480.00,
-    low24h: 3390.00,
-    volume: '1.1B',
-    signal: 'Neutre',
-    signalColor: '#F59E0B',
-    reasoning:
-      'L\'ETH consolide autour de 3 400$ apres une legere correction. Le RSI est a 48, zone neutre. Le ratio ETH/BTC est stable. Les volumes sont dans la moyenne. Les frais gas restent bas, suggerant une activite reseau moderee. Attente d\'un catalyseur pour une direction claire.',
-    scores: { composite: 52, technical: 48, sentiment: 55, onChain: 54 },
-  },
-  'sol-usdt': {
-    symbol: 'SOL/USDT',
-    displayName: 'Solana / Tether',
-    price: 178.42,
-    change24h: 5.1,
-    high24h: 180.50,
-    low24h: 168.20,
-    volume: '890M',
-    signal: 'Achat Fort',
-    signalColor: '#10B981',
-    reasoning:
-      'SOL affiche un momentum tres haussier avec une cassure du niveau 175$ confirme par des volumes importants. Le RSI est a 68, proche de la surachat mais avec de la marge. L\'ecosysteme Solana enregistre un ATH de TVL DeFi. Les metriques sociales sont tres positives.',
-    scores: { composite: 85, technical: 88, sentiment: 82, onChain: 84 },
-  },
-}
+// Aucune analyse fabriquée. Le prix live vient de /api/market/candles
+// (voir useEffect plus bas) et le raisonnement reste en empty state tant
+// que l'analyse IA n'a pas été déclenchée.
+const SAMPLE_DATA: Record<string, PairData> = {}
 
 const STRATEGIES = [
   { value: 'dca', label: 'DCA (Dollar Cost Averaging)' },
@@ -96,15 +57,16 @@ function getDefaultData(pairSlug: string): PairData {
   return {
     symbol: pairSlug.replace('-', '/').toUpperCase(),
     displayName: pairSlug.replace('-', ' / ').toUpperCase(),
-    price: 100.00,
+    price: 0,
     change24h: 0,
-    high24h: 105.00,
-    low24h: 95.00,
-    volume: '50M',
+    high24h: 0,
+    low24h: 0,
+    volume: '—',
     signal: 'Neutre',
     signalColor: '#F59E0B',
-    reasoning: 'Donnees insuffisantes pour une analyse complete. Connectez un exchange pour obtenir des donnees en temps reel.',
-    scores: { composite: 50, technical: 50, sentiment: 50, onChain: 50 },
+    reasoning:
+      'Aucune analyse disponible pour cette paire. Lance une analyse IA pour obtenir un avis detaille base sur les donnees marche live.',
+    scores: { composite: 0, technical: 0, sentiment: 0, onChain: 0 },
   }
 }
 
@@ -112,13 +74,127 @@ export default function PairAnalysisPage() {
   const params = useParams()
   const router = useRouter()
   const pairSlug = (params?.pair as string) ?? 'btc-usdt'
-  const data = SAMPLE_DATA[pairSlug] ?? getDefaultData(pairSlug)
+  const fallback = SAMPLE_DATA[pairSlug] ?? getDefaultData(pairSlug)
+  const [data, setData] = useState<PairData>(fallback)
 
   const [activeTimeframe, setActiveTimeframe] = useState<string>('1h')
   const [strategy, setStrategy] = useState('momentum')
   const [amount, setAmount] = useState('')
   const [stopLoss, setStopLoss] = useState('2')
   const [takeProfit, setTakeProfit] = useState('6')
+
+  const chartContainerRef = useRef<HTMLDivElement>(null)
+  const [chartLoading, setChartLoading] = useState(true)
+
+  // Fetch real candles + render lightweight-charts
+  useEffect(() => {
+    if (!chartContainerRef.current) return
+    let chart: ReturnType<typeof import('lightweight-charts').createChart> | null = null
+    let cancelled = false
+    setChartLoading(true)
+
+    const tfMap: Record<string, '1m' | '5m' | '15m' | '1h' | '4h' | '1d'> = {
+      '1m': '1m',
+      '5m': '5m',
+      '15m': '15m',
+      '1h': '1h',
+      '4h': '4h',
+      '1D': '1d',
+      '1W': '1d',
+    }
+    const tf = tfMap[activeTimeframe] ?? '1h'
+
+    const init = async () => {
+      try {
+        const lc = await import('lightweight-charts')
+        const res = await fetch(
+          `/api/market/candles?pair=${encodeURIComponent(data.symbol)}&timeframe=${tf}&limit=200`,
+          { cache: 'no-store' }
+        )
+        if (!res.ok) throw new Error('candles_failed')
+        const json = (await res.json()) as { candles: Array<{ timestamp: number; open: number; high: number; low: number; close: number; volume: number }> }
+        if (cancelled || !chartContainerRef.current) return
+
+        // Update header price/change from real candles
+        const candles = json.candles ?? []
+        if (candles.length >= 2) {
+          const last = candles[candles.length - 1]
+          const first = candles[0]
+          const high24 = candles.reduce((m, c) => Math.max(m, c.high), 0)
+          const low24 = candles.reduce((m, c) => (m === 0 ? c.low : Math.min(m, c.low)), 0)
+          const vol = candles.reduce((s, c) => s + c.volume, 0)
+          const changePct = first.open > 0 ? ((last.close - first.open) / first.open) * 100 : 0
+          setData((prev) => ({
+            ...prev,
+            price: last.close,
+            change24h: changePct,
+            high24h: high24,
+            low24h: low24,
+            volume: vol >= 1e9 ? `${(vol / 1e9).toFixed(2)}B` : `${(vol / 1e6).toFixed(0)}M`,
+          }))
+        }
+
+        chartContainerRef.current.innerHTML = ''
+        chart = lc.createChart(chartContainerRef.current, {
+          width: chartContainerRef.current.clientWidth,
+          height: 400,
+          layout: {
+            background: { type: lc.ColorType.Solid, color: 'transparent' },
+            textColor: 'rgba(255,255,255,0.4)',
+            fontSize: 11,
+          },
+          grid: {
+            vertLines: { color: 'rgba(255,215,0,0.03)' },
+            horzLines: { color: 'rgba(255,215,0,0.03)' },
+          },
+          rightPriceScale: { borderColor: 'rgba(255,255,255,0.06)' },
+          timeScale: {
+            borderColor: 'rgba(255,255,255,0.06)',
+            timeVisible: true,
+            secondsVisible: false,
+          },
+        })
+        const series = chart.addSeries(lc.CandlestickSeries, {
+          upColor: '#10B981',
+          downColor: '#EF4444',
+          borderUpColor: '#10B981',
+          borderDownColor: '#EF4444',
+          wickUpColor: '#10B981',
+          wickDownColor: '#EF4444',
+        })
+        series.setData(
+          (json.candles ?? []).map((c) => ({
+            time: Math.floor(c.timestamp / 1000) as import('lightweight-charts').UTCTimestamp,
+            open: c.open,
+            high: c.high,
+            low: c.low,
+            close: c.close,
+          }))
+        )
+        chart.timeScale().fitContent()
+        const ro = new ResizeObserver(() => {
+          if (chartContainerRef.current && chart) {
+            chart.applyOptions({ width: chartContainerRef.current.clientWidth })
+          }
+        })
+        ro.observe(chartContainerRef.current)
+      } catch {
+        // chart silently empty on error
+      } finally {
+        if (!cancelled) setChartLoading(false)
+      }
+    }
+    void init()
+
+    return () => {
+      cancelled = true
+      if (chart) {
+        try {
+          chart.remove()
+        } catch {}
+      }
+    }
+  }, [activeTimeframe, data.symbol])
 
   const isPositive = data.change24h >= 0
 
@@ -190,16 +266,18 @@ export default function PairAnalysisPage() {
                 ))}
               </div>
 
-              {/* Chart placeholder */}
-              <div
-                className="w-full h-[400px] rounded-xl bg-[var(--bg-secondary)] border border-white/[0.04] flex items-center justify-center"
-                data-testid="chart-placeholder"
-              >
-                <div className="text-center">
-                  <BarChart3 className="h-12 w-12 text-white/10 mx-auto mb-3" />
-                  <p className="text-sm text-[var(--text-tertiary)]">Graphique TradingView</p>
-                  <p className="text-xs text-[var(--text-tertiary)] mt-1">{data.symbol} - {activeTimeframe}</p>
-                </div>
+              {/* Live chart */}
+              <div className="relative w-full h-[400px] rounded-xl bg-[var(--bg-secondary)] border border-white/[0.04] overflow-hidden">
+                <div
+                  ref={chartContainerRef}
+                  className="w-full h-full"
+                  data-testid="chart-container"
+                />
+                {chartLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-secondary)]/60 backdrop-blur-sm">
+                    <Loader2 className="h-6 w-6 text-[#FFD700] animate-spin" />
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

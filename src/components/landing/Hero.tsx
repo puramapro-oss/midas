@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Play } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 
 function GoldParticles() {
@@ -138,8 +138,8 @@ export default function Hero() {
       {/* Background layers */}
       <div className="absolute inset-0 bg-midas-gradient" />
       <div className="absolute inset-0 bg-grid opacity-40" />
-      <div className="absolute inset-0">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] rounded-full bg-[radial-gradient(ellipse,rgba(255,215,0,0.08)_0%,transparent_70%)] blur-3xl" />
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-[800px] h-[60vw] max-h-[600px] rounded-full bg-[radial-gradient(ellipse,rgba(255,215,0,0.08)_0%,transparent_70%)] blur-3xl" />
       </div>
       <GoldParticles />
 
@@ -161,7 +161,7 @@ export default function Hero() {
         {/* Title */}
         <motion.h1
           variants={itemVariants}
-          className="font-[family-name:var(--font-orbitron)] text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tight mb-6"
+          className="font-[family-name:var(--font-orbitron)] text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tight mb-6"
         >
           <span
             className="gradient-text-gold-animated drop-shadow-[0_0_40px_rgba(255,215,0,0.4)]"
@@ -207,29 +207,29 @@ export default function Hero() {
               Commencer gratuitement
             </Button>
           </a>
-          <a href="/login" data-testid="cta-demo">
+          <a href="/pricing" data-testid="cta-pricing">
             <Button
               size="lg"
               variant="secondary"
-              icon={<Play className="w-5 h-5" />}
+              icon={<ArrowRight className="w-5 h-5" />}
               className="text-base px-8 py-4"
               type="button"
             >
-              Voir la demo
+              Voir les plans
             </Button>
           </a>
         </motion.div>
 
-        {/* Animated Stats */}
+        {/* Stats — uniquement des chiffres réels, vérifiables dans le code */}
         <motion.div
           variants={itemVariants}
           className="flex flex-wrap items-center justify-center gap-8 sm:gap-12"
         >
-          <AnimatedStat value="47" label="indicateurs" delay={0.8} />
+          <AnimatedStat value="6" label="agents IA" delay={0.8} />
           <div className="w-px h-10 bg-white/10 hidden sm:block" />
-          <AnimatedStat value="6" label="IA specialisees" delay={1.0} />
+          <AnimatedStat value="7" label="niveaux SHIELD" delay={1.0} />
           <div className="w-px h-10 bg-white/10 hidden sm:block" />
-          <AnimatedStat value="7" label="niveaux de protection" delay={1.2} />
+          <AnimatedStat value="24/7" label="analyse marché" delay={1.2} />
         </motion.div>
       </motion.div>
 

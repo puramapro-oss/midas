@@ -32,38 +32,8 @@ interface SampleBot {
   totalTrades: number;
 }
 
-const SAMPLE_BOTS: SampleBot[] = [
-  {
-    id: 'bot-1',
-    name: 'BTC Momentum',
-    pair: 'BTC/USDT',
-    strategy: 'Momentum',
-    status: 'active',
-    totalPnl: 1234.56,
-    winRate: 68.2,
-    totalTrades: 142,
-  },
-  {
-    id: 'bot-2',
-    name: 'ETH Grid',
-    pair: 'ETH/USDT',
-    strategy: 'Grid',
-    status: 'paused',
-    totalPnl: 456.78,
-    winRate: 54.3,
-    totalTrades: 89,
-  },
-  {
-    id: 'bot-3',
-    name: 'SOL Swing',
-    pair: 'SOL/USDT',
-    strategy: 'Breakout',
-    status: 'active',
-    totalPnl: -89.12,
-    winRate: 41.7,
-    totalTrades: 36,
-  },
-];
+// Aucun bot bidon : la liste démarre vide, l'utilisateur crée les siens.
+const SAMPLE_BOTS: SampleBot[] = [];
 
 const statusConfig = {
   active: {

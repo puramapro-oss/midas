@@ -39,14 +39,8 @@ const typeConfig: Record<AlertType, { label: string; icon: typeof TrendingUp; co
   drawdown: { label: 'Drawdown', icon: Shield, color: 'text-red-400' },
 }
 
-const SAMPLE_ALERTS: Alert[] = [
-  { id: '1', pair: 'BTC/USDT', type: 'price', condition: 'above', value: 70000, is_active: true, triggered_at: null, created_at: '2026-04-01T10:00:00Z' },
-  { id: '2', pair: 'ETH/USDT', type: 'price', condition: 'below', value: 3200, is_active: true, triggered_at: null, created_at: '2026-04-01T09:00:00Z' },
-  { id: '3', pair: 'SOL/USDT', type: 'signal', condition: 'above', value: 80, is_active: true, triggered_at: null, created_at: '2026-03-31T20:00:00Z' },
-  { id: '4', pair: 'BTC/USDT', type: 'drawdown', condition: 'below', value: 5, is_active: true, triggered_at: null, created_at: '2026-03-31T18:00:00Z' },
-  { id: '5', pair: 'BTC/USDT', type: 'price', condition: 'above', value: 65000, is_active: false, triggered_at: '2026-04-01T12:30:00Z', created_at: '2026-03-30T10:00:00Z' },
-  { id: '6', pair: 'DOGE/USDT', type: 'volume', condition: 'above', value: 500000000, is_active: false, triggered_at: '2026-03-31T16:00:00Z', created_at: '2026-03-30T08:00:00Z' },
-]
+// Aucune alerte fabriquée : la page commence vide, l'utilisateur crée les siennes.
+const SAMPLE_ALERTS: Alert[] = []
 
 function formatValue(type: AlertType, value: number): string {
   if (type === 'price') return `$${value.toLocaleString('fr-FR')}`

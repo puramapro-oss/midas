@@ -36,7 +36,7 @@ export default function DisclaimerPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">MIDAS ne garantit aucun rendement</h2>
-            <p>MIDAS est un outil logiciel d&apos;aide à la décision basé sur l&apos;intelligence artificielle. Malgré l&apos;utilisation de 47 indicateurs techniques, 6 couches d&apos;intelligence et 7 niveaux de protection :</p>
+            <p>MIDAS est un outil logiciel d&apos;aide à la décision basé sur l&apos;intelligence artificielle. Malgré l&apos;utilisation de ses 6 agents IA et de ses 7 niveaux de protection SHIELD :</p>
             <ul className="list-disc pl-5 space-y-2 mt-2">
               <li><strong className="text-white">Aucun rendement n&apos;est garanti.</strong> Les performances passées affichées par MIDAS, y compris les résultats de backtesting, ne préjugent pas des performances futures.</li>
               <li><strong className="text-white">L&apos;IA peut se tromper.</strong> Les analyses et décisions de l&apos;intelligence artificielle sont basées sur des données historiques et des modèles statistiques qui ne peuvent pas prédire l&apos;avenir avec certitude.</li>

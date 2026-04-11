@@ -17,7 +17,7 @@ const agents = [
     icon: BarChart3,
     name: 'Agent Technique',
     description:
-      '47 indicateurs (RSI, MACD, Bollinger, Ichimoku...) analyses en temps reel sur 9 timeframes.',
+      'RSI, MACD, Bollinger, Ichimoku et indicateurs avances analyses en temps reel sur plusieurs timeframes.',
     color: '#FFD700',
   },
   {

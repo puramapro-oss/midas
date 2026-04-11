@@ -16,8 +16,6 @@ import {
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
-import { useSignals } from '@/hooks/useSignals'
-import Skeleton from '@/components/ui/Skeleton'
 
 type SignalDirection = 'BUY' | 'SELL' | 'HOLD'
 type SignalStatus = 'pending' | 'executed' | 'expired' | 'cancelled'
@@ -39,123 +37,9 @@ interface DisplaySignal {
   created_at: string
 }
 
-const SAMPLE_SIGNALS: DisplaySignal[] = [
-  {
-    id: '1',
-    pair: 'BTC/USDT',
-    direction: 'BUY',
-    entry_price: '$67,234',
-    stop_loss: '$65,800',
-    take_profit: '$70,500',
-    risk_reward: '1:2.3',
-    confidence: 82,
-    timeframe: '4h',
-    strategy: 'Momentum',
-    reasoning: 'RSI survendu + whale accumulation + support Fibonacci + 5/6 timeframes alignes haussier',
-    status: 'executed',
-    agents: [
-      { agent: 'Technique', signal: 'BUY', confidence: 85 },
-      { agent: 'Sentiment', signal: 'BUY', confidence: 71 },
-      { agent: 'On-Chain', signal: 'BUY', confidence: 78 },
-      { agent: 'Calendrier', signal: 'HOLD', confidence: 55 },
-      { agent: 'Patterns', signal: 'BUY', confidence: 82 },
-      { agent: 'Risque', signal: 'BUY', confidence: 76 },
-    ],
-    created_at: '2026-04-01T14:32:00Z',
-  },
-  {
-    id: '2',
-    pair: 'ETH/USDT',
-    direction: 'HOLD',
-    entry_price: '-',
-    stop_loss: '-',
-    take_profit: '-',
-    risk_reward: '-',
-    confidence: 48,
-    timeframe: '1h',
-    strategy: '-',
-    reasoning: 'Marche en range, aucun signal clair. MACD neutre, RSI a 50. Attendre un breakout.',
-    status: 'expired',
-    agents: [
-      { agent: 'Technique', signal: 'HOLD', confidence: 45 },
-      { agent: 'Sentiment', signal: 'HOLD', confidence: 52 },
-      { agent: 'On-Chain', signal: 'BUY', confidence: 58 },
-      { agent: 'Calendrier', signal: 'HOLD', confidence: 40 },
-      { agent: 'Patterns', signal: 'HOLD', confidence: 42 },
-      { agent: 'Risque', signal: 'HOLD', confidence: 50 },
-    ],
-    created_at: '2026-04-01T14:00:00Z',
-  },
-  {
-    id: '3',
-    pair: 'SOL/USDT',
-    direction: 'BUY',
-    entry_price: '$178.40',
-    stop_loss: '$172.00',
-    take_profit: '$190.00',
-    risk_reward: '1:1.8',
-    confidence: 74,
-    timeframe: '4h',
-    strategy: 'Smart Entry',
-    reasoning: 'Pullback sur EMA 50 + volume en hausse + Fear & Greed a 35 (opportunite)',
-    status: 'executed',
-    agents: [
-      { agent: 'Technique', signal: 'BUY', confidence: 78 },
-      { agent: 'Sentiment', signal: 'BUY', confidence: 68 },
-      { agent: 'On-Chain', signal: 'BUY', confidence: 72 },
-      { agent: 'Calendrier', signal: 'HOLD', confidence: 60 },
-      { agent: 'Patterns', signal: 'BUY', confidence: 75 },
-      { agent: 'Risque', signal: 'BUY', confidence: 70 },
-    ],
-    created_at: '2026-04-01T13:45:00Z',
-  },
-  {
-    id: '4',
-    pair: 'AVAX/USDT',
-    direction: 'SELL',
-    entry_price: '$38.67',
-    stop_loss: '$40.20',
-    take_profit: '$35.00',
-    risk_reward: '1:2.4',
-    confidence: 68,
-    timeframe: '1h',
-    strategy: 'Mean Reversion',
-    reasoning: 'RSI suracheté a 78 + divergence bearish MACD + resistance forte a $39',
-    status: 'pending',
-    agents: [
-      { agent: 'Technique', signal: 'SELL', confidence: 72 },
-      { agent: 'Sentiment', signal: 'SELL', confidence: 65 },
-      { agent: 'On-Chain', signal: 'HOLD', confidence: 50 },
-      { agent: 'Calendrier', signal: 'HOLD', confidence: 55 },
-      { agent: 'Patterns', signal: 'SELL', confidence: 70 },
-      { agent: 'Risque', signal: 'SELL', confidence: 68 },
-    ],
-    created_at: '2026-04-01T13:30:00Z',
-  },
-  {
-    id: '5',
-    pair: 'DOGE/USDT',
-    direction: 'BUY',
-    entry_price: '$0.1823',
-    stop_loss: '$0.1750',
-    take_profit: '$0.2000',
-    risk_reward: '1:2.4',
-    confidence: 71,
-    timeframe: '4h',
-    strategy: 'Momentum',
-    reasoning: 'Volume +120% vs moyenne, breakout au-dessus de la resistance $0.18, social buzz en forte hausse',
-    status: 'cancelled',
-    agents: [
-      { agent: 'Technique', signal: 'BUY', confidence: 74 },
-      { agent: 'Sentiment', signal: 'BUY', confidence: 82 },
-      { agent: 'On-Chain', signal: 'HOLD', confidence: 48 },
-      { agent: 'Calendrier', signal: 'HOLD', confidence: 50 },
-      { agent: 'Patterns', signal: 'BUY', confidence: 70 },
-      { agent: 'Risque', signal: 'HOLD', confidence: 55 },
-    ],
-    created_at: '2026-04-01T12:15:00Z',
-  },
-]
+// Signaux réels uniquement. Tant qu'aucun signal n'a été généré par les
+// 6 agents côté backend, la liste reste vide et un empty state est affiché.
+const SAMPLE_SIGNALS: DisplaySignal[] = []
 
 type FilterDirection = 'all' | SignalDirection
 type FilterStatus = 'all' | SignalStatus
@@ -220,7 +104,7 @@ export default function SignalsPage() {
           { label: 'Total signaux', value: SAMPLE_SIGNALS.length.toString(), color: 'text-[var(--text-primary)]' },
           { label: 'BUY', value: SAMPLE_SIGNALS.filter((s) => s.direction === 'BUY').length.toString(), color: 'text-emerald-400' },
           { label: 'SELL', value: SAMPLE_SIGNALS.filter((s) => s.direction === 'SELL').length.toString(), color: 'text-red-400' },
-          { label: 'Confiance moy.', value: `${Math.round(SAMPLE_SIGNALS.reduce((a, s) => a + s.confidence, 0) / SAMPLE_SIGNALS.length)}%`, color: 'text-[#FFD700]' },
+          { label: 'Confiance moy.', value: SAMPLE_SIGNALS.length ? `${Math.round(SAMPLE_SIGNALS.reduce((a, s) => a + s.confidence, 0) / SAMPLE_SIGNALS.length)}%` : '—', color: 'text-[#FFD700]' },
         ].map((stat) => (
           <Card key={stat.label}>
             <CardContent className="p-4 text-center">
