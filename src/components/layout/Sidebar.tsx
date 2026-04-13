@@ -30,6 +30,7 @@ import {
   Heart,
   Ticket,
   Banknote,
+  CalendarHeart,
 } from 'lucide-react';
 import MidasLogo from './MidasLogo';
 
@@ -57,6 +58,7 @@ const navItems = [
   { label: 'Communauté', icon: Heart, href: '/dashboard/community', testId: 'sidebar-community' },
   { label: 'Tirage', icon: Ticket, href: '/dashboard/lottery', testId: 'sidebar-lottery' },
   { label: 'Financer', icon: Banknote, href: '/financer', testId: 'sidebar-financer' },
+  { label: 'Mon Wrapped', icon: CalendarHeart, href: '/dashboard/wrapped', testId: 'sidebar-wrapped' },
 ];
 
 const bottomItems = [

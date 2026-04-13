@@ -21,6 +21,7 @@
     "@tsparticles/slim": "^3.9.1",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
+    "@vercel/og": "^0.11.1",
     "ccxt": "^4.5.45",
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",
