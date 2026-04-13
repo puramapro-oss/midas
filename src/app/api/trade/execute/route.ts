@@ -4,6 +4,8 @@ import { createServerClient } from '@supabase/ssr';
 import { z } from 'zod';
 import { PLAN_LIMITS } from '@/lib/utils/constants';
 import type { MidasPlan } from '@/types/stripe';
+import { executeTrade } from '@/lib/trading/trade-executor';
+import type { CoordinatorDecision } from '@/lib/agents/types';
 
 const bodySchema = z.object({
   pair: z.string().min(1).max(30),
@@ -127,32 +129,31 @@ export async function POST(request: Request) {
       );
     }
 
-    // Insert trade
-    const { data: trade, error: tradeError } = await supabase
-      .from('trades')
-      .insert({
-        user_id: user.id,
-        pair,
-        side,
-        strategy,
-        amount,
-        stop_loss: stopLoss ?? null,
-        take_profit: takeProfit ?? null,
-        is_paper_trade: effectiveIsPaperTrade,
-        bot_id: botId ?? null,
-        exchange_connection_id: exchangeConnectionId,
-        exchange: exchangeConn.exchange,
-        status: 'open',
-        entry_price: null,
-        exit_price: null,
-        pnl: null,
-        fee: 0,
-      })
-      .select('*')
-      .single();
+    // Build coordinator decision for the trade executor
+    const decision: CoordinatorDecision = {
+      action: side as 'buy' | 'sell',
+      pair,
+      entry_price: amount,
+      stop_loss: stopLoss ?? 0,
+      take_profit: takeProfit ?? 0,
+      confidence: 0.8,
+      composite_score: 75,
+      position_size_pct: amount,
+      strategy,
+      reasoning: `Manual ${side} ${pair} via dashboard`,
+      agent_results: [],
+      risk_reward_ratio: takeProfit && stopLoss ? (takeProfit - amount) / (amount - stopLoss) : 2,
+      approved_by_shield: true,
+    };
 
-    if (tradeError || !trade) {
-      return NextResponse.json({ error: 'Erreur creation trade', details: tradeError?.message }, { status: 500 });
+    // Execute trade (paper or live) through the full Shield pipeline
+    const result = await executeTrade(decision, user.id, exchangeConnectionId);
+
+    if (!result.success) {
+      return NextResponse.json(
+        { error: result.error ?? 'Erreur execution trade' },
+        { status: 400 }
+      );
     }
 
     // Increment daily_trades_used
@@ -163,7 +164,17 @@ export async function POST(request: Request) {
       })
       .eq('id', user.id);
 
-    return NextResponse.json({ trade }, { status: 201 });
+    return NextResponse.json({
+      trade: {
+        id: result.trade_id,
+        order_id: result.order_id,
+        executed_price: result.executed_price,
+        executed_quantity: result.executed_quantity,
+        fees: result.fees,
+        slippage_pct: result.slippage_pct,
+        is_paper: result.is_paper,
+      },
+    }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur interne';
     return NextResponse.json({ error: message }, { status: 500 });

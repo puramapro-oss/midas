@@ -8,6 +8,8 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { RiskManager, type UserProfile, type OpenPosition, type TradeHistory } from './risk-manager';
 import { simulate } from './pre-trade-simulation';
 import { executePaperTrade } from './paper-trading-engine';
+import { decrypt } from '@/lib/exchange/encryption';
+import { createExchangeClient, isSupportedExchange } from '@/lib/exchange/ccxt-client';
 
 export interface TradeResult {
   success: boolean;
@@ -26,8 +28,11 @@ interface ExchangeConnection {
   id: string;
   exchange: string;
   api_key_encrypted: string;
+  api_key_iv: string;
   api_secret_encrypted: string;
+  api_secret_iv: string;
   is_paper: boolean;
+  is_testnet: boolean;
   is_active: boolean;
 }
 
@@ -184,28 +189,29 @@ async function executeLiveOrder(
   connection: ExchangeConnection,
   decision: CoordinatorDecision
 ): Promise<TradeResult> {
-  // Dynamic import ccxt to keep it server-side only
-  const ccxt = await import('ccxt');
-
-  const ExchangeClass = ccxt.default[connection.exchange as keyof typeof ccxt.default];
-  if (!ExchangeClass || typeof ExchangeClass !== 'function') {
-    throw new Error(`Unsupported exchange: ${connection.exchange}`);
+  const exchangeName = connection.exchange;
+  if (!isSupportedExchange(exchangeName)) {
+    throw new Error(`Unsupported exchange: ${exchangeName}`);
   }
 
-  const exchange = new (ExchangeClass as unknown as { new (config: Record<string, unknown>): { createMarketOrder: (pair: string, side: string, amount: number) => Promise<Record<string, unknown>> } })({
-    apiKey: connection.api_key_encrypted,
-    secret: connection.api_secret_encrypted,
-    enableRateLimit: true,
+  // Decrypt API keys before passing to ccxt
+  const apiKey = decrypt(connection.api_key_encrypted, connection.api_key_iv);
+  const apiSecret = decrypt(connection.api_secret_encrypted, connection.api_secret_iv);
+
+  const client = createExchangeClient(exchangeName, {
+    apiKey,
+    secret: apiSecret,
+    testnet: connection.is_testnet,
   });
 
   const side = decision.action === 'buy' ? 'buy' : 'sell';
-  const quantity = decision.position_size_pct; // Will be converted by exchange
+  const quantity = decision.position_size_pct;
 
-  const order = await exchange.createMarketOrder(decision.pair, side, quantity) as Record<string, unknown>;
+  const order = await client.createMarketOrder(decision.pair, side, quantity);
 
   const executedPrice = (order.average ?? order.price ?? decision.entry_price) as number;
   const executedQty = (order.filled ?? quantity) as number;
-  const feeObj = order.fee as Record<string, unknown> | undefined;
+  const feeObj = order.fee;
   const fees = (feeObj?.cost ?? 0) as number;
   const slippage =
     decision.entry_price > 0
