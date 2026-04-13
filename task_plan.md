@@ -171,3 +171,14 @@ Pour debloquer :
 - [x] Types database.ts: +GratitudeEntry, BreathSession, GoldenHour, CommunityGoal, Mentorship, Challenge, ReviewPrompt
 - [x] Middleware: /ecosystem + /how-it-works ajoutes aux routes publiques
 - [x] tsc PASS + build PASS
+- [x] Deploy Vercel prod — https://midas.purama.dev — 200 OK
+- [x] Playwright phase14.spec.ts: 58/58 PASS (Desktop Chrome + iPhone 14)
+- [x] curl verify: /, /ecosystem, /how-it-works → 200; APIs → 401 (auth OK)
+- [x] git config: purama.pro@gmail.com (requis par Vercel team)
+
+## Restant pour MIDAS 100%
+- [ ] EAS login + init + build iOS/Android (BLOQUE par token interactif)
+- [ ] Store submissions
+- [ ] n8n workflows config (57 workflows)
+- [ ] BetterStack + Sentry + PostHog production config
+- [ ] 21 SIM full human tests (requires manual browser testing)

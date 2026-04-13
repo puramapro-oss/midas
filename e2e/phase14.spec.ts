@@ -135,7 +135,7 @@ test.describe('Phase 14 — New Pages & APIs', () => {
   // === VISUAL CHECKS ===
   test('Ecosystem page has app grid', async ({ page }) => {
     await page.goto(`${BASE}/ecosystem`);
-    await expect(page.locator('text=MIDAS')).toBeVisible();
+    await expect(page.locator('text=Trading IA')).toBeVisible();
     await expect(page.locator('text=AKASHA')).toBeVisible();
     await expect(page.locator('text=CROSS50')).toBeVisible();
   });
@@ -152,7 +152,7 @@ test.describe('Phase 14 — New Pages & APIs', () => {
     const ctx = await browser.newContext({ viewport: { width: 375, height: 812 } });
     const page = await ctx.newPage();
     await page.goto(`${BASE}/ecosystem`);
-    await expect(page.locator('text=MIDAS')).toBeVisible();
+    await expect(page.locator('text=Trading IA')).toBeVisible();
     const body = page.locator('body');
     const box = await body.boundingBox();
     expect(box?.width).toBeLessThanOrEqual(375);
