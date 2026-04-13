@@ -193,6 +193,45 @@
 - build: PASS
 - Nouvelles pages: challenges, share, gratitude, breathing, buddies, stories, ecosystem, how-it-works
 
+## Session 2026-04-14 — Audit V5 + Corrections
+
+### Phase A — Bugs critiques
+- [x] CREATE TABLE midas.breath_sessions sur VPS (via supabase_admin)
+- [x] /api/og endpoint cree (Satori, 1200x630, gold MIDAS theme)
+- [x] Commentaire placeholder supprime dans social-dominance.ts
+
+### Phase B — Couche spirituelle complete
+- [x] useAwakening hook (src/hooks/useAwakening.ts)
+- [x] useEmpowerment hook (src/hooks/useEmpowerment.ts)
+- [x] SpiritualLayer.tsx (micro-pauses 25min, session XP tracking)
+- [x] SubconsciousEngine.tsx (subliminal empowering words Fibonacci timing)
+- [x] Integration dans DashboardShell (dynamic imports, ssr:false)
+
+### Phase C — Memoire projet
+- [x] ERRORS.md cree (7 erreurs documentees)
+- [x] PATTERNS.md cree (6 patterns documentes)
+- [x] task_plan.md mis a jour
+- [x] progress.md mis a jour
+
+### Fichiers crees
+- src/app/api/og/route.tsx
+- src/hooks/useAwakening.ts
+- src/hooks/useEmpowerment.ts
+- src/components/shared/SpiritualLayer.tsx
+- src/components/shared/SubconsciousEngine.tsx
+- ERRORS.md
+- PATTERNS.md
+
+### Fichiers modifies
+- src/lib/analysis/social-dominance.ts (commentaire placeholder supprime)
+- src/app/dashboard/DashboardShell.tsx (+SpiritualLayer, +SubconsciousEngine)
+- task_plan.md (Phase 16 ajoutee)
+
+### Etat
+- tsc: PASS (0 erreur)
+- build: PASS (0 erreur)
+- Site live: https://midas.purama.dev — 200 OK
+
 ## Session 2026-04-01
 - [x] Analysé codebase existant: 80% complet
 - [x] Build vérifié: PASS

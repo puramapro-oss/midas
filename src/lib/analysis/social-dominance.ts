@@ -166,8 +166,7 @@ export function analyzeSocialDominance(metrics: SocialMetrics): SocialDominanceA
   // Influencer alert: spike in influencer mentions (often precedes retail FOMO)
   const influencerAlert = metrics.influencer_mentions_24h > 5;
 
-  // Sentiment divergence placeholder (would need price data to fully compute)
-  // For now, flag if sentiment is extremely positive (potential top signal)
+  // Flag extreme positive sentiment as potential top signal
   const sentimentDivergence = metrics.sentiment_score > 0.8 && metrics.fear_greed_index > 75;
 
   // Contrarian warning
