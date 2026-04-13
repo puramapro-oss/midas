@@ -1432,6 +1432,46 @@ BEGIN
 END$$;
 
 -- =============================================================================
+-- TRUST SCORES (anti-fraude)
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS midas.trust_scores (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  score INTEGER DEFAULT 50 CHECK (score >= 0 AND score <= 100),
+  tier TEXT DEFAULT 'limited' CHECK (tier IN ('blocked', 'limited', 'standard', 'trusted', 'verified')),
+  last_updated TIMESTAMPTZ DEFAULT now(),
+  history JSONB DEFAULT '[]'
+);
+ALTER TABLE midas.trust_scores ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS trust_scores_own ON midas.trust_scores FOR SELECT USING (auth.uid() = user_id);
+
+CREATE TABLE IF NOT EXISTS midas.trust_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL CHECK (event_type IN ('proof_ok', 'audit_pass', 'audit_fail', 'suspect_speed', 'multi_account', 'trade_closed', 'streak_update')),
+  score_change INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_trust_events_user ON midas.trust_events(user_id);
+ALTER TABLE midas.trust_events ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS trust_events_own ON midas.trust_events FOR SELECT USING (auth.uid() = user_id);
+
+-- =============================================================================
+-- WRAPPED MENSUEL
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS midas.wrapped_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  month TEXT NOT NULL,
+  data JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, month)
+);
+ALTER TABLE midas.wrapped_reports ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS wrapped_own ON midas.wrapped_reports FOR SELECT USING (auth.uid() = user_id);
+
+-- =============================================================================
 -- AIDES / FINANCEMENT
 -- =============================================================================
 
