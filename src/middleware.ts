@@ -18,6 +18,8 @@ const PUBLIC_ROUTES = new Set([
   '/partenariat',
   '/contact',
   '/financer',
+  '/ecosystem',
+  '/how-it-works',
 ]);
 
 const PUBLIC_PREFIXES = [

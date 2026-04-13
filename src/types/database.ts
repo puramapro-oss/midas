@@ -182,6 +182,209 @@ export type TradeSide = 'buy' | 'sell';
 export type TradeType = 'market' | 'limit' | 'stop' | 'stop_limit';
 export type SignalStrength = 'strong_buy' | 'buy' | 'neutral' | 'sell' | 'strong_sell';
 
+// KYC
+export type KycStatus = 'none' | 'pending' | 'verified' | 'rejected';
+export type KycTier = 0 | 1 | 2 | 3;
+export type DocumentType = 'passport' | 'id_card' | 'driver_license';
+
+export interface KycVerification {
+  id: string;
+  user_id: string;
+  status: KycStatus;
+  tier: KycTier;
+  full_name: string | null;
+  date_of_birth: string | null;
+  nationality: string | null;
+  address_line: string | null;
+  city: string | null;
+  postal_code: string | null;
+  country: string;
+  document_type: DocumentType | null;
+  document_front_url: string | null;
+  document_back_url: string | null;
+  selfie_url: string | null;
+  proof_of_address_url: string | null;
+  rejection_reason: string | null;
+  verified_at: string | null;
+  submitted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const KYC_TIER_LIMITS: Record<KycTier, { label: string; withdrawalMax: number; description: string }> = {
+  0: { label: 'Non vérifié', withdrawalMax: 0, description: 'Complète la vérification pour débloquer les retraits' },
+  1: { label: 'Email vérifié', withdrawalMax: 500, description: 'Retrait max 500€/mois' },
+  2: { label: 'Identité vérifiée', withdrawalMax: 5000, description: 'Retrait max 5 000€/mois' },
+  3: { label: 'Vérifié avancé', withdrawalMax: 999999, description: 'Retrait illimité' },
+};
+
+// Copy Trading
+export interface TraderProfile {
+  id: string;
+  user_id: string;
+  display_name: string;
+  bio: string | null;
+  avatar_url: string | null;
+  is_public: boolean;
+  total_pnl: number;
+  total_pnl_pct: number;
+  win_rate: number;
+  total_trades: number;
+  avg_holding_time_hours: number;
+  max_drawdown: number;
+  sharpe_ratio: number;
+  followers_count: number;
+  copiers_count: number;
+  min_copy_amount: number;
+  max_copiers: number;
+  commission_pct: number;
+  is_verified: boolean;
+  ranking_score: number;
+  last_trade_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CopyRelationship {
+  id: string;
+  copier_id: string;
+  trader_id: string;
+  status: 'active' | 'paused' | 'stopped';
+  copy_amount: number;
+  copy_ratio: number;
+  total_copied_trades: number;
+  total_pnl: number;
+  commission_paid: number;
+  started_at: string;
+  stopped_at: string | null;
+  created_at: string;
+  trader?: TraderProfile;
+}
+
+export interface CopyTrade {
+  id: string;
+  relationship_id: string;
+  original_trade_id: string | null;
+  copier_id: string;
+  trader_id: string;
+  symbol: string;
+  side: 'buy' | 'sell';
+  quantity: number;
+  price: number;
+  pnl: number;
+  commission: number;
+  status: 'pending' | 'executed' | 'failed' | 'cancelled';
+  executed_at: string;
+  created_at: string;
+}
+
+// Binance Earn
+export type EarnProductType = 'flexible' | 'locked' | 'staking' | 'launchpool' | 'dual_investment';
+
+export interface EarnPosition {
+  id: string;
+  user_id: string;
+  product_type: EarnProductType;
+  asset: string;
+  amount: number;
+  apy: number;
+  daily_earnings: number;
+  total_earnings: number;
+  lock_period_days: number;
+  started_at: string;
+  expires_at: string | null;
+  auto_renew: boolean;
+  status: 'active' | 'redeemed' | 'expired';
+  source: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EarnHistoryEntry {
+  id: string;
+  user_id: string;
+  position_id: string | null;
+  action: 'subscribe' | 'redeem' | 'interest' | 'bonus';
+  asset: string;
+  amount: number;
+  created_at: string;
+}
+
+// Gratitude
+export interface GratitudeEntry {
+  id: string;
+  user_id: string;
+  content: string;
+  tagged_user_id: string | null;
+  created_at: string;
+}
+
+// Breathing
+export interface BreathSession {
+  id: string;
+  user_id: string;
+  technique: '4-7-8' | 'box' | 'coherent' | 'wim_hof';
+  duration_seconds: number;
+  cycles: number;
+  created_at: string;
+}
+
+// Golden Hour
+export interface GoldenHour {
+  id: string;
+  started_at: string;
+  ended_at: string | null;
+  multiplier: number;
+  total_points_distributed: number;
+  created_at: string;
+}
+
+// Community Goal
+export interface CommunityGoal {
+  id: string;
+  target_type: string;
+  target_value: number;
+  current_value: number;
+  reward_points: number;
+  achieved: boolean;
+  deadline: string | null;
+  created_at: string;
+}
+
+// Mentorship
+export interface Mentorship {
+  id: string;
+  mentor_id: string;
+  mentee_id: string;
+  status: 'active' | 'completed' | 'paused';
+  started_at: string;
+  mentor?: { id: string; full_name: string | null; avatar_url: string | null; level: number; streak_days: number };
+  mentee?: { id: string; full_name: string | null; avatar_url: string | null; level: number; streak_days: number };
+}
+
+// Challenge
+export interface Challenge {
+  id: string;
+  challenger_id: string;
+  challenged_contact: string;
+  challenged_user_id: string | null;
+  type: string;
+  target: number;
+  status: 'pending' | 'active' | 'completed' | 'expired';
+  winner_id: string | null;
+  created_at: string;
+}
+
+// Review Prompt
+export interface ReviewPrompt {
+  id: string;
+  user_id: string;
+  triggered_by: string;
+  response: 'accepted' | 'later' | 'never';
+  points_given: number;
+  shown_at: string;
+}
+
 export const SUPER_ADMIN_EMAIL = 'matiss.frasne@gmail.com';
 
 export const PLAN_LIMITS: Record<Plan, {
