@@ -1,0 +1,15 @@
+appId: dev.purama.midas
+name: Settings Flow
+---
+- launchApp
+- tapOn:
+    id: "settings-btn"
+- assertVisible: "Parametres"
+- assertVisible: "Exchanges"
+- assertVisible: "Achievements"
+- tapOn:
+    id: "settings-exchanges"
+- assertVisible: "Connecter un exchange"
+- assertVisible: "Binance"
+- back
+- takeScreenshot: settings-complete

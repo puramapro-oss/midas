@@ -1,0 +1,20 @@
+appId: dev.purama.midas
+name: Onboarding Flow
+---
+- launchApp
+- assertVisible: "MIDAS"
+- assertVisible: "Inscription"
+- tapOn: "Inscription"
+- assertVisible: "Cree ton compte trader"
+- tapOn:
+    id: "register-name"
+- inputText: "Test User"
+- tapOn:
+    id: "register-email"
+- inputText: "newuser@test.com"
+- tapOn:
+    id: "register-password"
+- inputText: "testpassword123"
+- tapOn:
+    id: "register-submit"
+- takeScreenshot: onboarding-complete

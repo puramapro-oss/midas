@@ -1431,6 +1431,101 @@ BEGIN
   END LOOP;
 END$$;
 
+-- =============================================================================
+-- AIDES / FINANCEMENT
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS midas.aides (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  nom TEXT NOT NULL,
+  type_aide TEXT NOT NULL CHECK (type_aide IN ('particulier', 'entreprise', 'association')),
+  profil_eligible TEXT[] DEFAULT '{}',
+  situation_eligible TEXT[] DEFAULT '{}',
+  montant_max DECIMAL(12,2),
+  taux_remboursement DECIMAL(5,2),
+  url_officielle TEXT,
+  description TEXT,
+  region TEXT DEFAULT 'national',
+  handicap_only BOOLEAN DEFAULT false,
+  cumulable BOOLEAN DEFAULT true,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE midas.aides ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS aides_read ON midas.aides;
+CREATE POLICY aides_read ON midas.aides FOR SELECT USING (true);
+
+CREATE TABLE IF NOT EXISTS midas.dossiers_financement (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  aide_id UUID NOT NULL REFERENCES midas.aides(id) ON DELETE CASCADE,
+  app_slug TEXT DEFAULT 'midas',
+  statut TEXT DEFAULT 'en_cours' CHECK (statut IN ('en_cours', 'accepte', 'refuse', 'renouveler')),
+  pdf_url TEXT,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_dossiers_user ON midas.dossiers_financement(user_id);
+ALTER TABLE midas.dossiers_financement ENABLE ROW LEVEL SECURITY;
+CREATE POLICY dossiers_own ON midas.dossiers_financement FOR ALL USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS dossiers_service ON midas.dossiers_financement;
+CREATE POLICY dossiers_service ON midas.dossiers_financement FOR ALL USING (auth.role() = 'service_role');
+
+-- =============================================================================
+-- SEED 45 AIDES
+-- =============================================================================
+INSERT INTO midas.aides (nom, type_aide, profil_eligible, situation_eligible, montant_max, description, url_officielle, handicap_only) VALUES
+-- PARTICULIERS (20)
+('CPF - Compte Personnel de Formation', 'particulier', '{particulier}', '{salarie,demandeur_emploi,independant,auto_entrepreneur}', 5000, 'Formez-vous aux outils financiers et au trading algorithmique.', 'https://www.moncompteformation.gouv.fr', false),
+('AIF - Aide Individuelle a la Formation', 'particulier', '{particulier}', '{demandeur_emploi}', 8000, 'Formation pour demandeurs d emploi. Prise en charge Pole emploi.', 'https://www.francetravail.fr/candidat/en-formation/mes-aides-financieres/laide-individuelle-a-la-formation.html', false),
+('Cheque numerique CAF', 'particulier', '{particulier}', '{rsa,cej}', 500, 'Aide numerique pour beneficiaires de minimas sociaux.', 'https://www.caf.fr', false),
+('Pass Numerique', 'particulier', '{particulier}', '{salarie,demandeur_emploi,retraite,rsa}', 20, 'Cheques formation au numerique pour tous.', 'https://www.inclusion-numerique.fr', false),
+('Prime d activite', 'particulier', '{particulier}', '{salarie,independant,auto_entrepreneur}', 600, 'Complement de revenus pour travailleurs modestes. Mensuel.', 'https://www.caf.fr/allocataires/droits-et-prestations/s-informer-sur-les-aides/solidarite-et-insertion/la-prime-d-activite', false),
+('AGEFIPH - Aide a la creation d activite', 'particulier', '{particulier}', '{demandeur_emploi,salarie}', 10000, 'Aide financiere pour personnes handicapees creant une activite.', 'https://www.agefiph.fr', true),
+('FIPHFP', 'particulier', '{particulier}', '{salarie}', 5000, 'Fonds pour l insertion des handicapes dans la fonction publique.', 'https://www.fiphfp.fr', true),
+('Aide Mobilite Jeunes', 'particulier', '{particulier,etudiant}', '{demandeur_emploi,cej}', 1000, 'Aide aux frais de deplacement pour formation ou emploi.', 'https://www.1jeune1solution.gouv.fr', false),
+('Bourse CROUS', 'particulier', '{etudiant}', '{salarie,demandeur_emploi,rsa}', 6000, 'Bourse sur criteres sociaux pour etudiants.', 'https://www.messervices.etudiant.gouv.fr', false),
+('Pass Culture', 'particulier', '{particulier,etudiant}', '{salarie,demandeur_emploi,cej}', 300, 'Credit numerique pour activites culturelles et educatives.', 'https://pass.culture.fr', false),
+('Micro-credit personnel', 'particulier', '{particulier}', '{demandeur_emploi,rsa,cej}', 5000, 'Pret a taux reduit pour financer un projet professionnel.', 'https://www.france-microcredit.org', false),
+('OPCO - Financements formation', 'particulier', '{particulier}', '{salarie}', 3000, 'Financement formation par votre operateur de competences.', 'https://www.opco.fr', false),
+('1jeune1solution', 'particulier', '{particulier,etudiant}', '{demandeur_emploi,cej}', 2000, 'Aides multiples pour les 16-25 ans. Formation et emploi.', 'https://www.1jeune1solution.gouv.fr', false),
+('Garantie Jeunes / CEJ', 'particulier', '{particulier}', '{cej}', 500, 'Allocation mensuelle pendant accompagnement renforce.', 'https://www.1jeune1solution.gouv.fr/contrat-engagement-jeune', false),
+('PLIE - Plan Local Insertion Emploi', 'particulier', '{particulier}', '{demandeur_emploi,rsa}', 2000, 'Accompagnement personnalise et aides financieres locales.', NULL, false),
+('RSA + formation', 'particulier', '{particulier}', '{rsa}', 607, 'Maintien du RSA pendant une formation qualifiante.', 'https://www.caf.fr', false),
+('FNE Formation', 'particulier', '{particulier}', '{salarie}', 5000, 'Prise en charge 100% des formations pour salaries en activite partielle.', 'https://travail-emploi.gouv.fr/emploi-et-formation/formation/fne-formation', false),
+('Transition Pro (ex CPF de transition)', 'particulier', '{particulier}', '{salarie}', 15000, 'Financement reconversion professionnelle avec maintien salaire.', 'https://www.transitionspro.fr', false),
+('VAE - Validation Acquis Experience', 'particulier', '{particulier}', '{salarie,independant,demandeur_emploi}', 3000, 'Faire valider son experience pour obtenir un diplome.', 'https://www.vae.gouv.fr', false),
+('Plan Emploi Numerique', 'particulier', '{particulier}', '{demandeur_emploi}', 2000, 'Formation aux metiers du numerique pour demandeurs d emploi.', 'https://www.francetravail.fr', false),
+-- ENTREPRISES (15)
+('France Num - Cheque diagnostic', 'entreprise', '{entreprise}', '{independant,auto_entrepreneur}', 6500, 'Financement diagnostic et accompagnement transformation numerique.', 'https://www.francenum.gouv.fr', false),
+('Pack IA Entreprise', 'entreprise', '{entreprise}', '{independant,auto_entrepreneur}', 18500, 'Subvention adoption IA pour PME/TPE.', 'https://www.bpifrance.fr', false),
+('OPCO IA/Numerique', 'entreprise', '{entreprise}', '{salarie}', 5000, 'Formation IA financee par votre OPCO.', 'https://www.opco.fr', false),
+('Cheque numerique BFC', 'entreprise', '{entreprise}', '{independant,auto_entrepreneur}', 2000, 'Aide regionale Bourgogne-Franche-Comte pour le numerique.', NULL, false),
+('CIR - Credit Impot Recherche', 'entreprise', '{entreprise}', '{independant}', 100000, 'Credit d impot de 30% sur les depenses de R&D.', 'https://www.enseignementsup-recherche.gouv.fr/fr/le-credit-d-impot-recherche-cir-49325', false),
+('CII - Credit Impot Innovation', 'entreprise', '{entreprise}', '{independant,auto_entrepreneur}', 80000, 'Credit d impot de 20% pour les depenses d innovation PME.', 'https://bpifrance-creation.fr/encyclopedie/fiscalite-lentreprise/impots-taxes/credit-dimpot-innovation-cii', false),
+('FNE Formation Entreprise', 'entreprise', '{entreprise}', '{salarie}', 10000, 'Prise en charge FNE pour formation salaries IA/numerique.', 'https://travail-emploi.gouv.fr/emploi-et-formation/formation/fne-formation', false),
+('TPE Numerique CCI', 'entreprise', '{entreprise}', '{independant,auto_entrepreneur}', 1500, 'Accompagnement CCI transformation digitale des TPE.', 'https://www.cci.fr', false),
+('AGEFIPH Entreprise', 'entreprise', '{entreprise}', '{salarie}', 15000, 'Aide embauche et amenagement poste pour travailleurs handicapes.', 'https://www.agefiph.fr', true),
+('DIRECCTE - Aide conseil', 'entreprise', '{entreprise}', '{independant}', 3000, 'Financement conseil en gestion et strategie.', NULL, false),
+('Diag Numerique BFC', 'entreprise', '{entreprise}', '{independant,auto_entrepreneur}', 5000, 'Diagnostic numerique finance a 50% par la Region.', NULL, false),
+('BPI Innovation', 'entreprise', '{entreprise}', '{independant}', 300000, 'Pret innovation BPI France pour projets tech.', 'https://www.bpifrance.fr', false),
+('DETR', 'entreprise', '{entreprise}', '{independant}', 50000, 'Dotation d Equipement des Territoires Ruraux.', NULL, false),
+('FEDER Numerique', 'entreprise', '{entreprise}', '{independant}', 100000, 'Fonds europeens pour la transformation numerique.', 'https://www.europe-en-france.gouv.fr', false),
+('Aide Sante Numerique', 'entreprise', '{entreprise}', '{independant}', 20000, 'Subvention pour outils numeriques dans le secteur sante.', NULL, false),
+-- ASSOCIATIONS (10)
+('FDVA 2 - Fonctionnement', 'association', '{association}', '{}', 15000, 'Fonds pour le developpement de la vie associative.', 'https://www.associations.gouv.fr/fdva.html', false),
+('FDVA 3 - Innovation', 'association', '{association}', '{}', 25000, 'Financement projets innovants associatifs.', 'https://www.associations.gouv.fr/fdva.html', false),
+('Subvention communale', 'association', '{association}', '{}', 5000, 'Subvention de fonctionnement par la commune.', NULL, false),
+('LEADER', 'association', '{association}', '{}', 20000, 'Programme europeen pour le developpement rural.', NULL, false),
+('Subvention departementale', 'association', '{association}', '{}', 10000, 'Aide du conseil departemental aux associations.', NULL, false),
+('Subvention regionale BFC', 'association', '{association}', '{}', 15000, 'Aide de la Region Bourgogne-Franche-Comte.', NULL, false),
+('Fondation de France', 'association', '{association}', '{}', 15000, 'Appels a projets de la Fondation de France.', 'https://www.fondationdefrance.org', false),
+('Mecenat d entreprise', 'association', '{association}', '{}', 50000, 'Reduction fiscale de 60% pour les donateurs.', NULL, false),
+('Google Ad Grants', 'association', '{association}', '{}', 10000, 'Credits Google Ads gratuits pour les associations.', 'https://www.google.com/grants/', false),
+('France Active', 'association', '{association}', '{}', 30000, 'Financement et accompagnement structures ESS.', 'https://www.franceactive.org', false)
+ON CONFLICT DO NOTHING;
+
 -- Grant permissions to PostgREST roles
 GRANT USAGE ON SCHEMA midas TO anon, authenticated, service_role;
 GRANT ALL ON ALL TABLES IN SCHEMA midas TO anon, authenticated, service_role;

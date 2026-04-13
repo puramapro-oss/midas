@@ -1,0 +1,15 @@
+appId: dev.purama.midas
+name: Navigation Flow
+---
+- launchApp
+- tapOn: "Trading"
+- assertVisible: "Trading"
+- tapOn: "Classement"
+- assertVisible: "Classement"
+- tapOn: "Chat IA"
+- assertVisible: "Chat MIDAS"
+- tapOn: "Parrainage"
+- assertVisible: "Parrainage & Wallet"
+- tapOn: "Dashboard"
+- assertVisible: "MIDAS"
+- takeScreenshot: navigation-complete

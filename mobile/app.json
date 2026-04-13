@@ -1,0 +1,67 @@
+{
+  "expo": {
+    "name": "MIDAS - Trading IA",
+    "slug": "midas",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "midas",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0A0F"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "dev.purama.midas",
+      "infoPlist": {
+        "NSCameraUsageDescription": "MIDAS utilise la camera pour scanner les QR codes partenaires.",
+        "NSPhotoLibraryUsageDescription": "MIDAS accede a vos photos pour votre avatar de profil.",
+        "UIBackgroundModes": ["remote-notification"]
+      }
+    },
+    "android": {
+      "package": "dev.purama.midas",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A0A0F"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "NOTIFICATIONS",
+        "CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#F59E0B"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {
+        "origin": "https://midas.purama.dev"
+      },
+      "eas": {
+        "projectId": "midas-purama"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/midas-purama"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
+  }
+}

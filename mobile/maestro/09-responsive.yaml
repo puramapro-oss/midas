@@ -1,0 +1,12 @@
+appId: dev.purama.midas
+name: Responsive Flow
+---
+- launchApp
+- assertVisible: "MIDAS"
+- takeScreenshot: portrait-dashboard
+- setDeviceOrientation: landscape
+- waitForAnimationToEnd
+- takeScreenshot: landscape-dashboard
+- setDeviceOrientation: portrait
+- tapOn: "Trading"
+- takeScreenshot: portrait-trading

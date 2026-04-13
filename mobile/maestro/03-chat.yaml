@@ -1,0 +1,14 @@
+appId: dev.purama.midas
+name: Chat Flow
+---
+- launchApp
+- tapOn: "Chat IA"
+- assertVisible: "Chat MIDAS"
+- assertVisible: "Salut trader"
+- tapOn:
+    id: "chat-input"
+- inputText: "Quel est le prix du Bitcoin ?"
+- tapOn:
+    id: "chat-send"
+- waitForAnimationToEnd
+- takeScreenshot: chat-message-sent

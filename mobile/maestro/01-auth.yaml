@@ -1,0 +1,16 @@
+appId: dev.purama.midas
+name: Auth Flow
+---
+- launchApp
+- assertVisible: "MIDAS"
+- assertVisible: "Se connecter"
+- tapOn:
+    id: "login-email"
+- inputText: "test@example.com"
+- tapOn:
+    id: "login-password"
+- inputText: "password123"
+- tapOn:
+    id: "login-submit"
+- assertVisible: "Bonjour"
+- takeScreenshot: auth-login-success
