@@ -31,6 +31,7 @@ import {
   Ticket,
   Banknote,
   CalendarHeart,
+  Gem,
 } from 'lucide-react';
 import MidasLogo from './MidasLogo';
 
@@ -57,6 +58,7 @@ const navItems = [
   { label: 'Achievements', icon: Award, href: '/dashboard/achievements', testId: 'sidebar-achievements' },
   { label: 'Communauté', icon: Heart, href: '/dashboard/community', testId: 'sidebar-community' },
   { label: 'Tirage', icon: Ticket, href: '/dashboard/lottery', testId: 'sidebar-lottery' },
+  { label: 'Wealth Engine', icon: Gem, href: '/dashboard/wealth', testId: 'sidebar-wealth' },
   { label: 'Financer', icon: Banknote, href: '/financer', testId: 'sidebar-financer' },
   { label: 'Mon Wrapped', icon: CalendarHeart, href: '/dashboard/wrapped', testId: 'sidebar-wrapped' },
 ];

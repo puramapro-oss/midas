@@ -1432,6 +1432,88 @@ BEGIN
 END$$;
 
 -- =============================================================================
+-- WEALTH ENGINE V2 — Smart Wallets, Card, Nature, Earnings
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS midas.smart_wallets (
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  wallet_type TEXT NOT NULL CHECK (wallet_type IN ('principal', 'boost', 'emergency', 'dream', 'pending', 'solidaire')),
+  balance DECIMAL(14,2) DEFAULT 0,
+  locked_until TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (user_id, wallet_type)
+);
+ALTER TABLE midas.smart_wallets ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS smart_wallets_own ON midas.smart_wallets FOR SELECT USING (auth.uid() = user_id);
+
+CREATE TABLE IF NOT EXISTS midas.wealth_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  wallet_type TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('credit', 'debit')),
+  amount DECIMAL(14,2) NOT NULL,
+  source TEXT NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_wealth_tx_user ON midas.wealth_transactions(user_id);
+ALTER TABLE midas.wealth_transactions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS wealth_tx_own ON midas.wealth_transactions FOR SELECT USING (auth.uid() = user_id);
+
+CREATE TABLE IF NOT EXISTS midas.wealth_earnings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  engine_id TEXT NOT NULL,
+  amount DECIMAL(14,2) NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_wealth_earn_user ON midas.wealth_earnings(user_id);
+ALTER TABLE midas.wealth_earnings ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS wealth_earn_own ON midas.wealth_earnings FOR SELECT USING (auth.uid() = user_id);
+
+CREATE TABLE IF NOT EXISTS midas.purama_cards (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  active BOOLEAN DEFAULT false,
+  nature_score INTEGER DEFAULT 50,
+  total_cashback DECIMAL(14,2) DEFAULT 0,
+  monthly_cashback DECIMAL(14,2) DEFAULT 0,
+  card_number_last4 TEXT,
+  treezor_wallet_id TEXT,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE midas.purama_cards ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS purama_cards_own ON midas.purama_cards FOR SELECT USING (auth.uid() = user_id);
+
+CREATE TABLE IF NOT EXISTS midas.card_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  amount DECIMAL(14,2) NOT NULL,
+  mcc TEXT,
+  merchant_name TEXT,
+  purity_level TEXT,
+  cashback_amount DECIMAL(14,2) DEFAULT 0,
+  cashback_pct DECIMAL(5,2) DEFAULT 0,
+  action TEXT DEFAULT 'allow' CHECK (action IN ('allow', 'alert', 'question')),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_card_tx_user ON midas.card_transactions(user_id);
+ALTER TABLE midas.card_transactions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS card_tx_own ON midas.card_transactions FOR SELECT USING (auth.uid() = user_id);
+
+CREATE TABLE IF NOT EXISTS midas.nature_activities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  activity_key TEXT NOT NULL,
+  amount_eur DECIMAL(6,2) NOT NULL,
+  proof_type TEXT DEFAULT 'self_report',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_nature_user ON midas.nature_activities(user_id);
+ALTER TABLE midas.nature_activities ENABLE ROW LEVEL SECURITY;
+CREATE POLICY IF NOT EXISTS nature_own ON midas.nature_activities FOR SELECT USING (auth.uid() = user_id);
+
+-- =============================================================================
 -- TRUST SCORES (anti-fraude)
 -- =============================================================================
 
