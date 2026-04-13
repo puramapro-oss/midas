@@ -35,6 +35,14 @@ const WisdomFooter = dynamic(() => import('@/components/shared/WisdomFooter'), {
   ssr: false,
 });
 
+const SpiritualLayer = dynamic(() => import('@/components/shared/SpiritualLayer'), {
+  ssr: false,
+});
+
+const SubconsciousEngine = dynamic(() => import('@/components/shared/SubconsciousEngine'), {
+  ssr: false,
+});
+
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const { profile, loading, user } = useAuth();
   const router = useRouter();
@@ -86,6 +94,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       {/* Sidebar — desktop only */}
       <Sidebar />
 
+      {/* Subliminal empowering words */}
+      <SubconsciousEngine />
+
       {/* Main content area */}
       <div className="relative z-10 flex-1 flex flex-col min-h-screen min-w-0">
         <Header
@@ -93,7 +104,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           onOpenChat={() => setChatOpen((prev) => !prev)}
         />
         <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6">
-          {children}
+          <SpiritualLayer>
+            {children}
+          </SpiritualLayer>
           <WisdomFooter />
         </main>
       </div>

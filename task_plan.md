@@ -191,6 +191,20 @@ Pour debloquer :
 - [x] grep `any` type = 0
 - [x] Deploy Vercel prod — READY
 
+## Phase 16 — Audit V5 + Corrections ✅
+- [x] Audit complet 12 points UPDATE-BRIEF.md
+- [x] A1: CREATE TABLE midas.breath_sessions sur VPS (bug critique)
+- [x] A2: /api/og endpoint Satori (OG image 1200x630 gold MIDAS)
+- [x] A3: Supprimer commentaire placeholder dans social-dominance.ts
+- [x] B1: useAwakening hook (level, streak, progress, celebration)
+- [x] B2: useEmpowerment hook (micro-textes, Fibonacci spacing, sacred numbers)
+- [x] B3: SpiritualLayer.tsx (micro-pauses 25min, session tracking)
+- [x] B4: SubconsciousEngine.tsx (subliminal empowering words)
+- [x] B5: Integration SpiritualLayer + SubconsciousEngine dans DashboardShell
+- [x] C1: ERRORS.md cree (7 erreurs documentees)
+- [x] C2: PATTERNS.md cree (6 patterns documentes)
+- [x] tsc PASS + build PASS
+
 ## Restant pour MIDAS 100%
 - [ ] EAS login + init + build iOS/Android (BLOQUE par token Apple)
 - [ ] Store submissions
