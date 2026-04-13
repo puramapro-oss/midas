@@ -5,6 +5,7 @@
 // =============================================================================
 
 import type { AgentResult, Candle } from '@/lib/agents/types';
+import { detectAdvancedPatterns, type AdvancedPattern } from '@/lib/analysis/patterns-advanced';
 
 // --- Types ---
 
@@ -44,6 +45,7 @@ interface SupportResistance {
 
 interface PatternData {
   patterns: DetectedPattern[];
+  advanced_patterns: AdvancedPattern[];
   swing_highs: Array<{ price: number; timestamp: number }>;
   swing_lows: Array<{ price: number; timestamp: number }>;
   support_levels: SupportResistance[];
@@ -343,16 +345,26 @@ export async function analyzePatterns(
   // Detect patterns
   const detectedPatterns = detectPatterns(swings, currentPrice, supportLevels, resistanceLevels);
 
+  // Patterns avancés (brief : H&S, triangles, flags, wedges, cup&handle)
+  const advancedPatterns = detectAdvancedPatterns(candles);
+
   // Market structure
   const structure = determineMarketStructure(detectedPatterns);
 
-  // Composite score
+  // Composite score (basique + avancés)
   let totalScore = 0;
   let totalWeight = 0;
 
   for (const pattern of detectedPatterns) {
     const weight = pattern.strength;
     const signalValue = pattern.signal === 'bullish' ? 1 : pattern.signal === 'bearish' ? -1 : 0;
+    totalScore += signalValue * weight;
+    totalWeight += weight;
+  }
+
+  for (const ap of advancedPatterns) {
+    const weight = ap.confidence * 1.2; // patterns avancés pèsent plus
+    const signalValue = ap.signal === 'bullish' ? 1 : -1;
     totalScore += signalValue * weight;
     totalWeight += weight;
   }
@@ -372,8 +384,8 @@ export async function analyzePatterns(
   }
 
   // Confidence
-  const patternCount = detectedPatterns.length;
-  const confidence = Math.min(0.8, 0.2 + patternCount * 0.1 + (swings.length > 10 ? 0.15 : 0));
+  const patternCount = detectedPatterns.length + advancedPatterns.length;
+  const confidence = Math.min(0.85, 0.2 + patternCount * 0.08 + (swings.length > 10 ? 0.15 : 0));
 
   // Reasoning
   const reasoningParts = [
@@ -386,6 +398,10 @@ export async function analyzePatterns(
     reasoningParts.push(`[${pattern.type}] ${pattern.description} (force: ${pattern.strength.toFixed(2)})`);
   }
 
+  for (const ap of advancedPatterns.slice(0, 5)) {
+    reasoningParts.push(`[${ap.type}] ${ap.description} (conf: ${(ap.confidence * 100).toFixed(0)}%)`);
+  }
+
   if (supportLevels.length > 0) {
     reasoningParts.push(`Support principal: ${supportLevels[0].level.toFixed(2)} (${supportLevels[0].touches} touches)`);
   }
@@ -395,6 +411,7 @@ export async function analyzePatterns(
 
   const patternData: PatternData = {
     patterns: detectedPatterns,
+    advanced_patterns: advancedPatterns,
     swing_highs: swingHighs.slice(-10).map((s) => ({ price: s.price, timestamp: s.timestamp })),
     swing_lows: swingLows.slice(-10).map((s) => ({ price: s.price, timestamp: s.timestamp })),
     support_levels: supportLevels.slice(0, 5),

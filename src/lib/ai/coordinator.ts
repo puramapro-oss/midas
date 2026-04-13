@@ -31,6 +31,14 @@ interface CoordinatorInput {
   current_drawdown_pct: number;
   open_positions: number;
   daily_trades_count: number;
+  /** Drawdown 24h glissantes (optionnel — brief: max 3%) */
+  daily_drawdown_pct?: number;
+  /** Drawdown 7j glissants (optionnel — brief: max 7%) */
+  weekly_drawdown_pct?: number;
+  /** Exposition actuelle (% capital) sur le token de cette paire */
+  current_token_exposure_pct?: number;
+  /** Corrélation max avec une position ouverte (Pearson 0-1) */
+  max_correlation_with_open_positions?: number;
 }
 
 interface ClaudeDecisionResponse {
@@ -46,27 +54,36 @@ interface ClaudeDecisionResponse {
 
 // --- Constants ---
 
-const COORDINATOR_SYSTEM_PROMPT = `Tu es le coordinateur de MIDAS, un systeme de trading crypto automatise.
-Tu recois les analyses de 5 agents specialises et tu dois prendre la decision finale.
+// Brief MIDAS-BRIEF-ULTIMATE.md — règles absolues du coordinateur
+const COORDINATOR_SYSTEM_PROMPT = `Tu es le coordinateur de MIDAS, un système de trading crypto automatisé.
+Tu reçois les analyses de 6 agents spécialisés (technical, sentiment, onchain, calendar, pattern, risk).
 
-REGLES ABSOLUES:
-1. JAMAIS de trade si le MIDAS SHIELD n'approuve pas
-2. JAMAIS de trade si moins de 4 confluences
-3. Score composite minimum de 0.2 pour un trade
-4. Le risk/reward ratio doit etre >= 1.5
-5. En cas de doute, HOLD
+RÈGLES ABSOLUES (non négociables) :
+1. Trade UNIQUEMENT si score composite > 0.7 (70%)
+2. JAMAIS contre la tendance majeure (jamais BUY si prix < EMA200, jamais SELL si prix > EMA200)
+3. Préservation du capital > gain
+4. Ratio risk/reward minimum 1:2 (R/R ≥ 2.0)
+5. Diversification : jamais > 20% du capital sur un seul token
+6. Si l'agent RISK a un VETO (approved=false) → ANNULER le trade (HOLD)
+7. Si moins de 4 confluences → HOLD
+8. En cas de doute → HOLD
 
-Tu dois repondre UNIQUEMENT en JSON valide:
+Réponds UNIQUEMENT en JSON valide :
 {
   "action": "buy" | "sell" | "hold",
   "entry_price": number (prix actuel si buy/sell, 0 si hold),
-  "stop_loss": number (calculer depuis ATR, 0 si hold),
-  "take_profit": number (R/R ratio minimum 1.5x, 0 si hold),
-  "position_size_pct": number (max selon regime, 0 si hold),
-  "strategy": "description courte de la strategie",
+  "stop_loss": number (calculer depuis ATR x 2, 0 si hold),
+  "take_profit": number (R/R ratio minimum 2.0x, 0 si hold),
+  "position_size_pct": number (max selon régime, 0 si hold),
+  "strategy": "description courte",
   "reasoning": "explication en 3-5 phrases",
   "risk_reward_ratio": number
 }`;
+
+// Seuils du brief
+const MIN_COMPOSITE_FOR_TRADE = 0.7; // brief : 70%
+const MIN_RISK_REWARD = 2.0; // brief : 1:2
+const MAX_TOKEN_EXPOSURE_PCT = 20; // brief : 20% max par token
 
 // --- Helpers ---
 
@@ -84,6 +101,19 @@ function extractATR(agentResults: AgentResult[]): number {
     return technical.data.atr_value as number;
   }
   return 0;
+}
+
+/**
+ * Récupère le prix par rapport à l'EMA200 si disponible dans les données du technical agent.
+ * Retourne 'above' | 'below' | 'unknown'.
+ */
+function extractEma200Position(agentResults: AgentResult[], currentPrice: number): 'above' | 'below' | 'unknown' {
+  const technical = agentResults.find((r) => r.agent_name === 'technical');
+  if (!technical?.data || typeof technical.data !== 'object') return 'unknown';
+  const data = technical.data as Record<string, unknown>;
+  const ema200 = (data.ema_200 ?? data.ema200 ?? data.long_term_ema) as number | undefined;
+  if (typeof ema200 !== 'number' || ema200 <= 0) return 'unknown';
+  return currentPrice >= ema200 ? 'above' : 'below';
 }
 
 function buildClaudeMessage(
@@ -186,12 +216,15 @@ export async function coordinate(input: CoordinatorInput): Promise<CoordinatorDe
     position_size_pct: prelimPositionSize,
     account_balance,
     current_drawdown_pct,
+    daily_drawdown_pct: input.daily_drawdown_pct,
+    weekly_drawdown_pct: input.weekly_drawdown_pct,
     open_positions,
     daily_trades_count,
     regime,
     candles,
     composite_score: composite.score,
     confidence: composite.confidence,
+    max_correlation_with_open_positions: input.max_correlation_with_open_positions,
   };
 
   const riskResult = await analyzeRisk(riskParams);
@@ -235,21 +268,64 @@ export async function coordinate(input: CoordinatorInput): Promise<CoordinatorDe
     };
   }
 
-  // Override: if shield rejected, force hold
+  // === BRIEF RULE 6 : VETO Shield ===
   if (!shieldApproved && claudeDecision.action !== 'hold') {
     claudeDecision.action = 'hold';
-    claudeDecision.reasoning = `SHIELD REFUSE: ${claudeDecision.reasoning}`;
+    claudeDecision.reasoning = `SHIELD VETO: ${claudeDecision.reasoning}`;
     claudeDecision.position_size_pct = 0;
   }
 
-  // Override: if confluences not met, force hold
+  // === BRIEF RULE 7 : confluences min ===
   if (!confluence.met && claudeDecision.action !== 'hold') {
     claudeDecision.action = 'hold';
     claudeDecision.reasoning = `Confluences insuffisantes (${confluence.points.length}/${confluence.min_required}): ${claudeDecision.reasoning}`;
     claudeDecision.position_size_pct = 0;
   }
 
-  // Cap position size
+  // === BRIEF RULE 1 : score composite > 70% ===
+  if (Math.abs(composite.score) < MIN_COMPOSITE_FOR_TRADE && claudeDecision.action !== 'hold') {
+    claudeDecision.action = 'hold';
+    claudeDecision.reasoning = `Score composite ${(Math.abs(composite.score) * 100).toFixed(1)}% < seuil ${MIN_COMPOSITE_FOR_TRADE * 100}% requis. ${claudeDecision.reasoning}`;
+    claudeDecision.position_size_pct = 0;
+  }
+
+  // === BRIEF RULE 2 : jamais contre la tendance EMA200 ===
+  const ema200Pos = extractEma200Position(allResults, currentPrice);
+  if (ema200Pos === 'below' && claudeDecision.action === 'buy') {
+    claudeDecision.action = 'hold';
+    claudeDecision.reasoning = `BLOQUE: BUY interdit sous EMA200 (tendance majeure baissière). ${claudeDecision.reasoning}`;
+    claudeDecision.position_size_pct = 0;
+  } else if (ema200Pos === 'above' && claudeDecision.action === 'sell') {
+    claudeDecision.action = 'hold';
+    claudeDecision.reasoning = `BLOQUE: SELL interdit au-dessus EMA200 (tendance majeure haussière). ${claudeDecision.reasoning}`;
+    claudeDecision.position_size_pct = 0;
+  }
+
+  // === BRIEF RULE 4 : R/R ≥ 2.0 ===
+  const provRisk = Math.abs(claudeDecision.entry_price - claudeDecision.stop_loss);
+  const provReward = Math.abs(claudeDecision.take_profit - claudeDecision.entry_price);
+  const provRRR = provRisk > 0 ? provReward / provRisk : 0;
+  if (claudeDecision.action !== 'hold' && provRRR < MIN_RISK_REWARD) {
+    // Auto-ajuster le take-profit pour atteindre 2.0
+    if (claudeDecision.action === 'buy') {
+      claudeDecision.take_profit = claudeDecision.entry_price + provRisk * MIN_RISK_REWARD;
+    } else {
+      claudeDecision.take_profit = claudeDecision.entry_price - provRisk * MIN_RISK_REWARD;
+    }
+  }
+
+  // === BRIEF RULE 5 : diversification — max 20% par token ===
+  const currentExposure = input.current_token_exposure_pct ?? 0;
+  const maxAdditional = Math.max(0, MAX_TOKEN_EXPOSURE_PCT - currentExposure);
+  if (claudeDecision.position_size_pct > maxAdditional) {
+    claudeDecision.position_size_pct = maxAdditional;
+    if (maxAdditional === 0) {
+      claudeDecision.action = 'hold';
+      claudeDecision.reasoning = `Exposition ${pair} déjà à ${currentExposure.toFixed(1)}% (max ${MAX_TOKEN_EXPOSURE_PCT}%). ${claudeDecision.reasoning}`;
+    }
+  }
+
+  // Cap position size par le SHIELD
   if (claudeDecision.position_size_pct > riskData.max_position_size_pct) {
     claudeDecision.position_size_pct = riskData.max_position_size_pct;
   }

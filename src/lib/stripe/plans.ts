@@ -41,8 +41,8 @@ export const PLANS: Record<MidasPlan, PlanConfig> = {
     name: 'Pro',
     price: { monthly: 39, yearly: 313 },
     priceId: {
-      monthly: process.env.STRIPE_PRO_MONTHLY_PRICE_ID ?? '',
-      yearly: process.env.STRIPE_PRO_YEARLY_PRICE_ID ?? '',
+      monthly: 'price_1THWUp4Y1unNvKtXuZlp8xqD',
+      yearly: 'price_1THWUp4Y1unNvKtX7WXhszjM',
     },
     features: [
       'Questions IA illimitees',
@@ -66,8 +66,8 @@ export const PLANS: Record<MidasPlan, PlanConfig> = {
     name: 'Ultra',
     price: { monthly: 79, yearly: 635 },
     priceId: {
-      monthly: process.env.STRIPE_ULTRA_MONTHLY_PRICE_ID ?? '',
-      yearly: process.env.STRIPE_ULTRA_YEARLY_PRICE_ID ?? '',
+      monthly: 'price_1THWUq4Y1unNvKtXunzbVwY4',
+      yearly: 'price_1THWUq4Y1unNvKtXpj2hGbd0',
     },
     features: [
       'Tout Pro inclus',

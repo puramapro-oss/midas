@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Orbitron, DM_Sans, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "sonner";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
+import CookieBanner from "@/components/shared/CookieBanner";
 import "./globals.css";
 
 const orbitron = Orbitron({
@@ -100,19 +103,37 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
     <html
-      lang="fr"
+      lang={locale}
+      dir={locale === 'ar' ? 'rtl' : 'ltr'}
       className={`${orbitron.variable} ${dmSans.variable} ${jetbrainsMono.variable} dark h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('midas-theme');if(t==='oled'||t==='light')document.documentElement.setAttribute('data-theme',t)}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-[var(--bg-primary)] text-[var(--text-primary)]">
+        <NextIntlClientProvider locale={locale} messages={messages}>
         {children}
+        <CookieBanner />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}`,
+          }}
+        />
         <Toaster
           position="top-right"
           richColors
@@ -125,6 +146,7 @@ export default function RootLayout({
             },
           }}
         />
+        </NextIntlClientProvider>
       </body>
     </html>
   );

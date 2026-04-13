@@ -4,6 +4,7 @@
 // =============================================================================
 
 import type { MarketRegime, Candle } from '@/lib/agents/types';
+import { getCurrentIndex } from '@/lib/data/fear-greed';
 
 export interface RegimeAnalysis {
   regime: MarketRegime;
@@ -38,7 +39,9 @@ export function detectRegime(
   adx: number,
   ema200Position: 'above' | 'below',
   atr: number,
-  avgAtr: number
+  avgAtr: number,
+  /** Fear & Greed actuel (optionnel — brief : F&G<10 + price -15%/7j = crash) */
+  fearGreedValue?: number
 ): RegimeAnalysis {
   if (candles.length < 10) {
     return {
@@ -55,7 +58,7 @@ export function detectRegime(
   const volatilityRatio = avgAtr > 0 ? atr / avgAtr : 1;
 
   // Detect crash conditions first (highest priority)
-  const crashCheck = detectCrash(candles);
+  const crashCheck = detectCrash(candles, fearGreedValue);
   if (crashCheck.isCrash) {
     return {
       regime: 'crash',
@@ -151,7 +154,10 @@ function calculatePriceChange(candles: Candle[]): number {
   return first > 0 ? ((last - first) / first) * 100 : 0;
 }
 
-function detectCrash(candles: Candle[]): {
+function detectCrash(
+  candles: Candle[],
+  fearGreedValue?: number
+): {
   isCrash: boolean;
   confidence: number;
   duration: number;
@@ -160,16 +166,25 @@ function detectCrash(candles: Candle[]): {
     return { isCrash: false, confidence: 0, duration: 0 };
   }
 
-  // Check for rapid price decline
   const recent5 = candles.slice(-5);
   const change5 = calculatePriceChange(recent5);
 
-  // Check for consecutive red candles
   const consecutiveRed = countConsecutiveRed(candles);
 
-  // Crash criteria: >10% drop in 5 candles OR >15% drop in 10 candles
   const recent10 = candles.slice(-10);
   const change10 = calculatePriceChange(recent10);
+
+  // Brief : F&G < 10 + prix -15% en 7j = crash certain
+  // 7j ~ 168 candles (1h) ou 7 candles (1d). On utilise les 7 dernières par défaut.
+  const recent7 = candles.slice(-7);
+  const change7d = calculatePriceChange(recent7);
+  if (typeof fearGreedValue === 'number' && fearGreedValue < 10 && change7d < -15) {
+    return {
+      isCrash: true,
+      confidence: 0.95,
+      duration: 7,
+    };
+  }
 
   if (change5 < -10) {
     return {
@@ -188,6 +203,27 @@ function detectCrash(candles: Candle[]): {
   }
 
   return { isCrash: false, confidence: 0, duration: 0 };
+}
+
+/**
+ * Wrapper pratique : récupère le F&G live et appelle detectRegime.
+ * Utile depuis les crons.
+ */
+export async function detectRegimeWithLiveFearGreed(
+  candles: Candle[],
+  adx: number,
+  ema200Position: 'above' | 'below',
+  atr: number,
+  avgAtr: number
+): Promise<RegimeAnalysis> {
+  let fgValue: number | undefined;
+  try {
+    const fg = await getCurrentIndex();
+    fgValue = fg?.value;
+  } catch {
+    fgValue = undefined;
+  }
+  return detectRegime(candles, adx, ema200Position, atr, avgAtr, fgValue);
 }
 
 function countConsecutiveRed(candles: Candle[]): number {

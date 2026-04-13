@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, CandlestickChart, PieChart, MessageSquare, Settings } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { LayoutDashboard, CandlestickChart, MessageSquare, Gift, Trophy } from 'lucide-react';
 
 const items = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { label: 'Trading', icon: CandlestickChart, href: '/dashboard/trading' },
-  { label: 'Portfolio', icon: PieChart, href: '/dashboard/portfolio' },
+  { label: 'Classement', icon: Trophy, href: '/dashboard/classement' },
   { label: 'Chat', icon: MessageSquare, href: '/dashboard/chat' },
-  { label: 'Reglages', icon: Settings, href: '/dashboard/settings' },
+  { label: 'Parrainage', icon: Gift, href: '/dashboard/referral' },
 ];
 
 export default function BottomNav() {
@@ -32,15 +33,31 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${
-                active
-                  ? 'text-[var(--gold-primary)]'
-                  : 'text-[var(--text-tertiary)]'
-              }`}
+              className="relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors"
               data-testid={`bottomnav-${item.label.toLowerCase()}`}
             >
-              <item.icon className={`w-5 h-5 ${active ? 'drop-shadow-[0_0_6px_rgba(255,215,0,0.4)]' : ''}`} />
-              <span className="text-[10px] font-medium">{item.label}</span>
+              {active && (
+                <motion.div
+                  layoutId="bottomnav-dot"
+                  className="absolute -top-1 w-4 h-[3px] rounded-full bg-[var(--gold-primary)] shadow-[0_0_8px_rgba(255,215,0,0.5)]"
+                  transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                />
+              )}
+              <motion.div
+                animate={active ? { scale: [1, 1.15, 1] } : { scale: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <item.icon
+                  className={`w-5 h-5 transition-colors duration-200 ${
+                    active ? 'text-[var(--gold-primary)] drop-shadow-[0_0_6px_rgba(255,215,0,0.4)]' : 'text-[var(--text-tertiary)]'
+                  }`}
+                />
+              </motion.div>
+              <span className={`text-[10px] font-medium transition-colors duration-200 ${
+                active ? 'text-[var(--gold-primary)]' : 'text-[var(--text-tertiary)]'
+              }`}>
+                {item.label}
+              </span>
             </Link>
           );
         })}

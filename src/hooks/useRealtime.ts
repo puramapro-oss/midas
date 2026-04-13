@@ -83,7 +83,7 @@ export function useRealtime<T extends Record<string, unknown> = Record<string, u
           }
         }
       )
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         if (status === 'CHANNEL_ERROR') {
           // Retry connection after 5 seconds
           setTimeout(() => {

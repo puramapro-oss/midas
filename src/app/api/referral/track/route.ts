@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 import { z } from 'zod';
 
 function getAdminDb() {
@@ -13,6 +15,18 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    // Auth check — only authenticated users can track referrals
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { getAll() { return cookieStore.getAll(); }, setAll() {} } }
+    );
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+    }
+
     const body = await request.json();
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {
@@ -20,6 +34,11 @@ export async function POST(request: Request) {
     }
 
     const { referralCode, referredUserId } = parsed.data;
+
+    // Ensure user can only track their own referral
+    if (referredUserId !== user.id) {
+      return NextResponse.json({ error: 'Non autorise' }, { status: 403 });
+    }
     const adminDb = getAdminDb();
 
     // Look up the referral code

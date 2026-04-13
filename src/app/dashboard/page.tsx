@@ -2,6 +2,7 @@
 
 import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
+import { motion } from 'framer-motion';
 import { Skeleton } from '@/components/ui/Skeleton';
 
 const PortfolioOverview = dynamic(() => import('@/components/dashboard/PortfolioOverview'), {
@@ -45,60 +46,98 @@ function DashboardSkeleton({ height = 'h-48' }: { height?: string }) {
   );
 }
 
+const stagger = {
+  hidden: {} as const,
+  visible: { transition: { staggerChildren: 0.08 } } as const,
+};
+
+const fadeSlideUp = {
+  hidden: { opacity: 0, y: 24 } as const,
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring' as const, stiffness: 260, damping: 24 },
+  },
+};
+
+const fadeSlideLeft = {
+  hidden: { opacity: 0, x: -20 } as const,
+  visible: {
+    opacity: 1,
+    x: 0,
+    transition: { type: 'spring' as const, stiffness: 260, damping: 24 },
+  },
+};
+
+const scaleIn = {
+  hidden: { opacity: 0, scale: 0.92 } as const,
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: { type: 'spring' as const, stiffness: 300, damping: 22 },
+  },
+};
+
 export default function DashboardPage() {
   return (
-    <div className="space-y-6" data-testid="dashboard-page">
-      {/* Portfolio Overview - Full width */}
-      <section data-testid="dashboard-portfolio">
+    <motion.div
+      className="space-y-6"
+      data-testid="dashboard-page"
+      variants={stagger}
+      initial="hidden"
+      animate="visible"
+    >
+      {/* Portfolio Overview */}
+      <motion.section variants={fadeSlideUp} data-testid="dashboard-portfolio">
         <Suspense fallback={<DashboardSkeleton height="h-72" />}>
           <PortfolioOverview />
         </Suspense>
-      </section>
+      </motion.section>
 
       {/* AI Status + Controls */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2" data-testid="dashboard-ai-gauges">
+        <motion.div variants={fadeSlideLeft} className="lg:col-span-2" data-testid="dashboard-ai-gauges">
           <Suspense fallback={<DashboardSkeleton height="h-48" />}>
             <AIStatusGauges />
           </Suspense>
-        </div>
-        <div className="space-y-6" data-testid="dashboard-controls">
+        </motion.div>
+        <motion.div variants={scaleIn} className="space-y-6" data-testid="dashboard-controls">
           <Suspense fallback={<DashboardSkeleton height="h-24" />}>
             <AutoTradeToggle />
           </Suspense>
           <Suspense fallback={<DashboardSkeleton height="h-24" />}>
             <RiskSlider />
           </Suspense>
-        </div>
+        </motion.div>
       </div>
 
-      {/* Open Positions - Full width */}
-      <section data-testid="dashboard-positions">
+      {/* Open Positions */}
+      <motion.section variants={fadeSlideUp} data-testid="dashboard-positions">
         <Suspense fallback={<DashboardSkeleton height="h-64" />}>
           <OpenPositions />
         </Suspense>
-      </section>
+      </motion.section>
 
-      {/* Signals + Activity - 2 columns */}
+      {/* Signals + Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <section data-testid="dashboard-signals">
+        <motion.section variants={fadeSlideLeft} data-testid="dashboard-signals">
           <Suspense fallback={<DashboardSkeleton height="h-64" />}>
             <SignalsList />
           </Suspense>
-        </section>
-        <section data-testid="dashboard-activity">
+        </motion.section>
+        <motion.section variants={scaleIn} data-testid="dashboard-activity">
           <Suspense fallback={<DashboardSkeleton height="h-64" />}>
             <RecentActivity />
           </Suspense>
-        </section>
+        </motion.section>
       </div>
 
-      {/* Shield Status - Full width */}
-      <section data-testid="dashboard-shield">
+      {/* Shield Status */}
+      <motion.section variants={fadeSlideUp} data-testid="dashboard-shield">
         <Suspense fallback={<DashboardSkeleton height="h-48" />}>
           <ShieldStatus />
         </Suspense>
-      </section>
-    </div>
+      </motion.section>
+    </motion.div>
   );
 }

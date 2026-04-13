@@ -305,8 +305,7 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    message: 'Setup completed. Some steps may need manual SQL execution.',
+    message: 'Setup completed. Some steps may need manual SQL execution via SSH.',
     results,
-    manual_sql_url: 'Run the SQL file manually: PGPASSWORD="..." psql -h 72.62.191.111 -p 5432 -U postgres -d postgres -f supabase/migrations/001_initial_schema.sql',
   });
 }

@@ -21,6 +21,8 @@ export interface AltseasonData {
 export interface MacroData {
   dxy_trend: 'rising' | 'falling' | 'flat';
   sp500_trend: 'rising' | 'falling' | 'flat';
+  /** Brief : BTC vs Or — corrélation négative en bull, positive en crise */
+  gold_trend: 'rising' | 'falling' | 'flat';
   vix_level: number;
   fed_rate_trend: 'hawkish' | 'dovish' | 'neutral';
   us10y_yield_trend: 'rising' | 'falling' | 'flat';
@@ -36,6 +38,92 @@ export interface CorrelationAnalysis {
   macro_interpretation: string;
   overall_signal: 'bullish' | 'bearish' | 'neutral';
   confidence: number;
+}
+
+// -----------------------------------------------------------------------------
+// Macro price fetchers — Yahoo Finance public chart endpoint (sans clé)
+// Tickers : SPY (S&P500 ETF), UUP (DXY proxy), GLD (Gold ETF), BTC-USD
+// -----------------------------------------------------------------------------
+
+interface YahooChartPoint {
+  close: number;
+  timestamp: number;
+}
+
+async function fetchYahooChart(
+  ticker: string,
+  range = '90d',
+  interval = '1d',
+): Promise<YahooChartPoint[]> {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${range}&interval=${interval}`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return [];
+    const json = (await res.json()) as {
+      chart?: {
+        result?: Array<{
+          timestamp: number[];
+          indicators: { quote: Array<{ close: (number | null)[] }> };
+        }>;
+      };
+    };
+    const result = json.chart?.result?.[0];
+    if (!result) return [];
+    const closes = result.indicators.quote[0]?.close ?? [];
+    return result.timestamp.map((t, i) => ({
+      timestamp: t,
+      close: closes[i] ?? 0,
+    })).filter((p) => p.close > 0);
+  } catch {
+    return [];
+  }
+}
+
+export interface MacroPriceSnapshot {
+  btc: number[];
+  sp500: number[];
+  dxy: number[];
+  gold: number[];
+}
+
+/**
+ * Récupère les prix de clôture daily des 4 actifs sur 90 jours.
+ * Utilisable directement avec analyzeCorrelations({ price_arrays: ... }).
+ */
+export async function fetchMacroPrices(): Promise<MacroPriceSnapshot> {
+  const [btc, sp500, dxy, gold] = await Promise.all([
+    fetchYahooChart('BTC-USD'),
+    fetchYahooChart('SPY'),
+    fetchYahooChart('UUP'),
+    fetchYahooChart('GLD'),
+  ]);
+  return {
+    btc: btc.map((p) => p.close),
+    sp500: sp500.map((p) => p.close),
+    dxy: dxy.map((p) => p.close),
+    gold: gold.map((p) => p.close),
+  };
+}
+
+/**
+ * Wrapper pratique : fetch macro prices + calcule les 3 corrélations BTC vs SP500/DXY/Gold.
+ */
+export async function fetchBtcMacroCorrelations(): Promise<{
+  btc_sp500: number;
+  btc_dxy: number;
+  btc_gold: number;
+  period_days: number;
+}> {
+  const snapshot = await fetchMacroPrices();
+  return {
+    btc_sp500: calculatePearsonCorrelation(snapshot.btc, snapshot.sp500),
+    btc_dxy: calculatePearsonCorrelation(snapshot.btc, snapshot.dxy),
+    btc_gold: calculatePearsonCorrelation(snapshot.btc, snapshot.gold),
+    period_days: Math.min(snapshot.btc.length, snapshot.sp500.length, snapshot.dxy.length, snapshot.gold.length),
+  };
 }
 
 // --- Pearson Correlation ---
@@ -110,6 +198,11 @@ function calculateMacroRisk(macro: MacroData): { score: number; interpretation: 
   // 10Y yield
   if (macro.us10y_yield_trend === 'rising') risk += 10;
   else if (macro.us10y_yield_trend === 'falling') risk -= 5;
+
+  // Or — Gold qui monte fort = fuite vers les valeurs refuges = risk-off
+  // mais BTC peut bénéficier en tant que "digital gold" si rising très fort
+  if (macro.gold_trend === 'rising') risk += 5;
+  else if (macro.gold_trend === 'falling') risk -= 3;
 
   risk = Math.max(0, Math.min(100, risk));
 

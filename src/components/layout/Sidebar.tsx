@@ -25,6 +25,10 @@ import {
   Handshake,
   Coins,
   FileText,
+  ShoppingBag,
+  Award,
+  Heart,
+  Ticket,
 } from 'lucide-react';
 import MidasLogo from './MidasLogo';
 
@@ -47,6 +51,10 @@ const navItems = [
   { label: 'Wallet', icon: Wallet, href: '/dashboard/wallet', testId: 'sidebar-wallet' },
   { label: 'Fiscalité', icon: FileText, href: '/dashboard/tax', testId: 'sidebar-tax' },
   { label: 'Partenariat', icon: Handshake, href: '/dashboard/partenaire', testId: 'sidebar-partenaire' },
+  { label: 'Boutique', icon: ShoppingBag, href: '/dashboard/boutique', testId: 'sidebar-boutique' },
+  { label: 'Achievements', icon: Award, href: '/dashboard/achievements', testId: 'sidebar-achievements' },
+  { label: 'Communauté', icon: Heart, href: '/dashboard/community', testId: 'sidebar-community' },
+  { label: 'Tirage', icon: Ticket, href: '/dashboard/lottery', testId: 'sidebar-lottery' },
 ];
 
 const bottomItems = [

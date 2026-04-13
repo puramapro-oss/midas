@@ -31,59 +31,6 @@ interface ConversationItem {
   messageCount: number;
 }
 
-const SAMPLE_CONVERSATIONS: ConversationItem[] = [
-  {
-    id: 'conv-1',
-    title: 'Analyse BTC mars 2026',
-    lastMessage: 'Le BTC montre des signaux haussiers...',
-    date: '29 mars',
-    messageCount: 4,
-  },
-  {
-    id: 'conv-2',
-    title: 'Strategie ETH Grid',
-    lastMessage: 'Pour une strategie grid sur ETH...',
-    date: '28 mars',
-    messageCount: 8,
-  },
-  {
-    id: 'conv-3',
-    title: 'Diversification portefeuille',
-    lastMessage: 'Je recommande une allocation...',
-    date: '27 mars',
-    messageCount: 6,
-  },
-];
-
-const SAMPLE_MESSAGES: ChatMessage[] = [
-  {
-    id: 'msg-1',
-    role: 'user',
-    content: 'Analyse BTC pour la semaine prochaine. Quels sont les niveaux cles a surveiller ?',
-    timestamp: '14:32',
-  },
-  {
-    id: 'msg-2',
-    role: 'assistant',
-    content: `**Analyse BTC/USDT \u2014 Semaine du 30 mars 2026**
-
-**Tendance generale :** Hausse progressive depuis le 15 mars avec un momentum positif. Le RSI 14 est a 62, pas encore en surachat.
-
-**Niveaux cles :**
-- **Support majeur :** 84 200 $ (MA 50 + ancien sommet)
-- **Support secondaire :** 82 800 $ (fibonacci 0.618)
-- **Resistance 1 :** 88 500 $ (plus haut mensuel)
-- **Resistance 2 :** 91 000 $ (zone psychologique)
-
-**Signal IA MIDAS :** \ud83d\udfe2 **Achat modere** \u2014 entree optimale entre 85 000 $ et 85 800 $ avec SL a 83 500 $ et TP a 88 500 $.
-
-**Volume :** En hausse de +18% sur 7 jours, confirmant l'interet acheteur.
-
-\u26a0\ufe0f *Ceci n'est pas un conseil financier. Fais toujours tes propres recherches.*`,
-    timestamp: '14:33',
-  },
-];
-
 const SUGGESTED_QUESTIONS = [
   'Analyse technique ETH cette semaine',
   'Quelle strategie pour un marche lateral ?',
@@ -92,44 +39,80 @@ const SUGGESTED_QUESTIONS = [
 ];
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>(SAMPLE_MESSAGES);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [activeConv, setActiveConv] = useState('conv-1');
+  const [activeConv, setActiveConv] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [questionsUsed] = useState(3);
-  const [questionsLimit] = useState(5);
+  const [questionsUsed, setQuestionsUsed] = useState(0);
+  const [questionsLimit, setQuestionsLimit] = useState(5);
+  const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = () => {
+  const formatTime = (d: Date) =>
+    d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+  const handleSend = async () => {
     if (!input.trim() || loading) return;
 
+    const text = input.trim();
     const userMessage: ChatMessage = {
       id: `msg-${Date.now()}`,
       role: 'user',
-      content: input.trim(),
-      timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      content: text,
+      timestamp: formatTime(new Date()),
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setLoading(true);
 
-    setTimeout(() => {
-      const aiMessage: ChatMessage = {
-        id: `msg-${Date.now() + 1}`,
-        role: 'assistant',
-        content:
-          "Je suis MIDAS, ton assistant trading IA. Cette reponse est un exemple de demonstration. En production, je t'apporterais une analyse detaillee avec des donnees de marche en temps reel, des niveaux techniques et des recommandations personnalisees.",
-        timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages((prev) => [...prev, aiMessage]);
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          conversationId: activeConv ?? undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (res.status === 429) {
+          setQuestionsUsed(data.used ?? questionsLimit);
+          setQuestionsLimit(data.limit ?? questionsLimit);
+        }
+        throw new Error(data?.error || 'Erreur réseau');
+      }
+      if (data.conversationId && !activeConv) setActiveConv(data.conversationId);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg-${Date.now() + 1}`,
+          role: 'assistant',
+          content: data.response ?? 'Réponse vide.',
+          timestamp: formatTime(new Date()),
+        },
+      ]);
+      setQuestionsUsed((p) => p + 1);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg-err-${Date.now()}`,
+          role: 'assistant',
+          content: `⚠️ ${msg}`,
+          timestamp: formatTime(new Date()),
+        },
+      ]);
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   const handleSuggestedQuestion = (question: string) => {
@@ -171,36 +154,42 @@ export default function ChatPage() {
 
             {/* Conversations list */}
             <div className="flex-1 overflow-y-auto px-2 space-y-1">
-              {SAMPLE_CONVERSATIONS.map((conv) => (
-                <button
-                  key={conv.id}
-                  onClick={() => setActiveConv(conv.id)}
-                  className={cn(
-                    'w-full text-left px-3 py-2.5 rounded-xl transition-all duration-200',
-                    activeConv === conv.id
-                      ? 'bg-[#FFD700]/[0.06] border border-[#FFD700]/10'
-                      : 'hover:bg-white/[0.04] border border-transparent'
-                  )}
-                  data-testid={`conversation-${conv.id}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={cn(
-                        'text-xs font-medium truncate',
-                        activeConv === conv.id ? 'text-white' : 'text-white/60'
-                      )}
-                    >
-                      {conv.title}
-                    </span>
-                    <span className="text-[10px] text-white/20 shrink-0 ml-2">
-                      {conv.date}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-white/30 truncate mt-0.5">
-                    {conv.lastMessage}
-                  </p>
-                </button>
-              ))}
+              {conversations.length === 0 ? (
+                <p className="text-[11px] text-white/30 text-center py-6 px-2">
+                  Aucune conversation. Commence à poser une question pour démarrer.
+                </p>
+              ) : (
+                conversations.map((conv) => (
+                  <button
+                    key={conv.id}
+                    onClick={() => setActiveConv(conv.id)}
+                    className={cn(
+                      'w-full text-left px-3 py-2.5 rounded-xl transition-all duration-200',
+                      activeConv === conv.id
+                        ? 'bg-[#FFD700]/[0.06] border border-[#FFD700]/10'
+                        : 'hover:bg-white/[0.04] border border-transparent'
+                    )}
+                    data-testid={`conversation-${conv.id}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span
+                        className={cn(
+                          'text-xs font-medium truncate',
+                          activeConv === conv.id ? 'text-white' : 'text-white/60'
+                        )}
+                      >
+                        {conv.title}
+                      </span>
+                      <span className="text-[10px] text-white/20 shrink-0 ml-2">
+                        {conv.date}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-white/30 truncate mt-0.5">
+                      {conv.lastMessage}
+                    </p>
+                  </button>
+                ))
+              )}
             </div>
 
             {/* Question counter */}

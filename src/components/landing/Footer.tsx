@@ -11,13 +11,15 @@ const footerLinks = {
     { label: 'FAQ', href: '#faq' },
   ],
   legal: [
-    { label: 'Conditions generales', href: '/legal/cgu' },
-    { label: 'Confidentialite', href: '/legal/privacy' },
     { label: 'Mentions legales', href: '/legal/mentions' },
-    { label: 'Disclaimer', href: '/legal/disclaimer' },
+    { label: 'Politique de confidentialite', href: '/legal/privacy' },
+    { label: 'CGV', href: '/legal/cgv' },
+    { label: 'CGU', href: '/legal/cgu' },
+    { label: 'Politique cookies', href: '/legal/cookies' },
+    { label: 'Avertissement risques', href: '/legal/disclaimer' },
   ],
   support: [
-    { label: 'Centre d\'aide', href: '/changelog' },
+    { label: 'Changelog', href: '/changelog' },
     { label: 'Statut', href: '/status' },
     { label: 'Contact', href: 'mailto:support@purama.dev' },
   ],
@@ -132,7 +134,7 @@ export function Footer() {
             &copy; 2026 Purama. Tous droits reserves.
           </p>
           <p className="text-white/15 text-xs font-[var(--font-dm-sans)]">
-            Micro-entreprise — TVA non applicable, art. 293B du CGI
+            PURAMA SASU — TVA non applicable, art. 293B du CGI
           </p>
         </div>
       </div>

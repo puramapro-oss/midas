@@ -16,7 +16,9 @@ export default function PrivacyPage() {
         <section className="space-y-6 text-sm leading-relaxed">
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">1. Responsable du traitement</h2>
-            <p>Purama, micro-entreprise — Contact : matiss.frasne@gmail.com</p>
+            <p><strong className="text-white">PURAMA SASU</strong> — SIRET 941 200 105 00011 — Capital 1 euro</p>
+            <p>Siege social : 8 Rue de la Chapelle, 25560 Frasne, France</p>
+            <p className="mt-1">Contact DPO : matiss.frasne@gmail.com</p>
           </div>
 
           <div>
@@ -77,7 +79,7 @@ export default function PrivacyPage() {
               <li><strong className="text-white">Droit d&apos;opposition :</strong> vous opposer au traitement de vos données</li>
               <li><strong className="text-white">Droit de retrait du consentement :</strong> à tout moment pour les emails</li>
             </ul>
-            <p className="mt-2">Pour exercer vos droits : matiss.frasne@gmail.com. Délai de réponse : 30 jours maximum.</p>
+            <p className="mt-2">Pour exercer vos droits : matiss.frasne@gmail.com. Delai de reponse : 30 jours maximum.</p>
           </div>
 
           <div>
@@ -91,8 +93,9 @@ export default function PrivacyPage() {
           </div>
 
           <div className="pt-6 border-t border-white/10">
+            <p className="text-white/40">PURAMA SASU — 8 Rue de la Chapelle, 25560 Frasne</p>
             <p className="text-white/40">Contact DPO : matiss.frasne@gmail.com</p>
-            <p className="text-white/40">Autorité de contrôle : CNIL — www.cnil.fr</p>
+            <p className="text-white/40">Autorite de controle : CNIL — www.cnil.fr</p>
           </div>
         </section>
       </div>

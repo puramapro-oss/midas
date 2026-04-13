@@ -25,6 +25,7 @@ function LoginContent() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [rememberMe, setRememberMe] = useState(false)
 
   const nextUrl = searchParams.get('next') ?? '/dashboard'
 
@@ -47,6 +48,13 @@ function LoginContent() {
 
     setLoading(true)
     try {
+      // Clear forced logout flag before new login
+      localStorage.removeItem('midas_forced_logout')
+      // Store remember-me preference
+      localStorage.setItem('midas_remember', rememberMe ? 'true' : 'false')
+      // Mark session as active in sessionStorage (cleared on browser close)
+      sessionStorage.setItem('midas_session_valid', 'true')
+
       const { error } = await signIn(email, password)
       if (error) {
         setErrors({ form: 'Email ou mot de passe incorrect' })
@@ -64,6 +72,13 @@ function LoginContent() {
   async function handleGoogle() {
     setGoogleLoading(true)
     try {
+      // Clear forced logout flag before new login
+      localStorage.removeItem('midas_forced_logout')
+      // Store remember-me preference
+      localStorage.setItem('midas_remember', rememberMe ? 'true' : 'false')
+      // Mark session as active in sessionStorage (cleared on browser close)
+      sessionStorage.setItem('midas_session_valid', 'true')
+
       const { error } = await signInWithGoogle()
       if (error) {
         toast.error('Erreur lors de la connexion Google')
@@ -167,8 +182,20 @@ function LoginContent() {
               )}
             </div>
 
-            {/* Forgot password */}
-            <div className="text-right">
+            {/* Forgot password + Remember me */}
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer group" data-testid="remember-me-label">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  data-testid="remember-me-checkbox"
+                  className="w-4 h-4 rounded border-white/20 bg-white/[0.04] text-[#FFD700] focus:ring-[#FFD700]/30 focus:ring-offset-0 cursor-pointer accent-[#FFD700]"
+                />
+                <span className="text-xs text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors select-none">
+                  Rester connecte
+                </span>
+              </label>
               <Link
                 href="/forgot-password"
                 data-testid="forgot-password-link"

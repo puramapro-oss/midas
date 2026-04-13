@@ -303,7 +303,23 @@ function RegisterContent() {
                   data-testid="cgu-link"
                   className="text-[#FFD700]/80 hover:text-[#FFD700] underline underline-offset-2 transition-colors"
                 >
-                  Conditions Generales d&apos;Utilisation
+                  CGU
+                </Link>
+                {', les '}
+                <Link
+                  href="/legal/cgv"
+                  data-testid="cgv-link"
+                  className="text-[#FFD700]/80 hover:text-[#FFD700] underline underline-offset-2 transition-colors"
+                >
+                  CGV
+                </Link>
+                {' et la '}
+                <Link
+                  href="/legal/privacy"
+                  data-testid="privacy-link"
+                  className="text-[#FFD700]/80 hover:text-[#FFD700] underline underline-offset-2 transition-colors"
+                >
+                  Politique de Confidentialite
                 </Link>
               </label>
             </div>

@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { SUPER_ADMIN_EMAIL } from '@/types/database';
 import type { Profile } from '@/types/database';
-import type { Session, User } from '@supabase/supabase-js';
+import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 
 interface UseAuthReturn {
   user: User | null;
@@ -28,7 +28,8 @@ export function useAuth(): UseAuthReturn {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const supabase = createClient();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const supabase = useMemo(() => createClient(), []);
 
   const fetchProfile = useCallback(
     async (userId: string) => {
@@ -60,6 +61,36 @@ export function useAuth(): UseAuthReturn {
   useEffect(() => {
     const initAuth = async () => {
       try {
+        // Check if user explicitly logged out
+        const forcedLogout = localStorage.getItem('midas_forced_logout');
+        if (forcedLogout === 'true') {
+          // User explicitly signed out — do not restore session
+          try {
+            await supabase.auth.signOut({ scope: 'local' });
+          } catch { /* ignore */ }
+          setLoading(false);
+          return;
+        }
+
+        // Check if session should be temporary (browser was closed without "remember me")
+        const rememberMe = localStorage.getItem('midas_remember');
+        const sessionValid = sessionStorage.getItem('midas_session_valid');
+        if (rememberMe === 'false' && !sessionValid) {
+          // Browser was closed and user didn't check "remember me" — clear session
+          try {
+            const keys = Object.keys(localStorage);
+            for (const key of keys) {
+              if (key.startsWith('sb-') || key.startsWith('supabase')) {
+                localStorage.removeItem(key);
+              }
+            }
+            localStorage.removeItem('midas_remember');
+            await supabase.auth.signOut({ scope: 'local' });
+          } catch { /* ignore */ }
+          setLoading(false);
+          return;
+        }
+
         const {
           data: { session: currentSession },
         } = await supabase.auth.getSession();
@@ -68,6 +99,8 @@ export function useAuth(): UseAuthReturn {
         setUser(currentSession?.user ?? null);
 
         if (currentSession?.user) {
+          // Re-mark session as valid for this browser session
+          sessionStorage.setItem('midas_session_valid', 'true');
           await fetchProfile(currentSession.user.id);
         }
       } finally {
@@ -79,7 +112,7 @@ export function useAuth(): UseAuthReturn {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+    } = supabase.auth.onAuthStateChange(async (event: AuthChangeEvent, newSession: Session | null) => {
       setSession(newSession);
       setUser(newSession?.user ?? null);
 
@@ -151,10 +184,44 @@ export function useAuth(): UseAuthReturn {
   }, [supabase]);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    // Clear state immediately — don't wait for the network call
     setUser(null);
     setProfile(null);
     setSession(null);
+
+    // Set forced logout flag BEFORE clearing storage
+    try {
+      localStorage.setItem('midas_forced_logout', 'true');
+    } catch { /* ignore */ }
+
+    // Clear all auth data from storage
+    try {
+      const keys = Object.keys(localStorage);
+      for (const key of keys) {
+        if (key.startsWith('sb-') || key.startsWith('supabase')) {
+          localStorage.removeItem(key);
+        }
+      }
+      localStorage.removeItem('midas_remember');
+      sessionStorage.removeItem('midas_session_valid');
+    } catch {
+      // storage unavailable
+    }
+
+    // Clear all cookies
+    try {
+      document.cookie.split(';').forEach((c) => {
+        const name = c.trim().split('=')[0];
+        document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+      });
+    } catch { /* ignore */ }
+
+    // Then call Supabase signOut — wrapped in try/catch so it never blocks navigation
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch {
+      // signOut can fail if session is already expired — that's fine
+    }
   }, [supabase]);
 
   const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL;

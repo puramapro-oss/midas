@@ -1,4 +1,7 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from 'next-intl/plugin';
+
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
@@ -23,6 +26,11 @@ const nextConfig: NextConfig = {
         destination: 'https://midas.purama.dev/:path*',
         permanent: true,
       },
+      { source: '/signup', destination: '/register', permanent: true },
+      { source: '/mentions-legales', destination: '/legal/mentions', permanent: true },
+      { source: '/politique-confidentialite', destination: '/legal/privacy', permanent: true },
+      { source: '/cgv', destination: '/legal/cgv', permanent: true },
+      { source: '/cgu', destination: '/legal/cgu', permanent: true },
     ];
   },
   serverExternalPackages: ['ccxt'],
@@ -33,4 +41,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);
