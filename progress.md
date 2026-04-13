@@ -125,6 +125,74 @@
 - EXPO_TOKEN invalide → EAS login interactif requis
 - Commandes pour debloquer: eas login → eas init → eas build → eas submit
 
+## Session 2026-04-13 — Phase 13: Binance Earn + Copy Trading + KYC
+
+### Schema SQL (7 tables)
+- kyc_verifications (user_id, status, tier 0-3, full_name, dob, nationality, address, document_type, urls)
+- kyc_audit_logs (user_id, action, details)
+- trader_profiles (user_id, display_name, stats, commission_pct, ranking_score)
+- copy_relationships (copier_id, trader_id, status, copy_amount, copy_ratio, pnl)
+- copy_trades (relationship_id, symbol, side, quantity, price, pnl, commission)
+- earn_positions (user_id, product_type, asset, amount, apy, daily/total_earnings, lock_period)
+- earn_history (user_id, position_id, action, asset, amount)
+- All with RLS + indexes
+
+### Files Created
+- schema-phase13.sql
+- src/app/api/kyc/route.ts
+- src/app/api/copy-trading/route.ts
+- src/app/api/earn/positions/route.ts
+- src/app/dashboard/kyc/page.tsx
+- src/app/dashboard/copy-trading/page.tsx
+
+### Files Modified
+- src/types/database.ts (KYC, CopyTrading, Earn types + KYC_TIER_LIMITS)
+- src/app/dashboard/earn/page.tsx (enhanced with positions/history tabs)
+- src/app/dashboard/leaderboard/page.tsx (redirect to copy-trading)
+- src/components/layout/Sidebar.tsx (+KYC link, Leaderboard→Copy Trading)
+
+### State
+- tsc: PASS
+- build: PASS
+- Deploy: https://midas.purama.dev — LIVE
+- Pages: /dashboard/kyc, /dashboard/copy-trading, /dashboard/earn (enhanced) — all 307 (auth redirect OK)
+- APIs: /api/kyc, /api/copy-trading, /api/earn/positions — all 401 (auth required OK)
+
+## Session 2026-04-13 (suite) — Phase 14: Features manquantes CLAUDE.md
+
+### Pages Dashboard creees
+- src/app/dashboard/challenges/page.tsx (challenges entre amis, 3 types trading)
+- src/app/dashboard/share/page.tsx (partage multi-plateforme, streak multiplier)
+- src/app/dashboard/gratitude/page.tsx (journal gratitude, prompts quotidiens)
+- src/app/dashboard/breathing/page.tsx (4 techniques, cercle anime, timer)
+- src/app/dashboard/buddies/page.tsx (buddy trading, checkins, moods)
+- src/app/dashboard/stories/page.tsx (5 templates, generate/download/share)
+
+### Pages publiques creees
+- src/app/ecosystem/page.tsx (19 apps Purama, cross-promo)
+- src/app/how-it-works/page.tsx (6 etapes, features list)
+
+### APIs creees
+- src/app/api/gratitude/route.ts
+- src/app/api/breathing/route.ts
+- src/app/api/community/buddy/route.ts (rempli, etait vide)
+- src/app/api/golden-hour/route.ts
+- src/app/api/mentorship/route.ts
+- src/app/api/community-goals/route.ts
+- src/app/api/review-prompt/route.ts
+- src/app/api/collaborative-missions/route.ts
+- src/app/api/ceremonies/route.ts
+
+### Fichiers modifies
+- src/components/layout/Sidebar.tsx (+6 liens)
+- src/types/database.ts (+7 interfaces)
+- src/middleware.ts (+/ecosystem, +/how-it-works)
+
+### Etat
+- tsc: PASS
+- build: PASS
+- Nouvelles pages: challenges, share, gratitude, breathing, buddies, stories, ecosystem, how-it-works
+
 ## Session 2026-04-01
 - [x] Analysé codebase existant: 80% complet
 - [x] Build vérifié: PASS

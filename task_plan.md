@@ -125,3 +125,49 @@ Pour debloquer :
 - [ ] EAS login + init (interactif, requires user action)
 - [ ] EAS build iOS + Android
 - [ ] Store submissions (iOS App Store + Google Play)
+
+## Phase 13 — Binance Earn + Copy Trading + KYC ✅
+- [x] Schema SQL: 7 tables (kyc_verifications, kyc_audit_logs, trader_profiles, copy_relationships, copy_trades, earn_positions, earn_history)
+- [x] RLS policies on all 7 tables
+- [x] Indexes on user_id, status, ranking_score
+- [x] Types TypeScript ajoutés (KycVerification, TraderProfile, CopyRelationship, CopyTrade, EarnPosition, EarnHistoryEntry, KYC_TIER_LIMITS)
+- [x] API /api/kyc (GET status + POST submit verification)
+- [x] API /api/copy-trading (GET traders/copies/profile/history + POST follow/unfollow/pause/resume/become_trader)
+- [x] API /api/earn/positions (GET positions+stats+history + POST subscribe/redeem)
+- [x] Page /dashboard/kyc — Wizard 3 étapes (identité, adresse, document) + tier progress + status banners
+- [x] Page /dashboard/copy-trading — 3 tabs (Top Traders, Mes Copies, Devenir Trader)
+- [x] Page /dashboard/earn — Enhanced with 3 tabs (Opportunités, Mes Positions, Historique) + positions stats
+- [x] /dashboard/leaderboard → redirect to /dashboard/copy-trading
+- [x] Sidebar: +KYC, Leaderboard→Copy Trading
+- [x] tsc PASS + build PASS
+- [x] Deploy Vercel prod — 200 OK
+
+## Phase 14 — Features manquantes CLAUDE.md (complet) ✅
+### 14.A Pages Dashboard manquantes ✅
+- [x] /dashboard/challenges — page complete (create + list + types trading)
+- [x] /dashboard/share — page complete (share link + platforms + streak multiplier + native share)
+- [x] /dashboard/gratitude — journal de gratitude (+50 pts/entree, max 3/jour, prompts quotidiens)
+- [x] /dashboard/breathing — respiration guidee (4-7-8, box, coherent, wim_hof, cercle anime, +30 pts)
+- [x] /dashboard/buddies — buddy trading (checkins, moods, streak display)
+- [x] /dashboard/stories — story creator (5 templates, generate OG, download, native share)
+
+### 14.B APIs manquantes ✅
+- [x] /api/gratitude (GET entries + POST create, +50 pts, max 3/j)
+- [x] /api/breathing (GET sessions + POST record, +30 pts, max 3/j)
+- [x] /api/community/buddy (GET buddies + POST checkin)
+- [x] /api/golden-hour (GET active/next golden hour)
+- [x] /api/mentorship (GET as_mentor + as_mentee)
+- [x] /api/community-goals (GET active goals)
+- [x] /api/review-prompt (GET should_show + POST response, +500 pts if accepted)
+- [x] /api/collaborative-missions (GET active + POST join)
+- [x] /api/ceremonies (GET recent victory ceremonies)
+
+### 14.C Pages publiques ✅
+- [x] /ecosystem — 19 apps Purama grid, cross-promo CROSS50
+- [x] /how-it-works — 6 etapes trading IA + features list
+
+### 14.D Sidebar + Types + Middleware ✅
+- [x] Sidebar: +6 liens (Challenges, Partage, Gratitude, Respiration, Buddy, Stories)
+- [x] Types database.ts: +GratitudeEntry, BreathSession, GoldenHour, CommunityGoal, Mentorship, Challenge, ReviewPrompt
+- [x] Middleware: /ecosystem + /how-it-works ajoutes aux routes publiques
+- [x] tsc PASS + build PASS

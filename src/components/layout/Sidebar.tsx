@@ -32,6 +32,12 @@ import {
   Banknote,
   CalendarHeart,
   Gem,
+  Shield,
+  Swords,
+  Share2,
+  Wind,
+  Users,
+  Sparkles,
 } from 'lucide-react';
 import MidasLogo from './MidasLogo';
 
@@ -44,7 +50,7 @@ const navItems = [
   { label: 'Agents IA', icon: Bot, href: '/dashboard/agents', testId: 'sidebar-agents' },
   { label: 'Mes Bots', icon: Bot, href: '/dashboard/bots', testId: 'sidebar-bots' },
   { label: 'Alertes', icon: Bell, href: '/dashboard/alerts', testId: 'sidebar-alerts' },
-  { label: 'Leaderboard', icon: Trophy, href: '/dashboard/leaderboard', testId: 'sidebar-leaderboard' },
+  { label: 'Copy Trading', icon: Trophy, href: '/dashboard/copy-trading', testId: 'sidebar-copy-trading' },
   { label: 'Paper Trading', icon: FlaskConical, href: '/dashboard/paper', testId: 'sidebar-paper' },
   { label: 'Earn', icon: Coins, href: '/dashboard/earn', testId: 'sidebar-earn' },
   { label: 'Backtesting', icon: FlaskConical, href: '/dashboard/backtesting', testId: 'sidebar-backtesting' },
@@ -52,6 +58,7 @@ const navItems = [
   { label: 'Parrainage', icon: Gift, href: '/dashboard/referral', testId: 'sidebar-referral' },
   { label: 'Classement', icon: Trophy, href: '/dashboard/classement', testId: 'sidebar-classement' },
   { label: 'Wallet', icon: Wallet, href: '/dashboard/wallet', testId: 'sidebar-wallet' },
+  { label: 'Vérification KYC', icon: Shield, href: '/dashboard/kyc', testId: 'sidebar-kyc' },
   { label: 'Fiscalité', icon: FileText, href: '/dashboard/tax', testId: 'sidebar-tax' },
   { label: 'Partenariat', icon: Handshake, href: '/dashboard/partenaire', testId: 'sidebar-partenaire' },
   { label: 'Boutique', icon: ShoppingBag, href: '/dashboard/boutique', testId: 'sidebar-boutique' },
@@ -59,6 +66,12 @@ const navItems = [
   { label: 'Communauté', icon: Heart, href: '/dashboard/community', testId: 'sidebar-community' },
   { label: 'Tirage', icon: Ticket, href: '/dashboard/lottery', testId: 'sidebar-lottery' },
   { label: 'Wealth Engine', icon: Gem, href: '/dashboard/wealth', testId: 'sidebar-wealth' },
+  { label: 'Challenges', icon: Swords, href: '/dashboard/challenges', testId: 'sidebar-challenges' },
+  { label: 'Partage', icon: Share2, href: '/dashboard/share', testId: 'sidebar-share' },
+  { label: 'Gratitude', icon: Heart, href: '/dashboard/gratitude', testId: 'sidebar-gratitude' },
+  { label: 'Respiration', icon: Wind, href: '/dashboard/breathing', testId: 'sidebar-breathing' },
+  { label: 'Buddy', icon: Users, href: '/dashboard/buddies', testId: 'sidebar-buddies' },
+  { label: 'Stories', icon: Sparkles, href: '/dashboard/stories', testId: 'sidebar-stories' },
   { label: 'Financer', icon: Banknote, href: '/financer', testId: 'sidebar-financer' },
   { label: 'Mon Wrapped', icon: CalendarHeart, href: '/dashboard/wrapped', testId: 'sidebar-wrapped' },
 ];
