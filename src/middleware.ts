@@ -6,6 +6,8 @@ const PUBLIC_ROUTES = new Set([
   '/',
   '/login',
   '/register',
+  '/signup',
+  '/onboarding',
   '/forgot-password',
   '/pricing',
   '/status',
@@ -13,17 +15,20 @@ const PUBLIC_ROUTES = new Set([
   '/offline',
   '/api/stripe/webhook',
   '/api/status',
+  '/partenariat',
+  '/contact',
 ]);
 
 const PUBLIC_PREFIXES = [
   '/legal/',
-  '/api/cron/',
-  '/api/market/',
-  '/api/auth/',
+  '/api/',
   '/go/',
+  '/partenariat/',
+  '/scan/',
+  '/p/',
 ];
 
-const AUTH_ROUTES = new Set(['/login', '/register', '/forgot-password']);
+const AUTH_ROUTES = new Set(['/login', '/forgot-password']);
 
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_ROUTES.has(pathname)) return true;
@@ -75,6 +80,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|robots\\.txt|sitemap\\.xml|manifest\\.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot|txt|json|xml)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|robots\\.txt|sitemap\\.xml|manifest\\.json|sw\\.js|workbox-.*\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff|woff2|ttf|eot|txt|json|xml|webmanifest|js|css|map)$).*)',
   ],
 };

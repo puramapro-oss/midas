@@ -6,10 +6,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Settings, CreditCard, LogOut, ChevronDown, User } from 'lucide-react';
 import type { Profile } from '@/types/database';
 import { getInitials } from '@/lib/utils/formatters';
+import { createClient } from '@/lib/supabase/client';
 
 interface UserMenuProps {
   profile: Profile | null;
-  onSignOut: () => void;
 }
 
 const planLabels: Record<string, { label: string; color: string }> = {
@@ -19,7 +19,45 @@ const planLabels: Record<string, { label: string; color: string }> = {
   ultra: { label: 'Ultra', color: 'text-purple-400 bg-purple-500/10' },
 };
 
-export default function UserMenu({ profile, onSignOut }: UserMenuProps) {
+function handleLogout() {
+  // 1. Set forced logout flag FIRST — prevents auto-reconnection
+  try {
+    localStorage.setItem('midas_forced_logout', 'true');
+  } catch { /* ignore */ }
+
+  // 2. Clear all Supabase cookies
+  document.cookie.split(';').forEach((c) => {
+    const name = c.trim().split('=')[0];
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+  });
+
+  // 3. Clear localStorage auth data + session markers
+  try {
+    const keys = Object.keys(localStorage);
+    for (const key of keys) {
+      if (key.startsWith('sb-') || key.startsWith('supabase')) {
+        localStorage.removeItem(key);
+      }
+    }
+    localStorage.removeItem('midas_remember');
+    sessionStorage.removeItem('midas_session_valid');
+  } catch {
+    // storage unavailable
+  }
+
+  // 4. Call Supabase signOut (fire-and-forget, don't await)
+  try {
+    const supabase = createClient();
+    supabase.auth.signOut({ scope: 'local' });
+  } catch {
+    // ignore — we're leaving the page anyway
+  }
+
+  // 5. Hard redirect — this is the only thing that matters
+  window.location.href = '/login';
+}
+
+export default function UserMenu({ profile }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -84,7 +122,7 @@ export default function UserMenu({ profile, onSignOut }: UserMenuProps) {
                 className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/[0.04] transition-colors"
               >
                 <Settings className="w-4 h-4" />
-                Paramètres
+                Parametres
               </Link>
               <Link
                 href="/pricing"
@@ -104,18 +142,16 @@ export default function UserMenu({ profile, onSignOut }: UserMenuProps) {
               </Link>
             </div>
 
-            {/* Sign out */}
+            {/* Sign out — DO NOT setOpen(false) here, it unmounts the button */}
             <div className="py-1 border-t border-[var(--border-subtle)]">
               <button
-                onClick={() => {
-                  setOpen(false);
-                  onSignOut();
-                }}
+                type="button"
+                onClick={handleLogout}
                 className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-red-400 hover:bg-red-500/5 transition-colors"
                 data-testid="signout-button"
               >
                 <LogOut className="w-4 h-4" />
-                Déconnexion
+                Deconnexion
               </button>
             </div>
           </motion.div>

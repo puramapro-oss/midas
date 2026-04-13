@@ -51,12 +51,34 @@ export async function POST(request: Request) {
     // Fetch profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, plan, role, daily_trades_used, daily_questions_reset_at')
+      .select('id, plan, role, daily_trades_used, daily_questions_reset_at, paper_trading_until')
       .eq('id', user.id)
       .single();
 
     if (profileError || !profile) {
       return NextResponse.json({ error: 'Profil introuvable' }, { status: 404 });
+    }
+
+    // === BRIEF MIDAS-BRIEF-ULTIMATE.md : paper trading obligatoire 7 jours ===
+    // Tant que profile.paper_trading_until > now(), on FORCE isPaperTrade=true.
+    // Le super_admin n'est pas concerné (il peut tester en réel).
+    let effectiveIsPaperTrade = isPaperTrade;
+    if (profile.role !== 'super_admin' && profile.paper_trading_until) {
+      const until = new Date(profile.paper_trading_until as string);
+      if (until.getTime() > Date.now()) {
+        if (!isPaperTrade) {
+          // Refus explicite si l'utilisateur tente d'exécuter un trade réel
+          return NextResponse.json(
+            {
+              error: 'Paper trading obligatoire pour 7 jours après inscription',
+              paper_trading_until: profile.paper_trading_until,
+              days_remaining: Math.ceil((until.getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
+            },
+            { status: 403 },
+          );
+        }
+        effectiveIsPaperTrade = true;
+      }
     }
 
     // Check trade limits (super_admin bypass)
@@ -116,7 +138,7 @@ export async function POST(request: Request) {
         amount,
         stop_loss: stopLoss ?? null,
         take_profit: takeProfit ?? null,
-        is_paper_trade: isPaperTrade,
+        is_paper_trade: effectiveIsPaperTrade,
         bot_id: botId ?? null,
         exchange_connection_id: exchangeConnectionId,
         exchange: exchangeConn.exchange,

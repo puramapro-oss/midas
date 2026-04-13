@@ -38,6 +38,40 @@ export async function POST(request: Request) {
 
     const { botId } = parsed.data;
 
+    // === BRIEF MIDAS-BRIEF-ULTIMATE.md : paper trading 7 jours obligatoire ===
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, paper_trading_until')
+      .eq('id', user.id)
+      .single();
+
+    if (
+      profile?.role !== 'super_admin' &&
+      profile?.paper_trading_until &&
+      new Date(profile.paper_trading_until as string).getTime() > Date.now()
+    ) {
+      const { data: botCfg } = await supabase
+        .from('bots')
+        .select('id, is_paper_trade')
+        .eq('id', botId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (botCfg && botCfg.is_paper_trade === false) {
+        const days = Math.ceil(
+          (new Date(profile.paper_trading_until as string).getTime() - Date.now()) /
+            (1000 * 60 * 60 * 24),
+        );
+        return NextResponse.json(
+          {
+            error: 'Paper trading obligatoire pendant 7 jours après inscription',
+            days_remaining: days,
+            paper_trading_until: profile.paper_trading_until,
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     // Fetch bot and verify ownership
     const { data: existingBot, error: fetchError } = await supabase
       .from('bots')

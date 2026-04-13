@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils/formatters'
+import { SpeakButton } from '@/components/chat/SpeakButton'
 
 export interface ChatMessageProps {
   role: 'user' | 'assistant'
@@ -149,15 +150,20 @@ export function ChatMessage({ role, content, timestamp }: ChatMessageProps) {
           </div>
         </div>
 
-        {/* Timestamp */}
-        <span
+        {/* Timestamp + Speak button for assistant */}
+        <div
           className={cn(
-            'text-[10px] text-white/30 px-1',
-            isUser ? 'text-right' : 'text-left'
+            'flex items-center gap-1.5 px-1',
+            isUser ? 'justify-end' : 'justify-start'
           )}
         >
-          {formattedTime}
-        </span>
+          <span className="text-[10px] text-white/30">
+            {formattedTime}
+          </span>
+          {!isUser && (
+            <SpeakButton text={content} />
+          )}
+        </div>
       </div>
     </motion.div>
   )

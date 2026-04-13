@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { z } from 'zod';
+import { fetchTicker24h } from '@/lib/data/binance';
+import { pairToSymbol } from '@/lib/exchange/binance-public';
 
 const bodySchema = z.object({
   tradeId: z.string().uuid(),
@@ -54,9 +56,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Ce trade est deja ferme', status: trade.status }, { status: 400 });
     }
 
-    // Use entry_price as exit_price base (in real scenario, fetch current market price)
+    // Fetch real current market price from Binance ticker
     const entryPrice = trade.entry_price ?? 0;
-    const exitPrice = entryPrice > 0 ? entryPrice * (1 + (Math.random() * 0.1 - 0.05)) : 0;
+    let exitPrice = entryPrice;
+    if (trade.pair) {
+      const ticker = await fetchTicker24h(pairToSymbol(trade.pair));
+      if (ticker && ticker.lastPrice > 0) {
+        exitPrice = ticker.lastPrice;
+      }
+    }
 
     // Calculate P&L
     let pnl = 0;

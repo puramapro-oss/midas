@@ -16,7 +16,7 @@ export default function CGUPage() {
         <section className="space-y-6 text-sm leading-relaxed">
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">1. Objet</h2>
-            <p>Les présentes Conditions Générales d&apos;Utilisation (CGU) régissent l&apos;utilisation de la plateforme MIDAS, éditée par Purama. MIDAS est un logiciel d&apos;aide à la décision pour le trading de cryptomonnaies. En utilisant MIDAS, vous acceptez ces CGU dans leur intégralité.</p>
+            <p>Les presentes Conditions Generales d&apos;Utilisation (CGU) regissent l&apos;utilisation de la plateforme MIDAS, editee par PURAMA SASU (Societe par Actions Simplifiee Unipersonnelle), capital 1 euro, siege social 8 Rue de la Chapelle, 25560 Frasne, France. MIDAS est un logiciel d&apos;aide a la decision pour le trading de cryptomonnaies. En utilisant MIDAS, vous acceptez ces CGU dans leur integralite.</p>
           </div>
 
           <div>
@@ -31,7 +31,7 @@ export default function CGUPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">4. Abonnements et paiements</h2>
-            <p>MIDAS propose trois formules : Free (gratuit), Pro (33€/mois ou 265€/an) et Ultra (77€/mois ou 619€/an). Les paiements sont gérés par Stripe. Les abonnements sont reconduits automatiquement. Vous pouvez annuler à tout moment depuis votre espace client ; l&apos;accès est maintenu jusqu&apos;à la fin de la période payée. Aucun remboursement n&apos;est effectué pour la période en cours.</p>
+            <p>MIDAS propose trois formules : Free (gratuit), Pro (39€/mois ou 313€/an) et Ultra (79€/mois ou 635€/an). Les prix sont exprimes en euros TTC (TVA non applicable, art. 293 B du CGI). Les paiements sont geres par Stripe. Les abonnements sont reconduits automatiquement. Vous pouvez annuler a tout moment depuis votre espace client ; l&apos;acces est maintenu jusqu&apos;a la fin de la periode payee. Aucun remboursement n&apos;est effectue pour la periode en cours. Les conditions de vente detaillees sont disponibles dans nos <a href="/legal/cgv" className="text-[#FFD700] hover:underline">Conditions Generales de Vente</a>.</p>
           </div>
 
           <div>
@@ -66,7 +66,8 @@ export default function CGUPage() {
           </div>
 
           <div className="pt-6 border-t border-white/10">
-            <p className="text-white/40">Pour toute question : matiss.frasne@gmail.com</p>
+            <p className="text-white/40">PURAMA SASU — 8 Rue de la Chapelle, 25560 Frasne</p>
+            <p className="text-white/40">Contact : contact@purama.dev</p>
           </div>
         </section>
       </div>

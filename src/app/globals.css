@@ -34,6 +34,31 @@
   --radius-xl: 20px;
 }
 
+/* ===== THEME VARIANTS ===== */
+
+html[data-theme='oled'] {
+  --bg-primary: #000000;
+  --bg-secondary: #050505;
+  --bg-tertiary: #0A0A0A;
+  --bg-card: #080808;
+  --bg-elevated: #0F0F0F;
+}
+
+html[data-theme='light'] {
+  --bg-primary: #F5F5F0;
+  --bg-secondary: #EEEEE8;
+  --bg-tertiary: #E5E5DD;
+  --bg-card: #FFFFFF;
+  --bg-elevated: #FAFAF5;
+  --text-primary: #1A1A2E;
+  --text-secondary: rgba(26, 26, 46, 0.6);
+  --text-tertiary: rgba(26, 26, 46, 0.4);
+  --gold-muted: rgba(184, 134, 11, 0.12);
+  --border-subtle: rgba(184, 134, 11, 0.1);
+  --border-default: rgba(184, 134, 11, 0.15);
+  --border-strong: rgba(184, 134, 11, 0.3);
+}
+
 @theme inline {
   --color-background: var(--bg-primary);
   --color-foreground: var(--text-primary);

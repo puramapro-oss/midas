@@ -7,7 +7,8 @@ import { SUPER_ADMIN_EMAIL } from '@/lib/utils/constants';
 function getAdminDb() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { db: { schema: 'midas' } }
   );
 }
 
@@ -67,7 +68,7 @@ export async function GET() {
     const { count: tradesToday } = await adminDb
       .from('trades')
       .select('id', { count: 'exact', head: true })
-      .gte('created_at', todayStart.toISOString());
+      .gte('opened_at', todayStart.toISOString());
 
     // Active bots
     const { count: activeBots } = await adminDb

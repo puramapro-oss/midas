@@ -4,10 +4,11 @@
 // =============================================================================
 
 import type { AgentResult, Candle, MarketRegime } from '@/lib/agents/types';
+import { detectManipulation } from '@/lib/analysis/manipulation-detector';
 
 // --- Types ---
 
-type ShieldLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+type ShieldLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 interface ShieldCheck {
   level: ShieldLevel;
@@ -37,25 +38,35 @@ interface RiskParams {
   take_profit: number;
   position_size_pct: number;
   account_balance: number;
+  /** Drawdown total (compteur depuis l'inception ou capital initial) */
   current_drawdown_pct: number;
+  /** Drawdown sur 24h glissantes (optionnel — brief : limite 3%) */
+  daily_drawdown_pct?: number;
+  /** Drawdown sur 7j glissants (optionnel — brief : limite 7%) */
+  weekly_drawdown_pct?: number;
   open_positions: number;
   daily_trades_count: number;
   regime: MarketRegime;
   candles: Candle[];
   composite_score: number;
   confidence: number;
+  /** Corrélation max (Pearson 0-1) avec une position déjà ouverte (optionnel — brief : seuil 0.9) */
+  max_correlation_with_open_positions?: number;
 }
 
 // --- Constants ---
 
 const MAX_DAILY_TRADES = 10;
 const MAX_OPEN_POSITIONS = 5;
-const MAX_DRAWDOWN_PCT = 15;
+const MAX_DRAWDOWN_PCT = 15; // brief : total
+const MAX_DAILY_DRAWDOWN_PCT = 3; // brief : journalier
+const MAX_WEEKLY_DRAWDOWN_PCT = 7; // brief : hebdo
 const MAX_POSITION_SIZE_PCT = 5;
-const MIN_RISK_REWARD_RATIO = 1.5;
+const MIN_RISK_REWARD_RATIO = 2.0; // brief : R/R minimum 1:2
 const MAX_SPREAD_PCT = 0.5;
 const MIN_CONFIDENCE = 0.4;
 const MIN_COMPOSITE_SCORE = 0.2;
+const MAX_CORRELATION = 0.9; // brief : seuil 90%
 
 const REGIME_POSITION_LIMITS: Record<MarketRegime, number> = {
   strong_bull: 5,
@@ -82,15 +93,32 @@ const REGIME_LEVERAGE_LIMITS: Record<MarketRegime, number> = {
 // --- Shield Checks ---
 
 function checkLevel1_DrawdownLimit(params: RiskParams): ShieldCheck {
-  const passed = params.current_drawdown_pct < MAX_DRAWDOWN_PCT;
+  const dailyDD = params.daily_drawdown_pct ?? 0;
+  const weeklyDD = params.weekly_drawdown_pct ?? 0;
+  const totalDD = params.current_drawdown_pct;
+
+  const totalOk = totalDD < MAX_DRAWDOWN_PCT;
+  const dailyOk = dailyDD < MAX_DAILY_DRAWDOWN_PCT;
+  const weeklyOk = weeklyDD < MAX_WEEKLY_DRAWDOWN_PCT;
+  const passed = totalOk && dailyOk && weeklyOk;
+
+  let message: string;
+  if (!passed) {
+    const reasons: string[] = [];
+    if (!dailyOk) reasons.push(`24h ${dailyDD.toFixed(1)}% > ${MAX_DAILY_DRAWDOWN_PCT}%`);
+    if (!weeklyOk) reasons.push(`7j ${weeklyDD.toFixed(1)}% > ${MAX_WEEKLY_DRAWDOWN_PCT}%`);
+    if (!totalOk) reasons.push(`total ${totalDD.toFixed(1)}% > ${MAX_DRAWDOWN_PCT}%`);
+    message = `BLOQUE: drawdown excessif — ${reasons.join(', ')}`;
+  } else {
+    message = `Drawdown 24h ${dailyDD.toFixed(1)}%/${MAX_DAILY_DRAWDOWN_PCT}% | 7j ${weeklyDD.toFixed(1)}%/${MAX_WEEKLY_DRAWDOWN_PCT}% | total ${totalDD.toFixed(1)}%/${MAX_DRAWDOWN_PCT}%`;
+  }
+
   return {
     level: 1,
-    name: 'Drawdown Limit',
+    name: 'Drawdown Limit (24h/7j/total)',
     passed,
     severity: 'critical',
-    message: passed
-      ? `Drawdown actuel ${params.current_drawdown_pct.toFixed(1)}% < limite ${MAX_DRAWDOWN_PCT}%`
-      : `BLOQUE: Drawdown ${params.current_drawdown_pct.toFixed(1)}% depasse la limite de ${MAX_DRAWDOWN_PCT}%`,
+    message,
   };
 }
 
@@ -209,6 +237,52 @@ function checkLevel6_Spread(params: RiskParams): ShieldCheck {
   };
 }
 
+function checkLevel8_AntiManipulation(params: RiskParams): ShieldCheck {
+  if (params.candles.length < 30) {
+    return {
+      level: 8,
+      name: 'Anti-Manipulation',
+      passed: true,
+      severity: 'medium',
+      message: 'Historique insuffisant pour détection manipulation — check ignoré',
+    };
+  }
+  const detection = detectManipulation(params.candles);
+  const passed = detection.overall_risk !== 'likely_manipulated';
+  return {
+    level: 8,
+    name: 'Anti-Manipulation',
+    passed,
+    severity: 'critical',
+    message: passed
+      ? `Manipulation: ${detection.overall_risk} | wash ${(detection.wash_trading_risk * 100).toFixed(0)}% | pump ${(detection.pump_dump_risk * 100).toFixed(0)}%`
+      : `BLOQUE: marché probablement manipulé — ${detection.recommendation}`,
+  };
+}
+
+function checkLevel9_CorrelationVeto(params: RiskParams): ShieldCheck {
+  const corr = params.max_correlation_with_open_positions;
+  if (typeof corr !== 'number') {
+    return {
+      level: 9,
+      name: 'Correlation Veto',
+      passed: true,
+      severity: 'medium',
+      message: 'Pas de données de corrélation — check ignoré',
+    };
+  }
+  const passed = corr < MAX_CORRELATION;
+  return {
+    level: 9,
+    name: 'Correlation Veto',
+    passed,
+    severity: 'high',
+    message: passed
+      ? `Corrélation max ${(corr * 100).toFixed(0)}% < seuil ${MAX_CORRELATION * 100}%`
+      : `BLOQUE: trade corrélé à ${(corr * 100).toFixed(0)}% à une position ouverte (seuil ${MAX_CORRELATION * 100}%)`,
+  };
+}
+
 function checkLevel7_SignalQuality(params: RiskParams): ShieldCheck {
   const scoreOk = Math.abs(params.composite_score) >= MIN_COMPOSITE_SCORE;
   const confidenceOk = params.confidence >= MIN_CONFIDENCE;
@@ -240,6 +314,8 @@ export async function analyzeRisk(params: RiskParams): Promise<AgentResult> {
     checkLevel5_MarketRegime(params),
     checkLevel6_Spread(params),
     checkLevel7_SignalQuality(params),
+    checkLevel8_AntiManipulation(params),
+    checkLevel9_CorrelationVeto(params),
   ];
 
   const passedCount = checks.filter((c) => c.passed).length;
@@ -279,7 +355,7 @@ export async function analyzeRisk(params: RiskParams): Promise<AgentResult> {
 
   // Reasoning
   const reasoningParts = [
-    `MIDAS SHIELD — ${approved ? 'APPROUVE' : 'REFUSE'} (${passedCount}/7 checks)`,
+    `MIDAS SHIELD — ${approved ? 'APPROUVE' : 'REFUSE'} (${passedCount}/${checks.length} checks)`,
     `Niveau risque: ${riskLevel.toUpperCase()} | Position max: ${maxPositionSizePct.toFixed(1)}% | Leverage max: ${suggestedLeverage}x`,
   ];
 

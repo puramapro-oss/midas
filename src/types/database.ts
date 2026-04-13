@@ -18,6 +18,7 @@ export interface Profile {
   stripe_subscription_id: string | null;
   subscription_status: 'active' | 'canceled' | 'past_due' | 'trialing' | null;
   onboarding_completed: boolean;
+  tutorial_completed: boolean;
   xp_total: number;
   level: number;
   streak_days: number;
@@ -74,6 +75,108 @@ export interface Message {
 
 export type Plan = Profile['plan'];
 export type Role = Profile['role'];
+
+// Purama Points
+export interface PointTransaction {
+  id: string;
+  user_id: string;
+  amount: number;
+  type: 'earn' | 'spend' | 'convert';
+  source: string;
+  description: string | null;
+  reference_id: string | null;
+  created_at: string;
+}
+
+export interface ShopItem {
+  id: string;
+  category: 'reduction' | 'subscription' | 'ticket' | 'feature' | 'cash';
+  name: string;
+  description: string | null;
+  cost_points: number;
+  value: string | null;
+  is_active: boolean;
+  max_purchases: number | null;
+  created_at: string;
+}
+
+export interface DailyGift {
+  id: string;
+  user_id: string;
+  gift_type: 'points' | 'coupon' | 'ticket' | 'credits' | 'big_points' | 'mega_coupon';
+  gift_value: string;
+  streak_count: number;
+  opened_at: string;
+}
+
+export interface Achievement {
+  id: string;
+  key: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: 'trading' | 'social' | 'learning' | 'streak' | 'milestone';
+  points_reward: number;
+  xp_reward: number;
+  condition_type: string;
+  condition_value: number;
+  created_at: string;
+}
+
+export interface UserAchievement {
+  id: string;
+  user_id: string;
+  achievement_id: string;
+  unlocked_at: string;
+  achievement?: Achievement;
+}
+
+// Communauté
+export interface LoveWallPost {
+  id: string;
+  user_id: string;
+  content: string;
+  type: 'victory' | 'encouragement' | 'milestone' | 'gratitude';
+  reactions_count: number;
+  pinned: boolean;
+  created_at: string;
+  author?: { full_name: string | null; avatar_url: string | null };
+}
+
+export interface LoveCircle {
+  id: string;
+  name: string;
+  objective: string;
+  max_members: number;
+  current_members: number;
+  status: 'active' | 'full' | 'archived';
+  created_at: string;
+}
+
+export interface Buddy {
+  id: string;
+  user_a: string;
+  user_b: string;
+  streak_days: number;
+  status: 'active' | 'paused' | 'ended';
+  matched_at: string;
+}
+
+export interface LotteryDraw {
+  id: string;
+  draw_date: string;
+  pool_amount: number;
+  status: 'upcoming' | 'live' | 'completed';
+  created_at: string;
+}
+
+export interface LotteryTicket {
+  id: string;
+  user_id: string;
+  draw_id: string | null;
+  source: string;
+  created_at: string;
+}
 
 export type TradeSide = 'buy' | 'sell';
 export type TradeType = 'market' | 'limit' | 'stop' | 'stop_limit';

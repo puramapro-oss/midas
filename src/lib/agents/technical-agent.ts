@@ -19,6 +19,12 @@ import {
 } from 'technicalindicators';
 
 import type { AgentResult, Candle, MarketRegime } from '@/lib/agents/types';
+import {
+  calculateStochRSI,
+  calculateForceIndex,
+  calculateElderRay,
+  calculateVolumeProfile,
+} from '@/lib/analysis/indicators/elder';
 
 // --- Indicator Configuration ---
 
@@ -40,17 +46,22 @@ const MFI_PERIOD = 14;
 // --- Indicator Weights for Composite Score ---
 
 const INDICATOR_WEIGHTS: Record<string, number> = {
-  rsi: 0.12,
-  macd: 0.15,
-  bollinger: 0.10,
-  ema_cross: 0.13,
-  stochastic: 0.08,
-  adx: 0.10,
-  obv: 0.08,
-  cci: 0.06,
-  williams_r: 0.06,
-  mfi: 0.07,
-  ema_200_position: 0.05,
+  rsi: 0.10,
+  macd: 0.13,
+  bollinger: 0.08,
+  ema_cross: 0.11,
+  stochastic: 0.06,
+  adx: 0.08,
+  obv: 0.06,
+  cci: 0.05,
+  williams_r: 0.05,
+  mfi: 0.06,
+  ema_200_position: 0.04,
+  // 4 indicateurs ajoutés (brief MIDAS-BRIEF-ULTIMATE.md)
+  stoch_rsi: 0.06,
+  force_index: 0.06,
+  elder_ray: 0.06,
+  volume_profile: 0.05,
 };
 
 // --- Types ---
@@ -565,6 +576,110 @@ function scoreMFI(highs: number[], lows: number[], closes: number[], volumes: nu
   };
 }
 
+// --- 4 indicateurs ajoutés (brief MIDAS-BRIEF-ULTIMATE.md) ---
+
+function scoreStochRSI(closes: number[]): IndicatorScore {
+  const result = calculateStochRSI(closes);
+  let signal: IndicatorScore['signal'] = 'neutral';
+  let score = 0;
+  if (result.signal === 'oversold') {
+    signal = 'bullish';
+    score = 0.7;
+  } else if (result.signal === 'overbought') {
+    signal = 'bearish';
+    score = -0.7;
+  }
+  // croisement %K au-dessus de %D = signal d'entrée
+  const k = result.k;
+  const d = result.d;
+  if (k.length >= 2 && d.length >= 2) {
+    const kPrev = k[k.length - 2];
+    const dPrev = d[d.length - 2];
+    if (kPrev <= dPrev && result.lastK > result.lastD && result.lastK < 50) {
+      signal = 'bullish';
+      score = Math.max(score, 0.5);
+    } else if (kPrev >= dPrev && result.lastK < result.lastD && result.lastK > 50) {
+      signal = 'bearish';
+      score = Math.min(score, -0.5);
+    }
+  }
+  return {
+    name: 'stoch_rsi',
+    signal,
+    score,
+    value: result.lastK,
+    interpretation: `StochRSI K:${result.lastK.toFixed(1)} D:${result.lastD.toFixed(1)} — ${result.signal}`,
+  };
+}
+
+function scoreForceIndex(candles: Candle[]): IndicatorScore {
+  const result = calculateForceIndex(candles);
+  let signal: IndicatorScore['signal'] = 'neutral';
+  let score = 0;
+  if (result.signal === 'bullish') {
+    signal = 'bullish';
+    score = 0.6;
+  } else if (result.signal === 'bearish') {
+    signal = 'bearish';
+    score = -0.6;
+  }
+  return {
+    name: 'force_index',
+    signal,
+    score,
+    value: result.last,
+    interpretation: `Force Index ${result.last.toExponential(2)} — ${result.signal === 'bullish' ? 'pression acheteuse' : result.signal === 'bearish' ? 'pression vendeuse' : 'neutre'}`,
+  };
+}
+
+function scoreElderRay(candles: Candle[]): IndicatorScore {
+  const result = calculateElderRay(candles);
+  let signal: IndicatorScore['signal'] = 'neutral';
+  let score = 0;
+  // Règle Elder : haussier = bull > 0 ET bear < 0 (creux dans bear)
+  if (result.lastBull > 0 && result.lastBear < 0) {
+    // Si bear power remonte (moins négatif que précédent), signal d'achat fort
+    const bearPrev = result.bearPower[result.bearPower.length - 2] ?? result.lastBear;
+    if (result.lastBear > bearPrev) {
+      signal = 'bullish';
+      score = 0.8;
+    } else {
+      signal = 'bullish';
+      score = 0.4;
+    }
+  } else if (result.lastBull < 0 && result.lastBear < 0) {
+    signal = 'bearish';
+    score = -0.7;
+  }
+  return {
+    name: 'elder_ray',
+    signal,
+    score,
+    value: result.lastBull,
+    interpretation: `Elder Ray Bull:${result.lastBull.toFixed(2)} Bear:${result.lastBear.toFixed(2)}`,
+  };
+}
+
+function scoreVolumeProfile(candles: Candle[]): IndicatorScore {
+  const result = calculateVolumeProfile(candles);
+  let signal: IndicatorScore['signal'] = 'neutral';
+  let score = 0;
+  if (result.signal === 'support') {
+    signal = 'bullish';
+    score = 0.5;
+  } else if (result.signal === 'resistance') {
+    signal = 'bearish';
+    score = -0.5;
+  }
+  return {
+    name: 'volume_profile',
+    signal,
+    score,
+    value: result.poc,
+    interpretation: `VP POC:${result.poc.toFixed(2)} VAH:${result.vah.toFixed(2)} VAL:${result.val.toFixed(2)} — ${result.signal}`,
+  };
+}
+
 // --- Market Regime Detection ---
 
 function detectMarketRegime(
@@ -621,7 +736,7 @@ export async function analyzeTechnical(
 
   const { close, high, low, volume } = extractPrices(candles);
 
-  // Calcul de tous les indicateurs
+  // Calcul de tous les indicateurs (15 indicateurs)
   const indicators: IndicatorScore[] = [
     scoreRSI(close),
     scoreMACD(close),
@@ -634,6 +749,11 @@ export async function analyzeTechnical(
     scoreCCI(high, low, close),
     scoreWilliamsR(high, low, close),
     scoreMFI(high, low, close, volume),
+    // 4 indicateurs ajoutés (brief)
+    scoreStochRSI(close),
+    scoreForceIndex(candles),
+    scoreElderRay(candles),
+    scoreVolumeProfile(candles),
   ];
 
   // ATR pour position sizing et regime
@@ -718,5 +838,112 @@ export async function analyzeTechnical(
     reasoning,
     data: technicalData as unknown as Record<string, unknown>,
     timestamp: new Date(),
+  };
+}
+
+// =============================================================================
+// MULTI-TIMEFRAME ANALYSIS — brief MIDAS-BRIEF-ULTIMATE.md
+// "analyse sur 1m, 5m, 15m, 1h, 4h, 1d simultanément. Signal valide UNIQUEMENT
+//  si 3+ timeframes sont alignés."
+// =============================================================================
+
+import { fetchKlines } from '@/lib/exchange/binance-public';
+import type { MultiTimeframeResult } from '@/lib/agents/types';
+
+export type Timeframe = '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
+
+const ALL_TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '1h', '4h', '1d'];
+
+interface TimeframeSignal {
+  timeframe: Timeframe;
+  signal: 'bullish' | 'bearish' | 'neutral';
+  score: number;
+  confidence: number;
+}
+
+export interface MultiTimeframeTechnical {
+  per_tf: TimeframeSignal[];
+  alignment: MultiTimeframeResult;
+  bullish_count: number;
+  bearish_count: number;
+  aligned_3plus: boolean;
+  composite_signal: 'bullish' | 'bearish' | 'neutral';
+  composite_score: number;
+}
+
+/**
+ * Lance analyzeTechnical sur les 6 timeframes en parallèle et renvoie
+ * un agrégat avec alignement.
+ */
+export async function analyzeTechnicalMultiTimeframe(pair: string): Promise<MultiTimeframeTechnical> {
+  const fetches = ALL_TIMEFRAMES.map(async (tf) => {
+    try {
+      const candles = await fetchKlines(pair, tf, 250);
+      if (candles.length < 200) {
+        return { timeframe: tf, signal: 'neutral' as const, score: 0, confidence: 0 };
+      }
+      const result = await analyzeTechnical(pair, candles);
+      return {
+        timeframe: tf,
+        signal: result.signal,
+        score: result.score,
+        confidence: result.confidence,
+      };
+    } catch {
+      return { timeframe: tf, signal: 'neutral' as const, score: 0, confidence: 0 };
+    }
+  });
+
+  const per_tf = await Promise.all(fetches);
+
+  const bullish_count = per_tf.filter((t) => t.signal === 'bullish').length;
+  const bearish_count = per_tf.filter((t) => t.signal === 'bearish').length;
+
+  // Brief : signal valide si ≥3 TF alignés
+  const aligned_3plus = bullish_count >= 3 || bearish_count >= 3;
+
+  let composite_signal: 'bullish' | 'bearish' | 'neutral' = 'neutral';
+  if (aligned_3plus) {
+    composite_signal = bullish_count > bearish_count ? 'bullish' : 'bearish';
+  }
+
+  // Score composite pondéré : higher TF = higher weight
+  const tfWeights: Record<Timeframe, number> = {
+    '1m': 0.05,
+    '5m': 0.10,
+    '15m': 0.15,
+    '1h': 0.20,
+    '4h': 0.25,
+    '1d': 0.25,
+  };
+  let weightedScore = 0;
+  let totalWeight = 0;
+  for (const t of per_tf) {
+    const w = tfWeights[t.timeframe];
+    weightedScore += t.score * w;
+    totalWeight += w;
+  }
+  const composite_score = totalWeight > 0 ? weightedScore / totalWeight : 0;
+
+  // Alignment au format MultiTimeframeResult (macro/meso/micro)
+  const macro = per_tf.find((t) => t.timeframe === '1d') ?? per_tf[per_tf.length - 1];
+  const meso = per_tf.find((t) => t.timeframe === '1h') ?? per_tf[Math.floor(per_tf.length / 2)];
+  const micro = per_tf.find((t) => t.timeframe === '5m') ?? per_tf[0];
+
+  const alignment: MultiTimeframeResult = {
+    macro: { timeframe: macro.timeframe, trend: macro.signal },
+    meso: { timeframe: meso.timeframe, trend: meso.signal },
+    micro: { timeframe: micro.timeframe, trend: micro.signal },
+    aligned: macro.signal === meso.signal && meso.signal === micro.signal && macro.signal !== 'neutral',
+  };
+
+  return {
+    per_tf,
+    alignment,
+    bullish_count,
+    bearish_count,
+    aligned_3plus,
+    composite_signal,
+    composite_score,
   };
 }

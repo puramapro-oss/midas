@@ -10,16 +10,14 @@ import {
   Database,
   Save,
   Camera,
+  LogOut,
   Shield,
-  Globe,
   Moon,
   Sun,
   Monitor,
   Download,
   Trash2,
-  Mail,
-  Smartphone,
-  MessageSquare,
+  Mic,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/formatters';
 import { Button } from '@/components/ui/Button';
@@ -29,12 +27,17 @@ import { Select } from '@/components/ui/Select';
 import { Tabs } from '@/components/ui/Tabs';
 import { Badge } from '@/components/ui/Badge';
 import { Slider } from '@/components/ui/Slider';
+import { useTheme } from '@/hooks/useTheme';
+import { createClient } from '@/lib/supabase/client';
+import LanguageSelector from '@/components/settings/LanguageSelector';
+import VoiceSettings from '@/components/settings/VoiceSettings';
 
 const TABS = [
   { id: 'profil', label: 'Profil', icon: <User className="h-4 w-4" /> },
   { id: 'trading', label: 'Trading', icon: <TrendingUp className="h-4 w-4" /> },
   { id: 'notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
   { id: 'interface', label: 'Interface', icon: <Palette className="h-4 w-4" /> },
+  { id: 'voix', label: 'Voix', icon: <Mic className="h-4 w-4" /> },
   { id: 'donnees', label: 'Donnees', icon: <Database className="h-4 w-4" /> },
 ];
 
@@ -51,10 +54,27 @@ const timezoneOptions = [
   { value: 'Asia/Tokyo', label: 'Tokyo (UTC+9)' },
 ];
 
-const languageOptions = [
-  { value: 'fr', label: 'Francais' },
-  { value: 'en', label: 'English' },
-];
+
+function handleLogout() {
+  // Set forced logout flag FIRST — prevents auto-reconnection
+  try { localStorage.setItem('midas_forced_logout', 'true'); } catch { /* ignore */ }
+  document.cookie.split(';').forEach((c) => {
+    const name = c.trim().split('=')[0];
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+  });
+  try {
+    const keys = Object.keys(localStorage);
+    for (const key of keys) {
+      if (key.startsWith('sb-') || key.startsWith('supabase')) {
+        localStorage.removeItem(key);
+      }
+    }
+    localStorage.removeItem('midas_remember');
+    sessionStorage.removeItem('midas_session_valid');
+  } catch { /* ignore */ }
+  try { createClient().auth.signOut({ scope: 'local' }); } catch { /* ignore */ }
+  window.location.href = '/login';
+}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profil');
@@ -83,8 +103,7 @@ export default function SettingsPage() {
   const [notifNews, setNotifNews] = useState(false);
 
   // Interface state
-  const [theme, setTheme] = useState<'dark' | 'oled' | 'light'>('dark');
-  const [language, setLanguage] = useState('fr');
+  const { theme, setTheme } = useTheme();
   const [timezone, setTimezone] = useState('Europe/Paris');
   const [compactMode, setCompactMode] = useState(false);
   const [animations, setAnimations] = useState(true);
@@ -160,6 +179,18 @@ export default function SettingsPage() {
                   Activer la 2FA
                 </Button>
               </div>
+            </div>
+
+            <div className="pt-4 border-t border-white/[0.06]">
+              <button
+                type="button"
+                onClick={handleLogout}
+                data-testid="settings-signout-button"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/20 transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                Deconnexion
+              </button>
             </div>
           </div>
         );
@@ -318,18 +349,19 @@ export default function SettingsPage() {
             </div>
 
             <Select
-              label="Langue"
-              options={languageOptions}
-              value={language}
-              onChange={setLanguage}
-            />
-
-            <Select
               label="Fuseau horaire"
               options={timezoneOptions}
               value={timezone}
               onChange={setTimezone}
             />
+
+            {/* Language */}
+            <div>
+              <h3 className="text-xs text-white/40 uppercase tracking-wider mb-3">
+                Langue
+              </h3>
+              <LanguageSelector />
+            </div>
 
             <div className="pt-4 border-t border-white/[0.06] space-y-4">
               <Toggle
@@ -353,6 +385,9 @@ export default function SettingsPage() {
             </div>
           </div>
         );
+
+      case 'voix':
+        return <VoiceSettings />;
 
       case 'donnees':
         return (
@@ -429,7 +464,7 @@ export default function SettingsPage() {
         {renderTabContent()}
 
         {/* Save button */}
-        {activeTab !== 'donnees' && (
+        {activeTab !== 'donnees' && activeTab !== 'voix' && (
           <div className="mt-8 pt-4 border-t border-white/[0.06] flex justify-end">
             <Button
               variant="primary"

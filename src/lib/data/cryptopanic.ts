@@ -53,17 +53,19 @@ interface CryptoPanicResponse {
   results: CryptoPanicPost[];
 }
 
-function getApiToken(): string {
-  const token = process.env.CRYPTOPANIC_API_KEY;
-  if (!token) {
-    throw new Error('[MIDAS:CryptoPanic] CRYPTOPANIC_API_KEY manquante');
-  }
-  return token;
+function getApiToken(): string | null {
+  const token = process.env.CRYPTOPANIC_API_KEY?.trim();
+  return token && token.length > 0 ? token : null;
 }
 
-async function fetchCryptoPanic<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
+async function fetchCryptoPanic<T>(endpoint: string, params?: Record<string, string>): Promise<T | null> {
+  const token = getApiToken();
+  if (!token) {
+    // Brief : sans clé, dégradation gracieuse — les autres sources prennent le relai
+    return null;
+  }
   const url = new URL(`${CRYPTOPANIC_BASE}${endpoint}`);
-  url.searchParams.set('auth_token', getApiToken());
+  url.searchParams.set('auth_token', token);
   url.searchParams.set('public', 'true');
 
   if (params) {
@@ -121,7 +123,7 @@ export async function getNews(options?: {
   if (options?.regions) params['regions'] = options.regions;
 
   const response = await fetchCryptoPanic<CryptoPanicResponse>('/posts/', params);
-  return response.results;
+  return response?.results ?? [];
 }
 
 /**

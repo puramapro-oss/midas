@@ -5,10 +5,7 @@ import { motion } from 'framer-motion';
 import {
   Search,
   BookOpen,
-  Bot,
   Shield,
-  CreditCard,
-  Settings,
   HelpCircle,
   ExternalLink,
   Mail,
@@ -37,122 +34,153 @@ interface GuideCard {
 const FAQ_ITEMS: FAQItem[] = [
   {
     id: 'faq-1',
-    category: 'General',
+    category: 'Général',
     question: "Qu'est-ce que MIDAS ?",
-    answer:
-      "MIDAS est une plateforme de trading assistee par intelligence artificielle. Elle t'aide a analyser les marches crypto, creer des bots de trading automatises et prendre de meilleures decisions d'investissement.",
+    answer: "MIDAS est une plateforme de trading assistée par intelligence artificielle. Elle t'aide à analyser les marchés crypto, créer des bots de trading automatisés et prendre de meilleures décisions d'investissement. 6 agents IA analysent le marché 24/7 pour toi.",
   },
   {
     id: 'faq-2',
-    category: 'General',
+    category: 'Général',
     question: 'MIDAS est-il gratuit ?',
-    answer:
-      'MIDAS propose un plan gratuit avec 15 questions IA par jour et un apercu du marche. Les plans payants (Starter a 9,99EUR/mois, Pro a 29,99EUR/mois, Ultra a 79,99EUR/mois) debloquent le trading automatise, le backtesting et les signaux avances.',
+    answer: "MIDAS propose un plan gratuit avec 15 questions IA par jour et un aperçu du marché. Les plans payants (Pro à 29,99€/mois, Ultra à 79,99€/mois) débloquent le trading automatisé, le backtesting, les signaux avancés et l'accès API. -33% avec l'abonnement annuel.",
   },
   {
     id: 'faq-3',
-    category: 'General',
-    question: 'Mes fonds sont-ils en securite ?',
-    answer:
-      "MIDAS ne detient jamais tes fonds. Tes cles API d'exchange sont chiffrees (AES-256) et nous ne demandons jamais la permission de retrait. Tes fonds restent sur ton exchange.",
+    category: 'Sécurité',
+    question: 'Mes fonds sont-ils en sécurité ?',
+    answer: "MIDAS ne détient jamais tes fonds. Tes clés API d'exchange sont chiffrées en AES-256-GCM et nous ne demandons jamais la permission de retrait. Tes fonds restent sur ton exchange. Même si nos serveurs étaient compromis, personne ne pourrait retirer tes fonds.",
   },
   {
     id: 'faq-4',
     category: 'Trading',
-    question: 'Comment creer un bot de trading ?',
-    answer:
-      'Va dans la section "Mes Bots" et clique sur "Creer un Bot". Choisis une paire, une strategie, definis tes parametres de risque (Stop Loss, Take Profit) et active-le. Le bot executera automatiquement les trades selon ta strategie.',
+    question: 'Comment créer un bot de trading ?',
+    answer: "Va dans la section \"Mes Bots\" et clique sur \"Créer un Bot\". Choisis une paire (ex: BTC/USDT), une stratégie (Momentum, Grid, DCA...), définis tes paramètres de risque (Stop Loss, Take Profit, taille de position) et active-le. Le bot exécutera automatiquement les trades selon ta stratégie.",
   },
   {
     id: 'faq-5',
     category: 'Trading',
-    question: 'Quelles strategies sont disponibles ?',
-    answer:
-      'MIDAS propose 6 strategies : Momentum (suivi de tendance), Grid (range trading), Mean Reversion (retour a la moyenne), Breakout (cassure de niveaux), DCA (investissement regulier) et Scalping (trades rapides).',
+    question: 'Quelles stratégies sont disponibles ?',
+    answer: "MIDAS propose 6 stratégies : Momentum (suivi de tendance), Grid Trading (range trading), Mean Reversion (retour à la moyenne), Breakout (cassure de niveaux), DCA Intelligent (investissement régulier optimisé par l'IA) et Scalping (trades rapides sur micro-mouvements).",
   },
   {
     id: 'faq-6',
-    category: 'Trading',
+    category: 'Sécurité',
     question: "Qu'est-ce que le MIDAS Shield ?",
-    answer:
-      'Le MIDAS Shield est un systeme de protection automatique. Il surveille tes pertes en temps reel et desactive automatiquement tes bots si la perte journaliere depasse ta limite configuree (par defaut 5% du capital).',
+    answer: "Le MIDAS Shield est un système de protection automatique à 7 niveaux. Il surveille tes pertes en temps réel et désactive automatiquement tes bots si la perte journalière dépasse ta limite configurée. Il inclut aussi le position sizing, trailing stop, circuit breaker, crash detection et limites personnalisées.",
   },
   {
     id: 'faq-7',
     category: 'Exchanges',
-    question: 'Quels exchanges sont supportes ?',
-    answer:
-      "MIDAS supporte Binance, Kraken, Bybit, OKX et Coinbase. D'autres exchanges seront ajoutes prochainement. Connecte ton exchange via une cle API avec permissions Lecture + Trading uniquement.",
+    question: 'Quels exchanges sont supportés ?',
+    answer: "MIDAS supporte actuellement Binance, qui est le plus grand exchange mondial. D'autres exchanges (Kraken, Bybit, OKX) seront ajoutés prochainement. Connecte ton exchange via une clé API avec permissions Lecture + Trading Spot uniquement.",
   },
   {
     id: 'faq-8',
     category: 'Exchanges',
     question: 'Comment connecter mon exchange ?',
-    answer:
-      'Va dans Parametres > Exchanges. Selectionne ton exchange, suis le tutoriel integre pour creer une cle API, puis colle ta cle et ton secret. Clique sur "Tester la connexion" pour verifier.',
+    answer: "Lors de ton premier accès, l'assistant d'onboarding te guide étape par étape. Tu peux aussi aller dans Réglages > Exchanges. Crée une clé API sur Binance avec permissions Lecture + Trading Spot, puis colle ta clé et ton secret dans MIDAS. Elles sont chiffrées automatiquement.",
   },
   {
     id: 'faq-9',
-    category: 'Exchanges',
+    category: 'Sécurité',
     question: 'Pourquoi ne pas activer la permission de retrait ?',
-    answer:
-      "Par securite absolue. MIDAS n'a besoin que de lire tes positions et d'executer des trades. La permission de retrait n'est jamais necessaire et represente un risque de securite.",
+    answer: "Par sécurité absolue. MIDAS n'a besoin que de lire tes positions et d'exécuter des trades. La permission de retrait n'est jamais nécessaire et représente un risque. Même en cas de fuite de données, tes fonds sont protégés.",
   },
   {
     id: 'faq-10',
     category: 'Abonnement',
     question: 'Comment changer de plan ?',
-    answer:
-      'Va dans Parametres > Abonnement ou sur la page Tarifs. Selectionne le plan souhaite. La difference sera calculee au prorata. Tu peux aussi passer au paiement annuel pour economiser 33%.',
+    answer: "Va dans Réglages > Mon plan ou sur la page Tarifs. Sélectionne le plan souhaité. La différence sera calculée au prorata. Tu peux aussi passer au paiement annuel pour économiser 33%. Le changement prend effet immédiatement.",
   },
   {
     id: 'faq-11',
     category: 'Abonnement',
     question: "Comment parrainer quelqu'un ?",
-    answer:
-      'Partage ton code de parrainage depuis la section Parrainage. Ton filleul beneficie de -50% sur son premier abonnement. Tu recois 50% de son premier paiement + 10% de ses paiements recurrents dans ton wallet.',
+    answer: "Partage ton code de parrainage (MIDAS-XXXXX) depuis la section Parrainage du dashboard. Ton filleul bénéficie de -50% sur son premier abonnement. Tu reçois 50% de son premier paiement + 10% de ses paiements récurrents à vie dans ton wallet.",
   },
   {
     id: 'faq-12',
     category: 'Abonnement',
     question: 'Comment retirer mes gains de parrainage ?',
-    answer:
-      'Va dans la section Wallet. Configure ton IBAN, puis demande un retrait (minimum 10EUR, maximum 1 000EUR par jour). Les virements sont traites sous 3-5 jours ouvrables.',
+    answer: "Va dans la section Wallet. Configure ton IBAN, puis demande un retrait (minimum 5€). Les virements sont traités sous 3-5 jours ouvrables après validation par l'équipe. Tu peux retirer jusqu'à 1000€ par transaction.",
+  },
+  {
+    id: 'faq-13',
+    category: 'Trading',
+    question: 'Comment fonctionne le backtesting ?',
+    answer: "Le backtesting te permet de tester une stratégie sur des données historiques AVANT de risquer de l'argent réel. Choisis une paire, une période et une stratégie. MIDAS simule tous les trades et te montre le résultat : profit, drawdown max, win rate, Sharpe ratio. Disponible avec le plan Pro.",
+  },
+  {
+    id: 'faq-14',
+    category: 'Abonnement',
+    question: 'Comment annuler mon abonnement ?',
+    answer: "Va dans Réglages > Mon plan, ou clique sur \"Gérer mon abonnement\" dans le menu utilisateur. Tu peux annuler à tout moment. L'accès est maintenu jusqu'à la fin de la période payée. Tu ne seras plus débité au renouvellement.",
+  },
+  {
+    id: 'faq-15',
+    category: 'Général',
+    question: "MIDAS est-il enregistré auprès de l'AMF ?",
+    answer: "MIDAS est un logiciel d'aide à la décision, pas un service de conseil en investissement. PURAMA n'est pas enregistrée en tant que PSAN ou CIF. MIDAS ne détient jamais vos fonds et ne fournit aucun conseil financier personnalisé. Vous êtes seul responsable de vos décisions de trading.",
+  },
+  {
+    id: 'faq-16',
+    category: 'Trading',
+    question: "Qu'est-ce que le paper trading ?",
+    answer: "Le paper trading est un mode simulation qui te permet de trader avec de l'argent virtuel (50 000€ par défaut). C'est activé automatiquement pendant tes 7 premiers jours. Tu peux tester les stratégies sans risque avant de passer en réel.",
+  },
+  {
+    id: 'faq-17',
+    category: 'Sécurité',
+    question: 'Comment sont stockées mes clés API ?',
+    answer: "Tes clés API sont chiffrées côté serveur avec l'algorithme AES-256-GCM avant d'être stockées en base de données. Le chiffrement utilise un vecteur d'initialisation unique par clé et un tag d'authentification pour détecter toute altération. Personne, même notre équipe, ne peut les lire en clair.",
+  },
+  {
+    id: 'faq-18',
+    category: 'Exchanges',
+    question: 'Que faire si ma clé API ne fonctionne plus ?',
+    answer: "Si ta clé API expire ou est révoquée, va dans Réglages > Exchanges et entre une nouvelle clé. Vérifie que les permissions Lecture + Trading Spot sont bien activées sur Binance. MIDAS teste automatiquement la connexion pour te confirmer que tout fonctionne.",
   },
 ];
 
 const GUIDE_CARDS: GuideCard[] = [
   {
-    title: 'Debuter avec MIDAS',
+    title: 'Débuter avec MIDAS',
     description: 'Apprends les bases : connexion exchange, premier bot, lecture des signaux.',
     icon: <BookOpen className="h-5 w-5" />,
     color: 'text-[#FFD700]',
     href: '/dashboard/help/connect-binance',
   },
   {
-    title: 'Strategies de trading',
-    description: 'Comprends chaque strategie et choisis celle adaptee a ton profil.',
+    title: 'Stratégies de trading',
+    description: 'Comprends chaque stratégie et choisis celle adaptée à ton profil.',
     icon: <BarChart3 className="h-5 w-5" />,
     color: 'text-emerald-400',
-    href: '#',
+    href: '/dashboard/help/strategies',
   },
   {
-    title: 'Securite & MIDAS Shield',
-    description: 'Decouvre comment MIDAS protege ton capital automatiquement.',
+    title: 'Sécurité & MIDAS Shield',
+    description: 'Découvre comment MIDAS protège ton capital automatiquement.',
     icon: <Shield className="h-5 w-5" />,
     color: 'text-cyan-400',
-    href: '#',
+    href: '/dashboard/help/shield',
   },
   {
     title: 'Parrainage & Wallet',
-    description: "Gagne de l'argent en parrainant et gere tes retraits facilement.",
+    description: "Gagne de l'argent en parrainant et gère tes retraits facilement.",
     icon: <Wallet className="h-5 w-5" />,
     color: 'text-orange-400',
-    href: '#',
+    href: '/dashboard/help/referral-wallet',
+  },
+  {
+    title: 'Guide complet MIDAS',
+    description: 'Tout comprendre de A à Z : signaux, stratégies, Shield, parrainage et plus.',
+    icon: <Zap className="h-5 w-5" />,
+    color: 'text-purple-400',
+    href: '/dashboard/guide',
   },
 ];
 
-const CATEGORIES = ['Tous', 'General', 'Trading', 'Exchanges', 'Abonnement'];
+const CATEGORIES = ['Tous', 'Général', 'Trading', 'Exchanges', 'Abonnement', 'Sécurité'];
 
 export default function HelpPage() {
   const [search, setSearch] = useState('');
@@ -188,7 +216,7 @@ export default function HelpPage() {
           Centre d&apos;aide
         </h1>
         <p className="text-sm text-white/40 mt-2">
-          Trouve des r&eacute;ponses &agrave; tes questions ou contacte notre &eacute;quipe.
+          Trouve des réponses à tes questions ou contacte notre équipe.
         </p>
 
         {/* Search */}
@@ -239,7 +267,7 @@ export default function HelpPage() {
       <div>
         <h2 className="text-sm font-semibold text-white/60 mb-4 flex items-center gap-2">
           <HelpCircle className="h-4 w-4 text-[#FFD700]/40" />
-          Questions fr&eacute;quentes
+          Questions fréquentes
         </h2>
 
         {/* Category tabs */}
@@ -326,7 +354,7 @@ export default function HelpPage() {
           {filteredFaqs.length === 0 && (
             <div className="py-12 text-center">
               <HelpCircle className="h-8 w-8 text-white/10 mx-auto mb-3" />
-              <p className="text-sm text-white/30">Aucun r&eacute;sultat pour cette recherche.</p>
+              <p className="text-sm text-white/30">Aucun résultat pour cette recherche.</p>
             </div>
           )}
         </div>
@@ -340,9 +368,9 @@ export default function HelpPage() {
         data-testid="help-contact"
       >
         <Mail className="h-6 w-6 text-[#FFD700]/40 mx-auto mb-3" />
-        <h3 className="text-sm font-semibold text-white">Besoin d&apos;aide suppl&eacute;mentaire ?</h3>
+        <h3 className="text-sm font-semibold text-white">Besoin d&apos;aide supplémentaire ?</h3>
         <p className="text-xs text-white/40 mt-1 mb-4">
-          Notre &eacute;quipe r&eacute;pond g&eacute;n&eacute;ralement sous 24h.
+          Notre équipe répond généralement sous 24h.
         </p>
         <a
           href="mailto:support@purama.dev"

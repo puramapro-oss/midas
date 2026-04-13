@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect, type KeyboardEvent, type Chan
 import { motion } from 'framer-motion'
 import { SendHorizontal, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils/formatters'
+import { VoiceMicButton } from '@/components/chat/VoiceMicButton'
 
 export interface ChatInputProps {
   onSend: (message: string) => void
@@ -62,6 +63,11 @@ export function ChatInput({
     setValue(e.target.value)
   }, [])
 
+  const handleTranscription = useCallback((text: string) => {
+    if (!text.trim() || loading || disabled) return
+    onSend(text.trim())
+  }, [loading, disabled, onSend])
+
   return (
     <div
       className={cn(
@@ -84,6 +90,11 @@ export function ChatInput({
           'min-h-[24px] max-h-[160px]'
         )}
         data-testid="chat-input"
+      />
+
+      <VoiceMicButton
+        onTranscription={handleTranscription}
+        disabled={disabled || loading}
       />
 
       <motion.button
