@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { z } from 'zod';
+import { decrypt } from '@/lib/exchange/encryption';
+import { createExchangeClient, isSupportedExchange } from '@/lib/exchange/ccxt-client';
 
 const querySchema = z.object({
   connectionId: z.string().uuid(),
@@ -41,10 +43,10 @@ export async function GET(request: Request) {
 
     const { connectionId } = parsed.data;
 
-    // Verify connection belongs to user
+    // Fetch connection with encrypted keys
     const { data: connection, error: connError } = await supabase
       .from('exchange_connections')
-      .select('id, exchange, label, is_active, is_testnet, last_sync_at')
+      .select('id, exchange, label, is_active, is_testnet, api_key_encrypted, api_key_iv, api_secret_encrypted, api_secret_iv, last_sync_at')
       .eq('id', connectionId)
       .eq('user_id', user.id)
       .single();
@@ -57,16 +59,44 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Connexion exchange inactive' }, { status: 400 });
     }
 
-    // Mock balance (actual exchange call requires API key decryption + CCXT)
-    // In production, decrypt keys and call exchange API
-    const mockBalances: Record<string, { free: number; used: number; total: number }> = {
-      BTC: { free: 0.5234, used: 0.1, total: 0.6234 },
-      ETH: { free: 3.892, used: 0, total: 3.892 },
-      USDT: { free: 12500.45, used: 2500, total: 15000.45 },
-      SOL: { free: 45.12, used: 0, total: 45.12 },
-    };
+    // Decrypt keys and fetch real balance via ccxt
+    const exchangeName = connection.exchange as string;
+    if (!isSupportedExchange(exchangeName)) {
+      return NextResponse.json({ error: `Exchange non supporte: ${exchangeName}` }, { status: 400 });
+    }
 
-    const totalUsd = 67842.50;
+    const apiKey = decrypt(connection.api_key_encrypted as string, connection.api_key_iv as string);
+    const apiSecret = decrypt(connection.api_secret_encrypted as string, connection.api_secret_iv as string);
+
+    const client = createExchangeClient(exchangeName, {
+      apiKey,
+      secret: apiSecret,
+      testnet: connection.is_testnet as boolean,
+    });
+
+    const balance = await client.fetchBalance();
+
+    // Build clean balance response
+    const balances: Record<string, { free: number; used: number; total: number }> = {};
+    let totalUsd = 0;
+
+    const totalObj = (balance.total ?? {}) as unknown as Record<string, number>;
+    const freeObj = (balance.free ?? {}) as unknown as Record<string, number>;
+    const usedObj = (balance.used ?? {}) as unknown as Record<string, number>;
+
+    for (const [asset, total] of Object.entries(totalObj)) {
+      const t = total;
+      if (t > 0) {
+        const free = freeObj[asset] ?? 0;
+        const used = usedObj[asset] ?? 0;
+        balances[asset] = { free, used, total: t };
+
+        // Estimate USD value for stablecoins
+        if (['USDT', 'USDC', 'BUSD', 'DAI', 'FDUSD'].includes(asset)) {
+          totalUsd += t;
+        }
+      }
+    }
 
     // Update last_sync_at
     await supabase
@@ -77,7 +107,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       balance: {
-        total: mockBalances,
+        total: balances,
         totalUsd,
         exchange: connection.exchange,
         label: connection.label,

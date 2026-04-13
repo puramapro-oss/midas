@@ -169,23 +169,55 @@ export function ExchangeConnector({
     exchangeTutorials[exchange.name] ?? getDefaultTutorial(exchange.name)
 
   const handleTest = useCallback(async () => {
+    if (!apiKey.trim() || !secret.trim()) return
     setTesting(true)
     setTestResult(null)
 
-    // Simulate test
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    const success = apiKey.length > 10 && secret.length > 10
-    setTestResult(success ? 'success' : 'error')
-    setTesting(false)
+    try {
+      const res = await fetch('/api/exchange/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exchange: exchange.name,
+          apiKey: apiKey.trim(),
+          apiSecret: secret.trim(),
+        }),
+      })
+      const data = await res.json()
+      setTestResult(data.connected ? 'success' : 'error')
+    } catch {
+      setTestResult('error')
+    } finally {
+      setTesting(false)
+    }
 
     onTest?.()
-  }, [apiKey, secret, onTest])
+  }, [apiKey, secret, exchange.name, onTest])
 
-  const handleSave = useCallback(() => {
+  const [saving, setSaving] = useState(false)
+
+  const handleSave = useCallback(async () => {
     if (!apiKey.trim() || !secret.trim()) return
-    onSave?.({ apiKey: apiKey.trim(), secret: secret.trim() })
-  }, [apiKey, secret, onSave])
+    setSaving(true)
+
+    try {
+      const res = await fetch('/api/exchange/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          exchange: exchange.name,
+          apiKey: apiKey.trim(),
+          apiSecret: secret.trim(),
+        }),
+      })
+
+      if (res.ok) {
+        onSave?.({ apiKey: apiKey.trim(), secret: secret.trim() })
+      }
+    } finally {
+      setSaving(false)
+    }
+  }, [apiKey, secret, exchange.name, onSave])
 
   const handleDisconnect = useCallback(() => {
     setApiKey('')
@@ -371,11 +403,11 @@ export function ExchangeConnector({
             variant="primary"
             size="md"
             onClick={handleSave}
-            disabled={!apiKey.trim() || !secret.trim()}
-            icon={<Check className="h-4 w-4" />}
+            disabled={!apiKey.trim() || !secret.trim() || saving}
+            icon={saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
             data-testid={`save-exchange-${exchange.name}`}
           >
-            Sauvegarder
+            {saving ? 'Connexion...' : 'Sauvegarder'}
           </Button>
         </div>
 
