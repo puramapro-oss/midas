@@ -1,0 +1,12 @@
+appId: dev.purama.midas
+name: Referral Flow
+---
+- launchApp
+- tapOn: "Parrainage"
+- assertVisible: "Ton code parrainage"
+- tapOn:
+    id: "copy-code"
+- assertVisible: "Copie"
+- tapOn:
+    id: "share-referral"
+- takeScreenshot: referral-share

@@ -1,0 +1,14 @@
+appId: dev.purama.midas
+name: Pricing Flow
+---
+- launchApp
+- tapOn:
+    id: "settings-btn"
+- assertVisible: "Parametres"
+- assertVisible:
+    text: "FREE"
+    optional: true
+- assertVisible:
+    text: "PRO"
+    optional: true
+- takeScreenshot: pricing-view

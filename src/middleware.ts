@@ -17,6 +17,7 @@ const PUBLIC_ROUTES = new Set([
   '/api/status',
   '/partenariat',
   '/contact',
+  '/financer',
 ]);
 
 const PUBLIC_PREFIXES = [

@@ -1,0 +1,195 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "copyright": "2026 SASU PURAMA",
+    "categories": ["FINANCE"],
+    "info": {
+      "fr-FR": {
+        "title": "MIDAS - Trading IA",
+        "subtitle": "Signaux crypto intelligents",
+        "description": "MIDAS est ta plateforme de trading crypto alimentee par 7 agents IA. Recois des signaux automatiques, execute des trades, gere tes bots et suis tes performances en temps reel.\n\nFonctionnalites :\n- 7 agents IA (technique, sentiment, on-chain, calendrier, risque, pattern, coordinateur)\n- Signaux de trading automatiques\n- Bots de trading configurables\n- Paper trading pour s'entrainer\n- Analyse technique avancee\n- Alertes de prix\n- Rapport fiscal Cerfa 2086\n- Parrainage avec gains reels\n- Classement hebdomadaire avec redistribution\n- Tirage mensuel\n- Communaute de traders\n- Boutique de points\n- Chat IA expert trading\n\nSASU PURAMA - 8 Rue de la Chapelle, 25560 Frasne\nTVA non applicable, art. 293B du CGI",
+        "keywords": "trading,crypto,bitcoin,IA,signaux,bot,analyse,finance,investissement",
+        "privacyPolicyUrl": "https://midas.purama.dev/legal/privacy",
+        "marketingUrl": "https://midas.purama.dev"
+      },
+      "en-US": {
+        "title": "MIDAS - AI Trading",
+        "subtitle": "Smart crypto signals",
+        "description": "MIDAS is your AI-powered crypto trading platform with 7 intelligent agents. Get automatic signals, execute trades, manage bots and track performance in real-time.\n\nFeatures:\n- 7 AI agents (technical, sentiment, on-chain, calendar, risk, pattern, coordinator)\n- Automatic trading signals\n- Configurable trading bots\n- Paper trading for practice\n- Advanced technical analysis\n- Price alerts\n- Tax reporting\n- Referral program with real earnings\n- Weekly leaderboard with redistribution\n- Monthly lottery\n- Trader community\n- Points shop\n- Expert AI trading chat",
+        "keywords": "trading,crypto,bitcoin,AI,signals,bot,analysis,finance,investment",
+        "privacyPolicyUrl": "https://midas.purama.dev/legal/privacy",
+        "marketingUrl": "https://midas.purama.dev"
+      },
+      "es-ES": {
+        "title": "MIDAS - Trading IA",
+        "subtitle": "Senales crypto inteligentes",
+        "description": "MIDAS es tu plataforma de trading crypto impulsada por 7 agentes IA. Recibe senales automaticas, ejecuta trades y gestiona bots en tiempo real.",
+        "keywords": "trading,crypto,bitcoin,IA,senales,bot,analisis,finanzas"
+      },
+      "de-DE": {
+        "title": "MIDAS - KI Trading",
+        "subtitle": "Intelligente Krypto-Signale",
+        "description": "MIDAS ist deine KI-gestutzte Krypto-Trading-Plattform mit 7 intelligenten Agenten. Erhalte automatische Signale, fuhre Trades aus und verwalte Bots in Echtzeit.",
+        "keywords": "Trading,Krypto,Bitcoin,KI,Signale,Bot,Analyse,Finanzen"
+      },
+      "it-IT": {
+        "title": "MIDAS - Trading IA",
+        "subtitle": "Segnali crypto intelligenti",
+        "description": "MIDAS e la tua piattaforma di trading crypto alimentata da 7 agenti IA. Ricevi segnali automatici, esegui trade e gestisci bot in tempo reale.",
+        "keywords": "trading,crypto,bitcoin,IA,segnali,bot,analisi,finanza"
+      },
+      "pt-BR": {
+        "title": "MIDAS - Trading IA",
+        "subtitle": "Sinais crypto inteligentes",
+        "description": "MIDAS e sua plataforma de trading crypto com 7 agentes IA. Receba sinais automaticos, execute trades e gerencie bots em tempo real.",
+        "keywords": "trading,crypto,bitcoin,IA,sinais,bot,analise,financas"
+      },
+      "ar-SA": {
+        "title": "MIDAS - تداول بالذكاء الاصطناعي",
+        "subtitle": "إشارات تشفير ذكية",
+        "description": "MIDAS هي منصة التداول المشفرة الخاصة بك المدعومة بـ 7 وكلاء ذكاء اصطناعي.",
+        "keywords": "تداول,تشفير,بيتكوين,ذكاء اصطناعي"
+      },
+      "zh-Hans": {
+        "title": "MIDAS - AI交易",
+        "subtitle": "智能加密信号",
+        "description": "MIDAS是您的AI驱动的加密交易平台，配备7个智能代理。获取自动信号，执行交易，实时管理机器人。",
+        "keywords": "交易,加密,比特币,AI,信号,机器人,分析,金融"
+      },
+      "ja": {
+        "title": "MIDAS - AI取引",
+        "subtitle": "スマート暗号シグナル",
+        "description": "MIDASは7つのAIエージェントを搭載した暗号取引プラットフォームです。自動シグナル、取引実行、ボット管理をリアルタイムで。",
+        "keywords": "トレーディング,暗号,ビットコイン,AI,シグナル,ボット,分析"
+      },
+      "ko": {
+        "title": "MIDAS - AI 트레이딩",
+        "subtitle": "스마트 암호화 신호",
+        "description": "MIDAS는 7개의 AI 에이전트로 구동되는 암호화폐 트레이딩 플랫폼입니다. 자동 신호, 거래 실행, 봇 관리를 실시간으로.",
+        "keywords": "트레이딩,암호화폐,비트코인,AI,신호,봇,분석"
+      },
+      "hi": {
+        "title": "MIDAS - AI ट्रेडिंग",
+        "subtitle": "स्मार्ट क्रिप्टो सिग्नल",
+        "description": "MIDAS 7 AI एजेंटों द्वारा संचालित आपका क्रिप्टो ट्रेडिंग प्लेटफॉर्म है। स्वचालित सिग्नल, ट्रेड निष्पादन और बॉट प्रबंधन रियल-टाइम में।",
+        "keywords": "ट्रेडिंग,क्रिप्टो,बिटकॉइन,AI,सिग्नल,बॉट"
+      },
+      "ru": {
+        "title": "MIDAS - AI Трейдинг",
+        "subtitle": "Умные крипто-сигналы",
+        "description": "MIDAS — ваша крипто-торговая платформа с 7 ИИ-агентами. Получайте автоматические сигналы, выполняйте сделки и управляйте ботами в реальном времени.",
+        "keywords": "трейдинг,крипто,биткоин,ИИ,сигналы,бот,анализ"
+      },
+      "tr": {
+        "title": "MIDAS - AI Trading",
+        "subtitle": "Akilli kripto sinyalleri",
+        "description": "MIDAS, 7 AI ajanli kripto ticaret platformunuzdur. Otomatik sinyaller alin, islemler yururun ve botlari gercek zamanli yonetin.",
+        "keywords": "ticaret,kripto,bitcoin,AI,sinyal,bot,analiz"
+      },
+      "nl": {
+        "title": "MIDAS - AI Trading",
+        "subtitle": "Slimme crypto signalen",
+        "description": "MIDAS is je AI-aangedreven crypto trading platform met 7 intelligente agents. Ontvang automatische signalen, voer trades uit en beheer bots in real-time.",
+        "keywords": "trading,crypto,bitcoin,AI,signalen,bot,analyse"
+      },
+      "pl": {
+        "title": "MIDAS - AI Trading",
+        "subtitle": "Inteligentne sygnaly crypto",
+        "description": "MIDAS to Twoja platforma do handlu crypto z 7 agentami AI. Otrzymuj automatyczne sygnaly, wykonuj transakcje i zarzadzaj botami w czasie rzeczywistym.",
+        "keywords": "trading,crypto,bitcoin,AI,sygnaly,bot,analiza"
+      },
+      "sv": {
+        "title": "MIDAS - AI Trading",
+        "subtitle": "Smarta krypto-signaler",
+        "description": "MIDAS ar din AI-drivna krypto-handelsplattform med 7 intelligenta agenter. Fa automatiska signaler, utfor trades och hantera bottar i realtid.",
+        "keywords": "trading,krypto,bitcoin,AI,signaler,bot,analys"
+      }
+    }
+  },
+  "android": {
+    "categories": ["FINANCE"],
+    "contentRating": "Everyone",
+    "info": {
+      "fr-FR": {
+        "title": "MIDAS - Trading IA",
+        "shortDescription": "Signaux crypto IA, bots de trading, analyse technique avancee",
+        "fullDescription": "MIDAS est ta plateforme de trading crypto alimentee par 7 agents IA. Recois des signaux automatiques, execute des trades, gere tes bots et suis tes performances en temps reel.\n\nFonctionnalites :\n• 7 agents IA (technique, sentiment, on-chain, calendrier, risque, pattern, coordinateur)\n• Signaux de trading automatiques\n• Bots de trading configurables\n• Paper trading pour s'entrainer\n• Analyse technique avancee\n• Alertes de prix\n• Rapport fiscal Cerfa 2086\n• Parrainage avec gains reels\n• Classement hebdomadaire\n• Tirage mensuel\n• Communaute de traders\n• Boutique de points\n• Chat IA expert trading"
+      },
+      "en-US": {
+        "title": "MIDAS - AI Trading",
+        "shortDescription": "AI crypto signals, trading bots, advanced technical analysis",
+        "fullDescription": "MIDAS is your AI-powered crypto trading platform with 7 intelligent agents. Get automatic signals, execute trades, manage bots and track performance in real-time.\n\nFeatures:\n• 7 AI agents (technical, sentiment, on-chain, calendar, risk, pattern, coordinator)\n• Automatic trading signals\n• Configurable trading bots\n• Paper trading for practice\n• Advanced technical analysis\n• Price alerts\n• Tax reporting\n• Referral program with real earnings\n• Weekly leaderboard\n• Monthly lottery\n• Trader community\n• Points shop\n• Expert AI trading chat"
+      },
+      "es-ES": {
+        "title": "MIDAS - Trading IA",
+        "shortDescription": "Senales crypto IA, bots de trading, analisis tecnico avanzado",
+        "fullDescription": "MIDAS es tu plataforma de trading crypto con 7 agentes IA. Recibe senales automaticas, ejecuta trades y gestiona bots en tiempo real."
+      },
+      "de-DE": {
+        "title": "MIDAS - KI Trading",
+        "shortDescription": "KI Krypto-Signale, Trading-Bots, fortgeschrittene technische Analyse",
+        "fullDescription": "MIDAS ist deine KI-gestutzte Krypto-Trading-Plattform mit 7 intelligenten Agenten."
+      },
+      "it-IT": {
+        "title": "MIDAS - Trading IA",
+        "shortDescription": "Segnali crypto IA, bot di trading, analisi tecnica avanzata",
+        "fullDescription": "MIDAS e la tua piattaforma di trading crypto alimentata da 7 agenti IA."
+      },
+      "pt-BR": {
+        "title": "MIDAS - Trading IA",
+        "shortDescription": "Sinais crypto IA, bots de trading, analise tecnica avancada",
+        "fullDescription": "MIDAS e sua plataforma de trading crypto com 7 agentes IA."
+      },
+      "ar-SA": {
+        "title": "MIDAS - تداول بالذكاء الاصطناعي",
+        "shortDescription": "إشارات تشفير ذكية، روبوتات تداول",
+        "fullDescription": "MIDAS هي منصة التداول المشفرة الخاصة بك المدعومة بـ 7 وكلاء ذكاء اصطناعي."
+      },
+      "zh-Hans": {
+        "title": "MIDAS - AI交易",
+        "shortDescription": "AI加密信号，交易机器人，高级技术分析",
+        "fullDescription": "MIDAS是您的AI驱动的加密交易平台，配备7个智能代理。"
+      },
+      "ja": {
+        "title": "MIDAS - AI取引",
+        "shortDescription": "AI暗号シグナル、取引ボット、高度なテクニカル分析",
+        "fullDescription": "MIDASは7つのAIエージェントを搭載した暗号取引プラットフォームです。"
+      },
+      "ko": {
+        "title": "MIDAS - AI 트레이딩",
+        "shortDescription": "AI 암호화 신호, 트레이딩 봇, 고급 기술 분석",
+        "fullDescription": "MIDAS는 7개의 AI 에이전트로 구동되는 암호화폐 트레이딩 플랫폼입니다."
+      },
+      "hi": {
+        "title": "MIDAS - AI ट्रेडिंग",
+        "shortDescription": "AI क्रिप्टो सिग्नल, ट्रेडिंग बॉट, उन्नत तकनीकी विश्लेषण",
+        "fullDescription": "MIDAS 7 AI एजेंटों द्वारा संचालित आपका क्रिप्टो ट्रेडिंग प्लेटफॉर्म है।"
+      },
+      "ru": {
+        "title": "MIDAS - AI Трейдинг",
+        "shortDescription": "AI крипто-сигналы, торговые боты, продвинутый технический анализ",
+        "fullDescription": "MIDAS — ваша крипто-торговая платформа с 7 ИИ-агентами."
+      },
+      "tr": {
+        "title": "MIDAS - AI Trading",
+        "shortDescription": "AI kripto sinyalleri, ticaret botlari, gelismis teknik analiz",
+        "fullDescription": "MIDAS, 7 AI ajanli kripto ticaret platformunuzdur."
+      },
+      "nl": {
+        "title": "MIDAS - AI Trading",
+        "shortDescription": "AI crypto signalen, trading bots, geavanceerde technische analyse",
+        "fullDescription": "MIDAS is je AI-aangedreven crypto trading platform met 7 intelligente agents."
+      },
+      "pl": {
+        "title": "MIDAS - AI Trading",
+        "shortDescription": "AI sygnaly crypto, boty handlowe, zaawansowana analiza techniczna",
+        "fullDescription": "MIDAS to Twoja platforma do handlu crypto z 7 agentami AI."
+      },
+      "sv": {
+        "title": "MIDAS - AI Trading",
+        "shortDescription": "AI krypto-signaler, trading-bottar, avancerad teknisk analys",
+        "fullDescription": "MIDAS ar din AI-drivna krypto-handelsplattform med 7 intelligenta agenter."
+      }
+    }
+  }
+}

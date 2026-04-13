@@ -1,0 +1,11 @@
+appId: dev.purama.midas
+name: Wallet Flow
+---
+- launchApp
+- tapOn: "Parrainage"
+- assertVisible: "Solde wallet"
+- assertVisible: "Filleuls"
+- assertVisible: "Gagne"
+- assertVisible: "Palier"
+- assertVisible: "Ton code parrainage"
+- takeScreenshot: wallet-overview

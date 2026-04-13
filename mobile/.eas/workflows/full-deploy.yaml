@@ -1,0 +1,31 @@
+name: Full Deploy
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-ios:
+    name: Build iOS
+    type: build
+    platform: ios
+    profile: production
+
+  build-android:
+    name: Build Android
+    type: build
+    platform: android
+    profile: production
+
+  submit-ios:
+    name: Submit iOS
+    type: submit
+    platform: ios
+    profile: production
+    needs: [build-ios]
+
+  submit-android:
+    name: Submit Android
+    type: submit
+    platform: android
+    profile: production
+    needs: [build-android]

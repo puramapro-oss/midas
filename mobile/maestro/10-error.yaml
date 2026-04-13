@@ -1,0 +1,18 @@
+appId: dev.purama.midas
+name: Error Handling Flow
+---
+- launchApp
+- tapOn: "Chat IA"
+- assertVisible: "Chat MIDAS"
+- toggleAirplaneMode
+- tapOn:
+    id: "chat-input"
+- inputText: "test offline"
+- tapOn:
+    id: "chat-send"
+- waitForAnimationToEnd
+- assertVisible:
+    text: "connexion"
+    optional: true
+- toggleAirplaneMode
+- takeScreenshot: error-offline-recovery

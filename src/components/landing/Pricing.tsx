@@ -174,6 +174,23 @@ export function Pricing() {
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Financement banner */}
+        <motion.a
+          href="/financer"
+          initial={{ opacity: 0, y: -10 }}
+          animate={isInView ? { opacity: 1, y: 0 } : {}}
+          transition={{ delay: 0.1 }}
+          className="flex items-center justify-center gap-3 mb-8 px-6 py-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 max-w-2xl mx-auto hover:bg-emerald-500/15 transition-all group cursor-pointer"
+        >
+          <span className="text-lg">💰</span>
+          <p className="text-emerald-300 text-sm font-medium">
+            La plupart de nos clients ne paient rien grace aux aides.{' '}
+            <span className="underline underline-offset-2 group-hover:text-emerald-200 transition-colors">
+              Verifier mon eligibilite →
+            </span>
+          </p>
+        </motion.a>
+
         {/* Super admin banner */}
         {isMaxPlan && isAuthenticated && (
           <motion.div

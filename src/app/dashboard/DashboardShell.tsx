@@ -27,6 +27,14 @@ const CinematicIntro = dynamic(() => import('@/components/shared/CinematicIntro'
   ssr: false,
 });
 
+const AffirmationModal = dynamic(() => import('@/components/shared/AffirmationModal'), {
+  ssr: false,
+});
+
+const WisdomFooter = dynamic(() => import('@/components/shared/WisdomFooter'), {
+  ssr: false,
+});
+
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const { profile, loading, user } = useAuth();
   const router = useRouter();
@@ -86,8 +94,12 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         />
         <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6">
           {children}
+          <WisdomFooter />
         </main>
       </div>
+
+      {/* Affirmation modal — once per session */}
+      <AffirmationModal />
 
       {/* Bottom nav — mobile only */}
       <BottomNav />
