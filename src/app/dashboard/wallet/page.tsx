@@ -7,6 +7,9 @@ import {
   CreditCard, X, Check, AlertTriangle, Loader2, RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import PrimeTracker from '@/components/wallet/PrimeTracker';
+import CardTeaser from '@/components/wallet/CardTeaser';
+import FiscalBanner from '@/components/fiscal/FiscalBanner';
 
 interface Transaction {
   id: string;
@@ -141,6 +144,10 @@ export default function WalletPage() {
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
+
+      <FiscalBanner />
+
+      <PrimeTracker />
 
       {/* Balance card */}
       <motion.div
@@ -307,6 +314,8 @@ export default function WalletPage() {
           </div>
         )}
       </motion.div>
+
+      <CardTeaser />
     </div>
   );
 }
