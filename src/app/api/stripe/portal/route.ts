@@ -23,13 +23,62 @@ async function getAuthUser() {
   return { user, supabase };
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const { user, supabase } = await getAuthUser();
     if (!user) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
     }
 
+    const url = new URL(request.url);
+    const action = url.searchParams.get('action');
+
+    // V6 — Résiliation : log feedback + set cancel_at_period_end
+    if (action === 'cancel') {
+      let feedback: string | null = null;
+      try {
+        const body = await request.json();
+        feedback = typeof body?.feedback === 'string' ? body.feedback : null;
+      } catch {
+        // pas de body JSON — ignoré
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('stripe_customer_id, stripe_subscription_id')
+        .eq('id', user.id)
+        .single();
+
+      const stripe = getStripe();
+      if (profile?.stripe_subscription_id) {
+        await stripe.subscriptions.update(profile.stripe_subscription_id, {
+          cancel_at_period_end: true,
+          metadata: { cancel_feedback: feedback ?? '' },
+        });
+        await supabase
+          .from('subscriptions')
+          .update({
+            status: 'cancelled',
+            cancelled_at: new Date().toISOString(),
+            cancel_reason: feedback,
+          })
+          .eq('stripe_subscription_id', profile.stripe_subscription_id);
+      }
+
+      if (!profile?.stripe_customer_id) {
+        return NextResponse.json({
+          url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/settings/abonnement?cancelled=1`,
+        });
+      }
+
+      const session = await stripe.billingPortal.sessions.create({
+        customer: profile.stripe_customer_id,
+        return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/settings/abonnement?cancelled=1`,
+      });
+      return NextResponse.json({ url: session.url });
+    }
+
+    // Default — portail de gestion abo
     const stripe = getStripe();
     const { data: profile } = await supabase
       .from('profiles')
@@ -43,7 +92,7 @@ export async function POST() {
 
     const session = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
-      return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/settings`,
+      return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/settings/abonnement`,
     });
 
     return NextResponse.json({ url: session.url });

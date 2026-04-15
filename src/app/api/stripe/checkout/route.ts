@@ -111,7 +111,7 @@ export async function POST(request: Request) {
       subscription_data: {
         metadata,
       },
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard?session_id={CHECKOUT_SESSION_ID}&plan=${plan}`,
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/confirmation?session_id={CHECKOUT_SESSION_ID}&plan=${plan}`,
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/pricing`,
     });
 

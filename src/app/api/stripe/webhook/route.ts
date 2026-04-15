@@ -51,6 +51,7 @@ export async function POST(request: Request) {
             const planInfo = getPlanByPriceId(priceId);
 
             if (planInfo) {
+              const now = new Date();
               await adminSupabase
                 .from('profiles')
                 .update({
@@ -59,10 +60,37 @@ export async function POST(request: Request) {
                   stripe_customer_id: session.customer as string,
                   stripe_subscription_id: subscription.id,
                   subscription_status: 'active',
+                  subscription_started_at: now.toISOString(),
                   daily_questions_limit: PLANS[planInfo.plan].limits.dailyQuestions,
-                  updated_at: new Date().toISOString(),
+                  updated_at: now.toISOString(),
                 })
                 .eq('id', userId);
+
+              // V6 — Upsert subscriptions row
+              await adminSupabase.from('subscriptions').upsert({
+                user_id: userId,
+                app_id: 'midas',
+                stripe_subscription_id: subscription.id,
+                stripe_customer_id: session.customer as string,
+                status: 'active',
+                plan: planInfo.plan,
+                started_at: now.toISOString(),
+              }, { onConflict: 'stripe_subscription_id' });
+
+              // V6 — Prime 100€ en 3 tranches (J+0 25€ | M+1 25€ | M+2 50€)
+              // Crédit immédiat tranche 1
+              const t1 = 25;
+              const m1 = new Date(now); m1.setMonth(m1.getMonth() + 1);
+              const m2 = new Date(now); m2.setMonth(m2.getMonth() + 2);
+
+              await adminSupabase.from('prime_tranches').insert([
+                { user_id: userId, app_id: 'midas', palier: 1, amount: t1, scheduled_for: now.toISOString(), credited_at: now.toISOString(), status: 'credited' },
+                { user_id: userId, app_id: 'midas', palier: 2, amount: 25, scheduled_for: m1.toISOString(), status: 'scheduled' },
+                { user_id: userId, app_id: 'midas', palier: 3, amount: 50, scheduled_for: m2.toISOString(), status: 'scheduled' },
+              ]);
+
+              // Créditer tranche 1 dans wallet_balance
+              await adminSupabase.rpc('increment_wallet_balance', { uid: userId, delta: t1 });
             }
           }
         }
@@ -175,6 +203,57 @@ export async function POST(request: Request) {
             updated_at: new Date().toISOString(),
           })
           .eq('id', userId);
+
+        // V6 — marquer subscription cancelled + annuler tranches futures
+        await adminSupabase
+          .from('subscriptions')
+          .update({
+            status: 'cancelled',
+            cancelled_at: new Date().toISOString(),
+          })
+          .eq('stripe_subscription_id', subscription.id);
+
+        await adminSupabase
+          .from('prime_tranches')
+          .update({ status: 'cancelled', cancelled_at: new Date().toISOString() })
+          .eq('user_id', userId)
+          .eq('status', 'scheduled');
+        break;
+      }
+
+      case 'charge.refunded': {
+        // V6 — rétractation <30j : déduire prime versée du remboursement
+        const charge = event.data.object as Stripe.Charge;
+        const userId = (charge.metadata?.user_id) ?? null;
+        if (!userId) break;
+
+        const { data: profile } = await adminSupabase
+          .from('profiles')
+          .select('subscription_started_at')
+          .eq('id', userId)
+          .maybeSingle();
+
+        const startedAt = profile?.subscription_started_at
+          ? new Date(profile.subscription_started_at).getTime()
+          : null;
+        const within30j = startedAt && (Date.now() - startedAt) < 30 * 24 * 60 * 60 * 1000;
+
+        const { data: tranches } = await adminSupabase
+          .from('prime_tranches')
+          .select('amount')
+          .eq('user_id', userId)
+          .eq('status', 'credited');
+        const primeCredited = (tranches ?? []).reduce((s, t) => s + Number(t.amount ?? 0), 0);
+
+        await adminSupabase.from('retractions').insert({
+          user_id: userId,
+          app_id: 'midas',
+          amount_refunded: (charge.amount_refunded ?? 0) / 100,
+          prime_deducted: within30j ? primeCredited : 0,
+          processed: true,
+          processed_at: new Date().toISOString(),
+          notes: within30j ? 'Annulation <30j — prime déduite (Art. L221-28 3°)' : 'Remboursement hors fenêtre prime',
+        });
         break;
       }
     }
