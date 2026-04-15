@@ -92,7 +92,7 @@ export async function POST(request: Request) {
         .insert({
           user_id: user.id,
           title,
-          model: 'claude-sonnet-4-20250514',
+          model: process.env.ANTHROPIC_MODEL_MAIN || 'claude-sonnet-4-6',
           message_count: 0,
           total_tokens: 0,
         })

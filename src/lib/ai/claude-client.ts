@@ -5,7 +5,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
-const MODEL = 'claude-sonnet-4-20250514';
+const MODEL = process.env.ANTHROPIC_MODEL_MAIN || 'claude-sonnet-4-6';
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 
