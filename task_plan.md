@@ -210,3 +210,39 @@ Pour debloquer :
 - [ ] Store submissions
 - [ ] n8n workflows config (57 workflows) — config externe
 - [ ] BetterStack + Sentry + PostHog production config — config externe
+
+## Phase V6 — Conformité CLAUDE.md V6 SUPREME (2026-04-15)
+
+### ✅ Phase A — Fondations
+- [x] .env.local : PURAMA_PHASE=1 + WALLET_MODE=points + ANTHROPIC_MODEL_MAIN=claude-sonnet-4-6 (V6 §12, §19)
+- [x] Migration claude-sonnet-4-20250514 → process.env.ANTHROPIC_MODEL_MAIN (3 fichiers)
+- [x] src/lib/phase.ts (getPhase, isWithdrawalUnlocked, daysUntilWithdrawal, getPrimeTranche)
+- [x] src/lib/awakening.ts (getAffirmation, trackAwakening, getAwakeningLevel)
+
+### ✅ Phase B — Paiement V6
+- [x] SQL migrations/v6_paiement.sql : subscription_started_at + subscriptions + prime_tranches + retractions + RLS
+- [x] RPC increment_wallet_balance sur VPS
+- [x] /subscribe : bouton "Démarrer & recevoir ma prime" + mention L221-28 sous bouton (V6 §11)
+- [x] /confirmation : confettis + deep link purama://activate + 3 paliers prime
+- [x] /dashboard/settings/abonnement : statut + tranches + résiliation 3 étapes (V6 §11)
+- [x] Webhook Stripe étendu : checkout.session.completed crée 3 tranches + crédit J+0 25€
+- [x] Webhook Stripe : charge.refunded → log retractions + prime déduite si <30j
+- [x] Webhook Stripe : subscription.deleted → annule tranches futures
+- [x] CRON /api/cron/prime-tranches (daily 9h) → crédit M+1/M+2
+- [x] /api/stripe/portal?action=cancel → cancel_at_period_end + feedback
+- [x] Middleware : /subscribe + /confirmation publics
+
+### ✅ Phase C — Composants V6
+- [x] CardTeaser (V6 §19 Phase 1) + waitlist SQL
+- [x] PrimeTracker (V6 §10 prime 100€)
+- [x] FiscalBanner (V6 §17 >3000€ avr-juin)
+- [x] Flywheel (V6 §10)
+- [x] StreakCounter (V6 §10 multiplier)
+- [x] /api/wallet/prime + /api/wallet/card-waitlist + /api/phase
+- [x] hooks/usePhase
+- [x] Integration: wallet page → FiscalBanner + PrimeTracker + CardTeaser
+
+### ✅ Phase D — Deploy
+- [x] tsc 0 err + build 0 err
+- [x] Deploy Vercel prod : https://midas.purama.dev (dpl_7NJL2pwPCUqKeLKxEQj6Eopkbvav)
+- [x] Verify live : /subscribe 200, /confirmation 200, /api/phase {phase:1,walletMode:points,cardAvailable:false}
