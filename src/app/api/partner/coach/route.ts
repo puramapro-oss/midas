@@ -128,7 +128,7 @@ Statistiques du partenaire:
     });
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: process.env.ANTHROPIC_MODEL_MAIN || 'claude-sonnet-4-6',
       max_tokens: 1024,
       system: COACH_SYSTEM_PROMPT + '\n\n' + statsContext,
       messages,
