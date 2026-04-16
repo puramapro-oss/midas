@@ -76,7 +76,7 @@ export default function EcosystemPage() {
           className="mt-8 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-[var(--gold-primary)]/10 to-amber-500/10 border border-[var(--gold-primary)]/20"
         >
           <Sparkles className="w-4 h-4 text-[var(--gold-primary)]" />
-          <span className="text-sm text-[var(--gold-primary)] font-medium">-50% avec le code CROSS50 sur toute l&apos;ecosysteme</span>
+          <span className="text-sm text-[var(--gold-primary)] font-medium">-50% + 100 € de prime sur toute l&apos;ecosysteme (coupon WELCOME50 applique automatiquement)</span>
         </motion.div>
       </div>
 

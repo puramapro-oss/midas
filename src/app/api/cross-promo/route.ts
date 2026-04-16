@@ -26,9 +26,10 @@ export async function GET() {
     return NextResponse.json({
       promos: available.map(app => ({
         ...app,
-        url: `https://${app.slug}.purama.dev`,
-        coupon: 'CROSS50',
+        url: `https://${app.slug}.purama.dev/go/midas?coupon=WELCOME50`,
+        coupon: 'WELCOME50',
         discount: 50,
+        prime: 100,
       })),
     });
   } catch {
