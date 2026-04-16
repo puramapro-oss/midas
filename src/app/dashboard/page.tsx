@@ -38,6 +38,20 @@ const ShieldStatus = dynamic(() => import('@/components/dashboard/ShieldStatus')
   ssr: false,
 });
 
+// V7 §15 — Blocs above the fold (3 cartes obligatoires)
+const ReferralBlock = dynamic(() => import('@/components/engagement/ReferralBlock'), {
+  loading: () => <DashboardSkeleton height="h-[280px]" />,
+  ssr: false,
+});
+const AmbassadeurBlock = dynamic(() => import('@/components/engagement/AmbassadeurBlock'), {
+  loading: () => <DashboardSkeleton height="h-[280px]" />,
+  ssr: false,
+});
+const CrossPromoBlock = dynamic(() => import('@/components/engagement/CrossPromoBlock'), {
+  loading: () => <DashboardSkeleton height="h-[280px]" />,
+  ssr: false,
+});
+
 function DashboardSkeleton({ height = 'h-48' }: { height?: string }) {
   return (
     <div className={`${height} rounded-2xl bg-white/[0.03] border border-white/[0.06] overflow-hidden`}>
@@ -87,6 +101,23 @@ export default function DashboardPage() {
       initial="hidden"
       animate="visible"
     >
+      {/* V7 §15 — 3 blocs above the fold : Parrainage + Ambassadeur + Cross-promo */}
+      <motion.section
+        variants={fadeSlideUp}
+        data-testid="dashboard-v7-blocks"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6"
+      >
+        <Suspense fallback={<DashboardSkeleton height="h-[280px]" />}>
+          <ReferralBlock />
+        </Suspense>
+        <Suspense fallback={<DashboardSkeleton height="h-[280px]" />}>
+          <AmbassadeurBlock />
+        </Suspense>
+        <Suspense fallback={<DashboardSkeleton height="h-[280px]" />}>
+          <CrossPromoBlock />
+        </Suspense>
+      </motion.section>
+
       {/* Portfolio Overview */}
       <motion.section variants={fadeSlideUp} data-testid="dashboard-portfolio">
         <Suspense fallback={<DashboardSkeleton height="h-72" />}>
