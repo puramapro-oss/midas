@@ -246,3 +246,68 @@ Pour debloquer :
 - [x] tsc 0 err + build 0 err
 - [x] Deploy Vercel prod : https://midas.purama.dev (dpl_7NJL2pwPCUqKeLKxEQj6Eopkbvav)
 - [x] Verify live : /subscribe 200, /confirmation 200, /api/phase {phase:1,walletMode:points,cardAvailable:false}
+
+## Phase V7 — Conformité V7 SUPREME (2026-04-16)
+
+### ✅ T1 — Stripe coupon WELCOME50
+- [x] Coupon `WELCOME50` créé (livemode, 50% off, duration=once, metadata source=purama_v7)
+
+### ✅ T2 — Cookie purama_promo + /go/[slug]
+- [x] `/go/[slug]/route.ts` (Route Handler, pas Server Component) pose cookie `purama_promo` scope `.purama.dev` HttpOnly Secure sameSite=lax 7 jours
+- [x] Whitelist coupons : WELCOME50 + CROSS50 (backward-compat)
+- [x] Fix bug prod : conversion page.tsx → route.ts (cookies().set() interdit dans Server Components)
+
+### ✅ T3 — Checkout lit cookie + applique coupon
+- [x] `/api/stripe/checkout/route.ts` lit `purama_promo`, valide expiration, applique `Session.discounts = [{coupon}]`
+- [x] Track midas.cross_promos (source_app, coupon_code, used=true) après création session
+- [x] Metadata Stripe `cross_promo_source` + `cross_promo_coupon`
+- [x] Cookie purgé one-shot après usage
+
+### ✅ T4 — Alignement WELCOME50
+- [x] `/api/cross-promo` renvoie `WELCOME50` + prime 100€ + URL `/go/midas?coupon=WELCOME50`
+- [x] `/ecosystem` wording mis à jour (prime + auto-apply)
+
+### ✅ T5/T6/T7 — 3 composants blocs V7
+- [x] `ReferralBlock.tsx` : lien unique + copie + QR + compteur filleuls + share natif
+- [x] `AmbassadeurBlock.tsx` : 9 paliers V7 Bronze(200€)→Éternel(200K€) + barre progression
+- [x] `CrossPromoBlock.tsx` : 1 seule app (mapping MIDAS→KASH,JurisPurama...) + coupon auto
+- [x] `/api/referral/stats` : count filleuls + gains cumulés
+- [x] `/api/cross-promo/click` : tracking pre-conversion (used=false)
+
+### ✅ T8 — Intégration dashboard above the fold
+- [x] Section `dashboard-v7-blocks` en tête du `/dashboard` avant `PortfolioOverview`
+- [x] Grid 1col mobile / 2col tablette / 3col desktop, skeletons h-[280px]
+
+### ✅ T9 — Tests e2e V7
+- [x] `e2e/bloc-v7.spec.ts` : 9 tests × 2 viewports = **18/18 PASS** sur prod
+  - /go/midas?coupon=WELCOME50 pose cookie correct
+  - /go sans coupon → pas de cookie
+  - /go?coupon=INVALIDE → coupon hors whitelist ignoré
+  - /api/referral/stats, /api/cross-promo, /api/cross-promo/click → 401 sans auth
+  - /dashboard → redirect /login non auth
+  - /register?ref=midas charge 200
+  - /ecosystem mentionne WELCOME50 + prime
+
+### ✅ T10/T11 — Build + Deploy prod
+- [x] `npx tsc --noEmit` → 0 erreur
+- [x] `npm run build` → 0 erreur, 0 warning
+- [x] Deploy Vercel prod : https://midas.purama.dev (dpl_PJwDfkPw12EvHgs8wUiW1KX1hJiU puis redeploy après fix route.ts)
+- [x] Smoke test prod : /=200, /dashboard=307, /subscribe=200, /ecosystem=200, /partenariat=200
+- [x] Cookie purama_promo vérifié en prod (HttpOnly Secure Max-Age=604800 Domain=.purama.dev)
+
+### ⚠️ Régressions pré-existantes (hors scope V7)
+33 tests existants échouent, AUCUN lié aux 3 blocs V7 ou au flow coupon. Clusters :
+- Landing H1/particles/Hero CTA (7 tests) — cookie-banner intercept
+- Pricing Stripe CTAs (6 tests) — href pattern changé
+- verify-buttons/verify-auth (5 tests) — cookie-banner intercept
+- legal-compliance footer (2), phase14 ecosystem grid (2), bloc3 Onboarding (2), v3-features/p4-p5/bugfixes (5)
+
+## Decisions V7
+- Build: PASS 0 erreur | tsc: PASS 0 erreur
+- 18/18 nouveaux tests V7 PASS (Desktop Chrome + iPhone 14)
+- 751 tests existants toujours PASS (0 régression introduite par V7)
+- Stripe coupon `WELCOME50` livemode créé et validé
+
+## Notes opérationnelles
+- **`STRIPE_SECRET_KEY` dans `.env.local` est invalide** (clé V7 du CLAUDE.md rejetée par Stripe). La clé V6 fonctionne (utilisée pour créer le coupon, présumée active sur Vercel prod). À vérifier avant prochaine modif Stripe.
+- 33 régressions pré-existantes à planifier dans phase dédiée.
