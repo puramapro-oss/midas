@@ -35,6 +35,13 @@ export default function CGUPage() {
           </div>
 
           <div>
+            <h2 className="text-xl font-semibold text-white mb-3">4 bis. Prime de bienvenue et droit de rétractation</h2>
+            <p>En choisissant un accès immédiat à son abonnement MIDAS, l&apos;utilisateur reconnaît et accepte expressément, conformément à l&apos;<strong className="text-white">article L221-28 3° du Code de la consommation</strong>, que l&apos;exécution immédiate du service numérique entraîne la renonciation à son droit de rétractation de 14 jours.</p>
+            <p className="mt-2">La prime de bienvenue est versée sous forme de crédits sur le wallet Purama de l&apos;utilisateur, en trois tranches mensuelles à compter de la date de souscription (J+0, M+1, M+2). Ces crédits ne sont disponibles au retrait qu&apos;après <strong className="text-white">30 jours calendaires consécutifs</strong> d&apos;abonnement actif.</p>
+            <p className="mt-2">En cas d&apos;annulation de l&apos;abonnement dans les 30 premiers jours, PURAMA se réserve le droit de déduire le montant des tranches de prime déjà versées de tout remboursement éventuellement accordé à titre commercial.</p>
+          </div>
+
+          <div>
             <h2 className="text-xl font-semibold text-white mb-3">5. Clés API et sécurité</h2>
             <p>Pour utiliser les fonctionnalités de trading automatique, vous devez fournir vos clés API d&apos;exchange. Ces clés sont chiffrées avec AES-256-GCM et ne sont jamais stockées en clair. Vous devez impérativement ne PAS activer la permission de retrait sur vos clés API. MIDAS ne peut en aucun cas retirer des fonds de votre exchange. Vous êtes seul responsable de la sécurité de vos clés API.</p>
           </div>

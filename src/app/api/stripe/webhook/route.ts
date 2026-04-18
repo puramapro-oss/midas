@@ -154,6 +154,31 @@ export async function POST(request: Request) {
         break;
       }
 
+      case 'customer.subscription.created': {
+        // Brief V7 §21 : safety net si checkout.session.completed manqué.
+        // Sync minimum la subscription row dans Supabase (idempotent).
+        const subscription = event.data.object as Stripe.Subscription;
+        const userId = subscription.metadata?.user_id;
+        if (!userId) break;
+
+        const priceId = subscription.items.data[0]?.price?.id;
+        const planInfo = priceId ? getPlanByPriceId(priceId) : null;
+
+        await adminSupabase.from('subscriptions').upsert(
+          {
+            user_id: userId,
+            stripe_subscription_id: subscription.id,
+            stripe_customer_id: subscription.customer as string,
+            status: subscription.status,
+            plan: planInfo?.plan ?? null,
+            billing_period: planInfo?.period ?? null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'stripe_subscription_id' }
+        );
+        break;
+      }
+
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
         const userId = subscription.metadata?.user_id;
