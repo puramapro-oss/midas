@@ -311,3 +311,84 @@ Pour debloquer :
 ## Notes opérationnelles
 - **`STRIPE_SECRET_KEY` dans `.env.local` est invalide** (clé V7 du CLAUDE.md rejetée par Stripe). La clé V6 fonctionne (utilisée pour créer le coupon, présumée active sur Vercel prod). À vérifier avant prochaine modif Stripe.
 - 33 régressions pré-existantes à planifier dans phase dédiée.
+
+---
+
+## SESSION 2026-04-18 — UPGRADE V7 SUPREME + KARMA
+
+### KARMA
+**EXCLUSION CONFIRMÉE.** Module KARMA (NAMA, TERRA NOVA, TRUST, 25 jeux, 7 rites, Graines, Ordonnance Verte) = réservé apps wellness. MIDAS reste app trading pure.
+
+### ✅ FAIT — 6 commits
+
+- **4e8c38a** C1 moteur trading IA — audit complet : 13 data sources + 11 agents + coordinator (8 règles brief enforced) + MIDAS SHIELD 9 niveaux + 23 CRONs déjà production-grade. Seul gap comblé : table `midas.api_usage` (historique API calls, fire-and-forget depuis api-manager.ts, complète Redis temps réel). Bonus : chat IA enrichi du contexte live (F&G + news + events 7j + positions ouvertes + derniers trades + drawdown 24h), cache Upstash 5min market / 60s user.
+
+- **befd06f** C2 paiement V7 L221-28 — audit confirme 90% en place (bouton "Démarrer & recevoir ma prime", L221-28 sous bouton sans checkbox, subscription_started_at, 30j lock via isWithdrawalUnlocked, page /settings/abonnement + résiliation 3 étapes, table midas.retractions, 6 webhooks). Ajouté : handler webhook `customer.subscription.created` (safety net idempotent) + article 4 bis CGU (prime + droit rétractation L221-28 texte exact brief).
+
+- **cce9cdd** C3 phase 1 wallet — `/api/wallet/withdraw` renvoie désormais 403 PHASE_1_LOCKED si `!isWithdrawalAvailable()` + 403 WITHDRAWAL_LOCKED_30D si subscription_started_at + 30j > now. UI : bouton dynamique "Retrait — Bientôt disponible" (disabled), message "Purama Card" sous bouton, badge currency "POINTS" vs "EUR" selon phase.
+
+- **8032bdf** C5 fiscal V7 §25 — tables `midas.fiscal_notifications` + `midas.annual_summaries` (RLS user-own + service-write) sur VPS. Page publique `/fiscal` (seuils 1500/2500/3000€, case 5NG, abattement 34%, lien /dashboard/tax pour CERFA 2086 crypto). CRON `/api/cron/fiscal-paliers` (11h UTC quotidien) : détecte franchissement paliers, 1 notif+email Resend par palier, idempotent. Middleware /fiscal public.
+
+- **dc1c4f5** C6 sub-agents — `.claude/agents/qa-agent.md` (22 points BRUTAL sonnet) + `.claude/agents/security-agent.md` (14 checks CRITIQUE/HAUTE/MOYENNE haiku). À invoquer avant chaque deploy via Agent tool.
+
+- **3f36bda** docs — progress.md mis à jour.
+
+### 🔎 AUDITÉ sans code
+- **C4 Wealth Engine §20** : Flywheel ✓ | AmbassadeurBlock 9 paliers (200€→200K€) ✓ | ReferralBlock ✓ | CrossPromoBlock ✓ | StreakCounter ✓. Aucun changement nécessaire sur base V7 actuelle.
+
+### 📌 DÉCISIONS TISSMA (2026-04-18)
+
+1. **PRICING = GARDER 39€/79€ en prod.**
+   - Ne PAS toucher à Stripe (subscribers payants actifs).
+   - Le 29€/59€ du brief sera une offre séparée pour nouveaux users plus tard.
+   - `src/lib/stripe/plans.ts` reste inchangé.
+
+2. **PARRAINAGE = Migration 3 niveaux lifetime avec rétro-compat.**
+   - Nouveau : N1=50% abo+carte à vie | N2=15% à vie | N3=7% à vie.
+   - Rétro-compat : parrains existants au 2-niveaux (50% first_month + 10% recurring + 15% L2) conservent leurs droits acquis.
+   - Implémentation à prévoir : flag `partnership_version` ('v2' | 'v3') sur partner_profiles, logique commission switch par version, migration tables (ajouter level3_partner_id).
+   - NON fait cette session (hors scope chirurgical, nécessite refonte commission-engine + payouts + dashboard).
+
+3. **DEPLOY = NON cette session.**
+   - Règle V7 SUPREME §12 : "1 test échoué = deploy INTERDIT".
+   - 113 tests experts pas encore exécutés.
+   - On déploie QUAND C5+C6+C7 complets + 113/113 tests ✅.
+
+### 🚧 RESTE À FAIRE (session suivante)
+
+**C5 fiscal — finition**
+- CRON `/api/cron/fiscal-annual-pdf` (1er janvier) : génère PDF récap par user > 0€ gains année écoulée (jsPDF/puppeteer), envoie Resend + stocke dans `annual_summaries.pdf_url`.
+- DAS2 export Pennylane automatique 31 janvier (CRON séparé) pour users > 3000€.
+
+**C6 tests — run effectif**
+- Exécuter les 113 tests experts (CLAUDE.md §12) sur preview vercel.
+- 8 phases × 14 points : PREMIER CONTACT / INSCRIPTION / NAVIGATION / FEATURES CORE / EDGE CASES / PARAMÈTRES / PERF&A11Y / + 8 experts (designer / pentester / perf / a11y / mobile / business / copywriter / API).
+- Rapport TEST EXPERT—MIDAS—[DATE]—PASSÉ:X/113.
+- 1 seul failing = corriger → re-run TOUT → deploy UNIQUEMENT quand 113/113 ✅.
+
+**C7 design polish trading (§11)**
+- Vérifier variante `.trading` CSS appliquée (dense data, charts Recharts vert/rouge, font-mono nombres tabulaires, cards compactes, ticker temps réel).
+- Comparaison mentale : MIDAS doit ressembler à Robinhood/Binance, pas AI-slop glass générique.
+- Score design 0-10 sur chaque page principale. < 7 = refaire.
+
+**Parrainage V4 migration (décision #2 ci-dessus)**
+- Ajouter colonne `partnership_version` (v2|v3) dans profiles/partner_profiles.
+- Ajouter colonne `level3_partner_id` dans referrals.
+- Nouvelle logique commission-engine : lookup version du parrain, calcul selon v2 ou v3.
+- Dashboard influenceur affiche niveau 3 uniquement si v3.
+- Migration douce : tous nouveaux signups = v3 par défaut.
+
+**Composants bonus (optionnels brief V7 §20)**
+- SocialFeed (événements sans montants, FOMO naturel). Table `social_feed_events` + composant + admin feed.
+- ImpactDashboard (version trading : volume généré / slippage économisé / whales trackées / gains distribués communauté).
+
+### 📊 ÉTAT PROD
+- Déployé : état précédent (commit c13ca97 handoff V7 3 blocs).
+- NON déployé cette session : 6 commits locaux ci-dessus (4e8c38a → 3f36bda).
+- git push : à faire maintenant.
+- Vercel --prod : bloqué jusqu'à C5+C6+C7 + 113 tests ✅.
+
+### 🔨 Qualité code
+- tsc --noEmit : PASS
+- npm run build : Compiled successfully (0 erreur 0 warning)
+- grep TODO/placeholder/Lorem dans src/ : 0 résultat
