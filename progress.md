@@ -238,3 +238,30 @@
 - [x] Phase 1: Pages dashboard manquantes (trading, signals, portfolio, alerts)
 - [x] Phase 2: Infrastructure (14 CRONs, env vars, 4 stores, sidebar/bottomnav)
 - [x] Phase 3-8: Features avancées, wallet, concours, tutorial, etc.
+
+## Session 2026-04-18 — Upgrade V7 SUPREME (5 chantiers)
+
+### Commits
+- 4e8c38a — C1 moteur trading IA finalisé (api_usage table + chat enrichi context)
+- befd06f — C2 paiement V7 (webhook subscription.created + clause CGU L221-28)
+- cce9cdd — C3 phase 1 wallet enforcement (UI + API withdrawal blocked)
+- 8032bdf — C5 fiscal V7 §25 (tables + page /fiscal + CRON paliers)
+- dc1c4f5 — C6 agents QA + Security (.claude/agents/)
+
+### Audits (no code change needed)
+- C4 Wealth Engine §20 : Flywheel + AmbassadeurBlock + ReferralBlock + CrossPromoBlock + StreakCounter en place. Gaps notés (parrainage 2L→3L = chgt structurel, SocialFeed/ImpactDashboard = composants à scoper).
+
+### À FLAGGER pour décision Tissma
+- **Pricing prod 39€/79€ vs brief MIDAS-BRIEF-ULTIMATE 29€/59€** : changement = blast radius élevé (subscribers existants).
+- **Parrainage** : current 2 niveaux (50% first month + 10% recurring + 15% L2) vs brief V4 wealth engine 3 niveaux lifetime (50%/15%/7%).
+
+### Hors scope cette session
+- C5 : CRON PDF récap 1er janvier + DAS2 Pennylane (work fin décembre)
+- C6 : run effectif des 113 tests experts (session Playwright dédiée)
+- C7 : polish design trading (visual review)
+- SocialFeed + ImpactDashboard composants
+
+### État build
+- tsc --noEmit : PASS
+- npm run build : Compiled successfully
+- Deploy : NOT done cette session (à valider par Tissma)
