@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
+import { isWithdrawalAvailable, isWithdrawalUnlocked, daysUntilWithdrawal } from '@/lib/phase';
 
 const withdrawSchema = z.object({
   amount: z.number().min(5, 'Minimum 5€'),
@@ -47,6 +48,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
+    // Brief V7 §27 — Phase 1 : retrait IBAN bloqué (carte Purama pas encore disponible).
+    if (!isWithdrawalAvailable()) {
+      return NextResponse.json(
+        {
+          error: 'Retrait IBAN bientôt disponible — la Purama Card arrive. Tes gains restent en wallet.',
+          code: 'PHASE_1_LOCKED',
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const clean = { ...body, iban: typeof body.iban === 'string' ? body.iban.replace(/\s/g, '').toUpperCase() : '' };
     const parsed = withdrawSchema.safeParse(clean);
@@ -57,6 +69,25 @@ export async function POST(request: NextRequest) {
 
     const { amount, iban } = parsed.data;
     const service = getServiceClient();
+
+    // Brief V7 §20 — Art. L221-28 : prime versée wallet, retrait bloqué 30j depuis souscription.
+    const { data: profile } = await service
+      .from('profiles')
+      .select('subscription_started_at')
+      .eq('id', user.id)
+      .single();
+
+    if (profile?.subscription_started_at && !isWithdrawalUnlocked(profile.subscription_started_at)) {
+      const days = daysUntilWithdrawal(profile.subscription_started_at);
+      return NextResponse.json(
+        {
+          error: `Retrait disponible dans ${days} jour${days > 1 ? 's' : ''} (article L221-28 — 30 jours après souscription).`,
+          code: 'WITHDRAWAL_LOCKED_30D',
+          days_left: days,
+        },
+        { status: 403 }
+      );
+    }
 
     // Check wallet balance
     const { data: wallet } = await service
