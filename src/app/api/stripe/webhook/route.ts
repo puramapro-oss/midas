@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { PLANS, getPlanByPriceId } from '@/lib/stripe/plans';
+import { dispatchCommissionsFromStripeInvoice } from '@/lib/commission-engine';
 
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!, { typescript: true });
@@ -116,6 +117,7 @@ export async function POST(request: Request) {
         const invoice = event.data.object as Stripe.Invoice;
         const subscriptionId = String((invoice as unknown as Record<string, unknown>).subscription ?? '');
 
+        // 1. Active le user (flow existant MIDAS)
         if (subscriptionId) {
           const subscription = await stripe.subscriptions.retrieve(subscriptionId);
           const userId = subscription.metadata?.user_id;
@@ -128,8 +130,28 @@ export async function POST(request: Request) {
                 updated_at: new Date().toISOString(),
               })
               .eq('id', userId);
+
+            // Enrichit l'invoice avec la metadata de subscription pour que
+            // dispatchCommissionsFromStripeInvoice() trouve le user_id sans
+            // refetch (la metadata peut ne pas être sur invoice directement).
+            const invoiceWithMeta = invoice as Stripe.Invoice & {
+              subscription_details?: { metadata?: Record<string, string> | null };
+            };
+            invoiceWithMeta.subscription_details = {
+              metadata: { user_id: userId },
+            };
           }
         }
+
+        // 2. Dispatch commissions V4 — fire-and-forget, ne bloque JAMAIS le webhook.
+        //    Retourne toujours une structure {ok, status, ...}, ne throw pas.
+        try {
+          await dispatchCommissionsFromStripeInvoice(invoice, adminSupabase);
+        } catch {
+          // Safety net : dispatchCommissionsFromStripeInvoice ne throw pas,
+          // mais on double-ceinture pour garantir que Stripe reçoit 200.
+        }
+
         break;
       }
 
