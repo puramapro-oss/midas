@@ -18,6 +18,7 @@ const PUBLIC_ROUTES = new Set([
   '/partenariat',
   '/contact',
   '/financer',
+  '/fiscal',
   '/ecosystem',
   '/how-it-works',
   '/confirmation',
