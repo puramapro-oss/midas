@@ -44,3 +44,8 @@ test-results
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# graphify output + local scripts (ne pas committer)
+graphify-out/
+scripts/
+
