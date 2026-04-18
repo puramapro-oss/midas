@@ -85,7 +85,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   }, [loading, profile, user, tutorialChecked]);
 
   return (
-    <div className="relative min-h-screen bg-[var(--bg-primary)] text-white flex" data-testid="dashboard-layout">
+    <div className="trading relative min-h-screen bg-[var(--bg-primary)] text-white flex" data-testid="dashboard-layout">
       {/* Ambient particles */}
       <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden="true">
         <ParticleBackground variant="dashboard" />

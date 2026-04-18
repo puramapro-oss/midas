@@ -234,3 +234,97 @@ body {
 .bottom-nav {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+/* ===== DOMAIN VARIANT : TRADING (CLAUDE.md V7 §11) ======================= */
+/*
+ * Appliqué via `className="trading"` sur le <body> du layout dashboard.
+ * Aligne MIDAS sur les codes visuels Robinhood / Binance / Coinbase Pro :
+ * dense data, chiffres tabular-nums + font-mono, P&L vert/rouge immédiats,
+ * cards compactes, chart-area dédiée.
+ */
+
+.trading {
+  /* Les pages trading privilégient la densité d'info : réduit le tracking global. */
+  letter-spacing: -0.005em;
+}
+
+/* Classe primitive : tout nombre financier doit l'utiliser (prix, solde, P&L). */
+.trading .data,
+.trading-data,
+.data.trading {
+  font-family: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+  letter-spacing: 0;
+}
+
+.trading .positive,
+.trading-positive {
+  color: #34D399; /* emerald-400 — green P&L cohérent sur OLED et dark */
+}
+
+.trading .negative,
+.trading-negative {
+  color: #F87171; /* red-400 */
+}
+
+.trading .neutral,
+.trading-neutral {
+  color: rgba(248, 250, 252, 0.55);
+}
+
+/* Chart containers (Recharts wrappers) — densité + fond discret. */
+.trading .chart-area,
+.trading-chart-area {
+  height: 300px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 215, 0, 0.06);
+  border-radius: 12px;
+  padding: 8px;
+}
+
+/* Cards compactes dédiées aux données temps réel — plus petites que les
+   glass cards génériques qui existent déjà ailleurs dans l'app. */
+.trading .data-card,
+.trading-data-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 215, 0, 0.08);
+  border-radius: 12px;
+  padding: 12px 16px;
+}
+
+/* Ticker / row — densité volontairement élevée, pas de grande respiration. */
+.trading .ticker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+
+.trading .ticker-row:last-child { border-bottom: none; }
+
+/* h1 trading : plus court, data-driven (titre principal dashboard). */
+.trading h1 {
+  font-size: 1.375rem;  /* 22px */
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Prix « hero » — gros, mono, tabular. */
+.trading .price-hero {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+@media (max-width: 640px) {
+  .trading .price-hero { font-size: 2rem; }
+}
+
