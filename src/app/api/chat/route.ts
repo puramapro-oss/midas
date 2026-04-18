@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { z } from 'zod';
 import { askClaudeWithHistory } from '@/lib/ai/claude-client';
 import { CHAT_SYSTEM_PROMPT } from '@/lib/ai/system-prompts';
+import { buildLiveContext } from '@/lib/ai/chat-context';
 import { PLAN_LIMITS } from '@/lib/utils/constants';
 import type { MidasPlan } from '@/types/stripe';
 
@@ -131,11 +132,16 @@ export async function POST(request: Request) {
       tokens_used: 0,
     });
 
-    // Call Claude
+    // Call Claude — system prompt enrichi du contexte marché + user temps réel
     const plan = (profile.plan as MidasPlan) ?? 'free';
     const maxTokens = PLAN_LIMITS[plan]?.limits.daily_questions > 200 ? 8192 : 4096;
 
-    const response = await askClaudeWithHistory(CHAT_SYSTEM_PROMPT, chatHistory, maxTokens);
+    const liveContext = await buildLiveContext(user.id, supabase as never);
+    const enrichedSystemPrompt = liveContext
+      ? `${CHAT_SYSTEM_PROMPT}\n${liveContext}`
+      : CHAT_SYSTEM_PROMPT;
+
+    const response = await askClaudeWithHistory(enrichedSystemPrompt, chatHistory, maxTokens);
 
     // Save assistant message
     const estimatedTokens = Math.ceil(response.length / 4);
