@@ -3,18 +3,26 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, Users, DollarSign } from 'lucide-react';
-import { MILESTONE_TIERS, TIER_THRESHOLDS, TIER_LABELS, TIER_COLORS } from '@/types/partnership';
+import {
+  MILESTONE_TIERS,
+  TIER_THRESHOLDS,
+  TIER_LABELS,
+  TIER_COLORS,
+  COMMISSION_RATES_V3,
+} from '@/types/partnership';
 import type { PartnerTier } from '@/types/partnership';
 
-// Average subscription price for estimation
-const AVG_MONTHLY_PRICE = 19.99;
+// Average subscription price for estimation (prix MIDAS Pro V7).
+const AVG_MONTHLY_PRICE = 39;
 
 export default function CommissionSimulator() {
   const [referrals, setReferrals] = useState(25);
 
   const estimates = useMemo(() => {
-    const firstMonthEarnings = referrals * AVG_MONTHLY_PRICE * 0.5;
-    const recurringMonthly = referrals * AVG_MONTHLY_PRICE * 0.1;
+    // Barème V3 (3 niveaux lifetime) — affiché par défaut pour nouveaux partners.
+    // L1 50% first + 50% recurring | L2 15% | L3 7% (filleuls-de-filleuls-de-filleuls).
+    const firstMonthEarnings = referrals * AVG_MONTHLY_PRICE * COMMISSION_RATES_V3.first_month;
+    const recurringMonthly = referrals * AVG_MONTHLY_PRICE * COMMISSION_RATES_V3.recurring;
     const yearlyRecurring = recurringMonthly * 12;
 
     // Calculate milestone bonuses earned

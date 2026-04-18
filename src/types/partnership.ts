@@ -7,7 +7,8 @@ export type PartnerChannel = 'influencer' | 'website' | 'media' | 'physical';
 export type PartnerStatus = 'pending' | 'active' | 'suspended' | 'banned';
 export type CommissionStatus = 'pending' | 'approved' | 'paid' | 'rejected';
 export type PayoutStatus = 'pending' | 'processing' | 'completed' | 'failed';
-export type CommissionType = 'first_month' | 'recurring' | 'level2';
+export type CommissionType = 'first_month' | 'recurring' | 'level2' | 'level3';
+export type PartnershipVersion = 'v2' | 'v3';
 export type PartnerTier = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond' | 'legend';
 
 // Milestone tiers: referrals → bonus amount
@@ -33,12 +34,39 @@ export const TIER_THRESHOLDS: Record<PartnerTier, number> = {
   legend: 500,
 };
 
-// Commission rates
-export const COMMISSION_RATES = {
-  first_month: 0.5, // 50% of first month
-  recurring: 0.1, // 10% recurring forever
-  level2: 0.15, // 15% of recruit's commissions (max 2 levels)
-};
+// -----------------------------------------------------------------------------
+// Commission rates — 2 barèmes coexistent (backward-compat)
+// -----------------------------------------------------------------------------
+// V2 (legacy 2-niveaux) : 50% first_month + 10% recurring + 15% L2.
+// V3 (nouveau 3-niveaux lifetime) : 50% L1 à vie + 15% L2 à vie + 7% L3 à vie.
+//
+// Tous les partners existants avant la migration `v7-partnership-v4.sql` sont
+// en v2. Tout nouveau partner est en v3 (default column). Le CommissionEngine
+// choisit le bon barème selon `partners.partnership_version`.
+// -----------------------------------------------------------------------------
+
+// V2 (legacy)
+export const COMMISSION_RATES_V2 = {
+  first_month: 0.5,
+  recurring: 0.1,
+  level2: 0.15,
+  level3: 0, // V2 n'a pas de niveau 3
+} as const;
+
+// V3 (3 niveaux lifetime)
+export const COMMISSION_RATES_V3 = {
+  first_month: 0.5, // idem L1 first_month, mais continue à vie via recurring
+  recurring: 0.5, // 50% lifetime sur L1
+  level2: 0.15, // 15% lifetime sur L2
+  level3: 0.07, // 7% lifetime sur L3
+} as const;
+
+/** Back-compat export — réfère à V2 pour ne pas casser les consommateurs existants. */
+export const COMMISSION_RATES = COMMISSION_RATES_V2;
+
+export function getCommissionRates(version: PartnershipVersion) {
+  return version === 'v3' ? COMMISSION_RATES_V3 : COMMISSION_RATES_V2;
+}
 
 export const TIER_LABELS: Record<PartnerTier, string> = {
   bronze: 'Bronze',
@@ -93,6 +121,8 @@ export interface Partner {
   iban: string | null;
   payout_threshold: number;
   level2_partner_id: string | null;
+  level3_partner_id: string | null;
+  partnership_version: PartnershipVersion;
   created_at: string;
   updated_at: string;
 }
@@ -135,6 +165,7 @@ export interface PartnerCommission {
   stripe_payment_id: string | null;
   description: string | null;
   level: number;
+  partnership_version: PartnershipVersion;
   created_at: string;
   updated_at: string;
 }

@@ -9,8 +9,9 @@ import type { CommissionType, CommissionStatus } from '@/types/partnership';
 
 const TYPE_LABELS: Record<CommissionType, string> = {
   first_month: '1er mois (50%)',
-  recurring: 'Recurrent (10%)',
+  recurring: 'Recurrent',
   level2: 'Niveau 2 (15%)',
+  level3: 'Niveau 3 (7%)',
 };
 
 const STATUS_CONFIG: Record<CommissionStatus, { label: string; icon: React.ElementType; color: string }> = {
