@@ -392,3 +392,57 @@ Pour debloquer :
 - tsc --noEmit : PASS
 - npm run build : Compiled successfully (0 erreur 0 warning)
 - grep TODO/placeholder/Lorem dans src/ : 0 résultat
+
+## SESSION 2026-04-18 (soir) — CLÔTURE V7 SUPREME
+
+### ✅ FAIT — 3 commits + 1 deploy prod
+
+- **42cd529** C5 fiscal complet :
+  - CRON `/api/cron/fiscal-annual-pdf` (1er janvier 9h) → PDF jsPDF récap user
+    gains année N-1 par source (primes/parrainage/nature/marketplace/missions),
+    stocke dans `annual_summaries` (idempotent), envoie Resend avec PDF attaché.
+    Fenêtre 1-10 janvier + `?force=1` + `?year=N` pour test manuel.
+  - CRON `/api/cron/fiscal-das2` (31 janvier 10h) → lit `annual_summaries >= 3000€`
+    non déclarés, construit CSV Pennylane-ready, email admin matiss@ avec CSV
+    attaché, marque `das2_sent=true`. Fenêtre 20 jan → 10 fév.
+  - vercel.json : 2 crons + maxDuration (300s PDF, 120s DAS2).
+
+- **53f7628** Parrainage V4 — migration 3 niveaux lifetime backward-compat :
+  - SQL V4 + RPC appliqués VPS : `partners.partnership_version` (v2|v3) +
+    `level3_partner_id`, extension `partner_commissions.type` avec 'level3'.
+  - Rétro-compat : tous partners existants explicitement en 'v2', nouveaux en 'v3'.
+  - `src/lib/commission-engine.ts` — moteur pur `computeCommissions` +
+    orchestrateur `dispatchCommissions`, switch V2/V3 automatique selon
+    `partnership_version` du L1.
+  - Types `partnership.ts` : +'level3' + `PartnershipVersion` + COMMISSION_RATES_V2
+    + COMMISSION_RATES_V3 + `getCommissionRates(version)`.
+  - UI : `CommissionSimulator.tsx` en V3 (prix 39€), `commissions/page.tsx` +label
+    Niveau 3 (7%).
+  - **11/11 tests unitaires PASS** (V2 legacy + V3 3-niveaux + edge cases).
+
+- **75a907b** C7 design polish trading variante :
+  - globals.css : +classes scopées `.trading .X` (data, positive/negative,
+    chart-area, data-card, ticker-row, price-hero, h1 réduit).
+  - DashboardShell root `className="trading"` → toutes pages dashboard héritent
+    sans changement de composants.
+
+### 📊 DEPLOY PROD
+- Déployé : `https://midas.purama.dev` (dpl_E1M3BHZDmbCjcCxx2p5fc1iZscre).
+- Smoke : / 200, /fiscal 200 (nouveau), /ecosystem 200, /subscribe 200,
+  /confirmation 200, /partenariat 200.
+- Tests live 54 : 53 PASS, 1 régression pré-existante (phase14 Ecosystem grid,
+  déjà documentée dans backlog V7 « 33 régressions pré-existantes »).
+
+### 🟡 RESTE (backlog hors scope session)
+- Câblage `dispatchCommissions` sur webhook Stripe `invoice.paid` pour créer
+  automatiquement les commissions récurrentes à chaque facture (aujourd'hui
+  créées via /api/referral/reward admin uniquement).
+- 33 régressions pré-existantes Playwright (Landing H1/Hero, Pricing href,
+  verify-buttons cookie-banner, legal footer, etc.) — phase dédiée.
+- EAS build + submit iOS/Android (bloqué Apple Team ID).
+- 113 tests experts CLAUDE.md §12 en version complète.
+
+### 🔨 Qualité
+- tsc --noEmit : PASS
+- npm run build : Compiled successfully (0 erreur 0 warning)
+- grep TODO/placeholder/Lorem/secrets dans src/ : 0 résultat
