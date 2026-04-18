@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import PrimeTracker from '@/components/wallet/PrimeTracker';
 import CardTeaser from '@/components/wallet/CardTeaser';
 import FiscalBanner from '@/components/fiscal/FiscalBanner';
+import { usePhase } from '@/hooks/usePhase';
 
 interface Transaction {
   id: string;
@@ -46,6 +47,7 @@ const rowFade = {
 };
 
 export default function WalletPage() {
+  const phase = usePhase();
   const [wallet, setWallet] = useState<WalletData>({ balance: 0, currency: 'EUR' });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -163,7 +165,9 @@ export default function WalletPage() {
             </div>
             <span className="text-sm text-white/50">Solde disponible</span>
           </div>
-          <span className="text-[10px] text-white/30 px-2 py-0.5 rounded-full border border-white/[0.08]">EUR</span>
+          <span className="text-[10px] text-white/30 px-2 py-0.5 rounded-full border border-white/[0.08]">
+            {phase.walletMode === 'points' ? 'POINTS' : 'EUR'}
+          </span>
         </div>
         <p className="text-4xl font-bold text-[#FFD700] mb-4" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
           {wallet.balance.toFixed(2)}€
@@ -171,14 +175,19 @@ export default function WalletPage() {
         <button
           type="button"
           onClick={() => setShowWithdraw(true)}
-          disabled={wallet.balance < 5}
+          disabled={wallet.balance < 5 || !phase.withdrawalAvailable}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#FFD700] text-[#06080F] text-sm font-semibold hover:bg-[#FFD700]/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           data-testid="withdraw-button"
         >
           <CreditCard className="w-4 h-4" />
-          Retirer vers mon compte
+          {phase.withdrawalAvailable ? 'Retirer vers mon compte' : 'Retrait — Bientôt disponible'}
         </button>
-        {wallet.balance < 5 && (
+        {!phase.withdrawalAvailable && (
+          <p className="text-xs text-white/40 mt-2">
+            Le retrait IBAN s&apos;activera avec la <span className="text-[#FFD700]">Purama Card</span>. Tes gains restent dans ton wallet en attendant.
+          </p>
+        )}
+        {phase.withdrawalAvailable && wallet.balance < 5 && (
           <p className="text-xs text-white/30 mt-2">Minimum de retrait : 5€</p>
         )}
       </motion.div>
