@@ -6,6 +6,7 @@
 
 import { redis, cacheGet, cacheSet } from '@/lib/cache/upstash';
 import { Resend } from 'resend';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 // -----------------------------------------------------------------------------
 // Quotas mensuels / journaliers — alignés sur les plans free tier
@@ -92,6 +93,8 @@ export async function trackApiCall(api: string): Promise<number> {
       // 80% atteint → alerte email
       void sendQuotaAlert(api, count, limit);
     }
+    // Persist en DB (fire-and-forget, n'attend pas)
+    void persistApiUsage(api, count);
     return count;
   } catch {
     return 0;
@@ -112,6 +115,51 @@ export async function getApiUsage(api: string): Promise<{ count: number; limit: 
 export async function isQuotaExhausted(api: string): Promise<boolean> {
   const u = await getApiUsage(api);
   return u.limit > 0 && u.count >= u.limit;
+}
+
+// -----------------------------------------------------------------------------
+// Persistance Postgres (midas.api_usage) — fire-and-forget, async
+// Complète Redis (real-time) avec un historique pour le dashboard admin.
+// -----------------------------------------------------------------------------
+// Client Supabase typé en mode untyped (le typage strict du SDK n'autorise pas
+// l'override schema en runtime sans Database<typeof schema>). On accepte l'any
+// local : l'écriture est fire-and-forget et silent-fail, RLS protège la table.
+let _supa: ReturnType<typeof createSupabaseClient> | null = null;
+function getSupa(): ReturnType<typeof createSupabaseClient> | null {
+  if (_supa) return _supa;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (!url || !key) return null;
+  _supa = createSupabaseClient(url, key, {
+    db: { schema: 'midas' as never },
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  return _supa;
+}
+
+async function persistApiUsage(api: string, count: number): Promise<void> {
+  try {
+    const supa = getSupa();
+    if (!supa) return;
+    const q = API_QUOTAS[api];
+    const periodKey = q?.period === 'month' ? monthKey() : dayKey();
+    const periodType = q?.period === 'month' ? 'month' : 'day';
+    const limit = q?.limit ?? null;
+    // Cast en unknown pour contourner les Database generics du SDK
+    const table = (supa as unknown as { from: (t: string) => { upsert: (v: unknown, o: unknown) => Promise<unknown> } }).from('api_usage');
+    await table.upsert(
+      {
+        api_name: api,
+        period_key: periodKey,
+        period_type: periodType,
+        call_count: count,
+        quota_limit: limit && limit < 999_999_999 ? limit : null,
+      },
+      { onConflict: 'api_name,period_key' }
+    );
+  } catch {
+    // silent — Redis reste la source de vérité temps réel
+  }
 }
 
 // -----------------------------------------------------------------------------
