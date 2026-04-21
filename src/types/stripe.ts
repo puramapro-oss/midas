@@ -114,6 +114,40 @@ export interface PortalSessionParams {
   return_url: string;
 }
 
+// --- Connect (Express + Embedded Components) — V4.1 ---
+
+export type ConnectPayoutStatus =
+  | 'pending'
+  | 'in_transit'
+  | 'paid'
+  | 'failed'
+  | 'canceled';
+
+export interface ConnectPayoutEvent {
+  id: string;
+  user_id: string;
+  amount_eur: number;
+  currency: string;
+  status: ConnectPayoutStatus;
+  arrival_date: string | null;
+  failure_code: string | null;
+  failure_message: string | null;
+  created_at: string;
+}
+
+export interface ConnectAccountSessionResponse {
+  client_secret: string;
+  expires_at: number;
+  stripe_account_id: string;
+}
+
+export interface ConnectOnboardResponse {
+  stripe_account_id: string;
+  onboarding_completed: boolean;
+  details_submitted: boolean;
+  payouts_enabled: boolean;
+}
+
 // --- Invoice ---
 
 export interface MidasInvoice {

@@ -218,6 +218,45 @@ export const KYC_TIER_LIMITS: Record<KycTier, { label: string; withdrawalMax: nu
   3: { label: 'Vérifié avancé', withdrawalMax: 999999, description: 'Retrait illimité' },
 };
 
+// Stripe Connect Express (Embedded Components) — V4.1
+export interface ConnectAccount {
+  user_id: string;
+  stripe_account_id: string;
+  country: string;
+  default_currency: string;
+  onboarding_completed: boolean;
+  details_submitted: boolean;
+  charges_enabled: boolean;
+  payouts_enabled: boolean;
+  kyc_verified_at: string | null;
+  disabled_reason: string | null;
+  capabilities: Record<string, unknown>;
+  requirements: Record<string, unknown>;
+  last_synced_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ConnectOnboardingStage =
+  | 'not_started'
+  | 'in_progress'
+  | 'requirements_due'
+  | 'verified';
+
+export interface ConnectAccountSummary {
+  stripe_account_id: string | null;
+  stage: ConnectOnboardingStage;
+  payouts_enabled: boolean;
+  charges_enabled: boolean;
+  details_submitted: boolean;
+  disabled_reason: string | null;
+  requirements_summary: {
+    currently_due: string[];
+    past_due: string[];
+    eventually_due: string[];
+  };
+}
+
 // Copy Trading
 export interface TraderProfile {
   id: string;
