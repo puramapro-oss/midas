@@ -39,3 +39,17 @@ test.describe('/api/connect/account-session', () => {
     expect(response.status()).toBe(405);
   });
 });
+
+test.describe('/api/connect/status', () => {
+  test('GET sans auth → 401 + message FR', async ({ request }) => {
+    const response = await request.get('/api/connect/status');
+    expect(response.status()).toBe(401);
+    const body = await response.json();
+    expect(body.error).toBe('Non autorisé');
+  });
+
+  test('POST → 405 (méthode non supportée)', async ({ request }) => {
+    const response = await request.post('/api/connect/status', { data: {} });
+    expect(response.status()).toBe(405);
+  });
+});
