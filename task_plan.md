@@ -637,3 +637,80 @@ production. Migration appliquée VPS + smoke-testée via PostgREST réel.
 - UI admin /admin/financement à étendre pour afficher les 5 pools (silent
   fallback aujourd'hui via POOL_LABELS ?? pool_type)
 - Deploy prod : à valider par Tissma sur preview Vercel
+
+### ✅ Axe 3 — Stripe Connect Withdrawals + Hub /compte/connect — COMPLET (2026-04-21)
+7 features livrées (F1→F7), 7 commits atomiques, 0 placeholder / 0 TODO / 0 mock.
+
+**F1 — DB (migrations/v4.1-connect-withdrawals.sql)**
+- [x] `public.connect_withdrawals` (UNIQUE stripe_transfer_id, CHECK
+      amount_eur >= 20, status pending/paid/failed/reversed) + RLS
+      service_role ALL, user SELECT own, super_admin SELECT all
+- [x] RPC `public.debit_wallet_for_withdrawal` SECURITY DEFINER
+      search_path=midas,public,pg_temp — SELECT FOR UPDATE midas.profiles,
+      CHECK balance >= amount, RAISE 'insufficient_balance' si KO, retourne
+      new_balance (GRANT service_role uniquement)
+- [x] RPC `public.credit_wallet_on_withdrawal_failure` symétrique pour
+      webhook transfer.reversed / payout.failed
+- [x] RPC `public.get_wallet_balance` lecture-seule (midas non exposé REST)
+      — GRANT service_role uniquement, force passage par API route auth
+
+**F2 — Hub /compte/connect**
+- [x] `src/app/compte/connect/page.tsx` client-only
+- [x] Fetch parallèle /api/connect/status + /api/wallet/balance
+- [x] Status card avec badge color-coded (STAGE_LABELS not_started/
+      in_progress/requirements_due/verified) + grille 4 champs (KYC,
+      payouts, charges, solde wallet €)
+- [x] ConnectAccountOnboarding via ConnectRoot allowAutoOnboard si !verified
+- [x] Section WithdrawButton si verified + payouts_enabled
+- [x] Quick-links grid 7 pages /compte/* (gestion, virements, soldes,
+      documents, paiements, notifications, configuration)
+- [x] data-testid complet : connect-status-card/badge/payouts-enabled/
+      wallet-balance/onboarding-section/withdraw-section/quicklinks
+
+**F3 — Webhook account.updated → activation**
+- [x] Détection transitions false→true / true→false sur payouts_enabled
+- [x] case 'transfer.reversed' (nouveau) : update connect_withdrawals
+      status=reversed + RPC credit_wallet_on_withdrawal_failure +
+      notification FR
+- [x] case 'payout.failed' enrichi avec failure_code notification
+
+**F4 — API POST /api/connect/withdraw**
+- [x] `src/app/api/connect/withdraw/route.ts` Zod {amount_eur?: number}
+- [x] Auth check first → RPC get_wallet_balance → check MIN 20€ → check
+      connect_accounts.payouts_enabled → RPC debit_wallet_for_withdrawal
+      → stripe.transfers.create → insert connect_withdrawals
+- [x] Reversal auto via credit_wallet_on_withdrawal_failure si Stripe fail
+- [x] Error codes typés : below_minimum, insufficient_balance,
+      no_connect_account, payouts_disabled, stripe_transfer_failed
+- [x] 405 explicite sur GET/PUT/DELETE
+
+**F5 — UI WithdrawButton + /api/wallet/balance**
+- [x] `src/app/api/wallet/balance/route.ts` GET auth-gated via RPC
+- [x] `src/components/connect/WithdrawButton.tsx` client component
+- [x] Disabled si balance<20 ou disabled prop (canWithdraw state)
+- [x] Modal aria-modal, ESC ferme, grille frais Stripe (20€=2,30€/11,5%
+      → 100€=2,50€/2,5%)
+- [x] Dispatch CustomEvent 'purama:withdraw-success' pour
+      confettis/toast/reload découplés
+- [x] data-testid : withdraw-button/modal/amount-input/confirm/fees-grid/
+      error/success/below-min/disabled
+
+**F6 — Tests E2E + regression**
+- [x] `e2e/connect-withdraw.spec.ts` (16 tests × 2 viewports) :
+      - POST /api/connect/withdraw sans auth → 401 FR
+      - GET/PUT/DELETE → 405
+      - POST amount négatif sans auth → 401 (auth first)
+      - GET /api/wallet/balance sans auth → 401 FR
+      - POST /api/wallet/balance → 405
+      - /compte/connect non-auth → 307 /login?next=/compte/connect
+- [x] **16/16 F6 tests PASS** (localhost:3002 Desktop Chrome + iPhone 14)
+- [x] **900/900 full regression PASS** (zéro régression Phase 2 + Axe 1+2)
+- [x] Path happy retrait réel couvert en staging manuel Stripe sandbox
+
+**F7 — Handoff**
+- [x] tsc --noEmit : 0 erreur
+- [x] npm run build : Compiled successfully, toutes routes registered
+- [x] grep TODO/FIXME/placeholder/Lorem/originstamp/tryterra/sk_live : 0
+- [x] grep `: any` : 0
+- [x] task_plan.md + progress.md mis à jour
+- [x] Commit "Phase V4.1 Axe 3 COMPLET" (ce commit)
