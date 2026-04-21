@@ -265,3 +265,50 @@
 - tsc --noEmit : PASS
 - npm run build : Compiled successfully
 - Deploy : NOT done cette session (à valider par Tissma)
+
+## Session 2026-04-21 — V4.1 Axe 2 Karma Split 50/10/10/30
+
+### Commits
+- bdd6a28 — F1 migration SQL karma-split (v1, midas schema)
+- 8bce5e3 — F2 types karma (KarmaSplit*, CpaEarning, KARMA_SPLIT_RATES)
+- aa6ff80 — F3 computeKarmaSplit pure + 30 tests unit
+- 940d96d — F4 dispatchKarmaSplit + migration RE-révisée (public schema +
+  DROP cleanup v1 + RPC karma_split_apply atomique + SECURITY DEFINER)
+- 1cc7c54 — F5 20 tests dispatchKarmaSplit mock in-memory
+- 906232d — F6 câble dispatchKarmaSplit au webhook invoice.paid
+
+### Découverte session
+- Admin /admin/financement était silencieusement cassé : tables
+  midas.pool_balances/pool_transactions ne sont pas exposées via
+  PostgREST (PGRST_DB_SCHEMAS=public uniquement). Fix : tous mes
+  nouveaux objets (karma_split_log, cpa_earnings, RPCs) sont en
+  public, les écritures midas.* passent par SECURITY DEFINER.
+- Dette notée dans task_plan "Hors scope" : UI admin financement à
+  étendre pour afficher les 5 pools (silent fallback aujourd'hui).
+
+### Validation PostgREST live
+- curl https://auth.purama.dev/rest/v1/rpc/karma_split_apply avec
+  STRIPE_SERVICE_ROLE_KEY :
+  - 1er call in_postgrest_smoke_001 → already_processed=false + 4 UUIDs
+  - 2e call même invoice → already_processed=true + []
+  - SELECT karma_split_log via REST → row status=ok, amounts OK
+- Cleanup fait (DELETE transactions + logs, UPDATE balances=0)
+
+### Fichiers créés
+- migrations/v4.1-karma-split.sql (2 révisions)
+- src/types/karma.ts
+- src/lib/karma/split.ts
+- src/lib/karma/dispatch.ts
+- e2e/karma-split.spec.ts (30 tests)
+- e2e/karma-split-dispatch.spec.ts (20 tests)
+
+### Fichiers modifiés
+- src/app/api/stripe/webhook/route.ts (+12 lignes : import +
+  dispatchKarmaSplit call après dispatchCommissionsFromStripeInvoice)
+- task_plan.md (Axe 2 section passée en COMPLET)
+
+### État
+- tsc --noEmit : PASS
+- npm run build : Compiled successfully (0 err / 0 warn)
+- 86/86 tests engines PASS (50 karma + 36 commission/dispatch V4)
+- Deploy prod : NON fait cette session (Tissma décide)

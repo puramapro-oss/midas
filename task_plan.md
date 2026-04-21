@@ -572,12 +572,68 @@ Pour debloquer :
   E2E (api, auth) = **57/57 PASS**
 - [x] `npm run build` : compiled successfully, 10 nouvelles routes registered
 
-### 🔜 Prochaine étape — Axe 2 (Karma Split 50/10/10/30)
-À démarrer après /clear + "Continue lis task_plan.md" :
-- migrations/v4.1-karma-split.sql (pool_balances ALTER + karma_split_log +
-  cpa_earnings)
-- src/lib/karma/split.ts + dispatch.ts
-- Branchement sur webhook invoice.paid APRÈS dispatchCommissions existant
-- Realign primes J1/J30/J60 (remplace J+0/M+1/M+2)
-- CRONs karma-split-audit + treezor-batch (skeleton gated par TREEZOR_ACTIVE)
-- ENV : ADYA_POOL_ID, PURAMA_ASSO_POOL_ID, PURAMA_SASU_POOL_ID
+### ✅ Axe 2 — Karma Split 50/10/10/30 — COMPLET (2026-04-21)
+6 features livrées, 6 commits atomiques, 0 placeholder / 0 TODO / 0 mock
+production. Migration appliquée VPS + smoke-testée via PostgREST réel.
+
+**DB (migrations/v4.1-karma-split.sql)**
+- [x] ALTER midas.pool_balances CHECK pool_type → 5 valeurs (+adya +sasu)
+- [x] Seed pool_balances rows adya + sasu (ON CONFLICT DO NOTHING)
+- [x] `public.karma_split_log` (UNIQUE stripe_invoice_id, status/skip_reason/
+      error/pool_tx_ids) + RLS service_role + super_admin SELECT audit
+- [x] `public.cpa_earnings` (brief V4 table #9) + RLS idem
+- [x] RPC `public.increment_pool_balance` SECURITY DEFINER search_path=midas
+      → UPDATE midas.pool_balances + INSERT midas.pool_transactions atomique
+- [x] RPC `public.karma_split_apply(invoice, customer, user, 5 montants)`
+      RETURNS TABLE(log_id, pool_tx_ids[], already_processed) : transaction
+      plpgsql implicite, fast-path idempotence + UNIQUE violation catch,
+      4 increments → rollback total si un RAISE propage
+- [x] Objets initialement créés dans midas (v1) DROP-cleanup préalable,
+      re-créés dans public car PGRST_DB_SCHEMAS=public uniquement
+
+**Types (src/types/karma.ts)**
+- [x] KarmaPoolType 5 pools + KarmaSplitPool 4 pools + KARMA_SPLIT_RATES
+      constant immuable (0.5/0.1/0.1/0.3, somme=1 vérifié test)
+- [x] KarmaSplitBreakdown + KarmaSplitSkipReason + KarmaSplitResult
+- [x] KarmaSplitLog + CpaEarning DB rows
+
+**Engine pur (src/lib/karma/split.ts)**
+- [x] `computeKarmaSplit(amountCents)` déterministe, SASU absorbe arrondi
+      pour préserver somme=gross
+- [x] Guards : NaN, Infinity, négatif → throw explicite
+
+**Dispatch (src/lib/karma/dispatch.ts)**
+- [x] `dispatchKarmaSplit(invoice, supabase?)` idempotent via RPC
+- [x] 3 skip reasons typés (no_invoice_id, zero_amount, already_processed)
+      + failed avec message d'erreur RPC
+- [x] Ne throw JAMAIS — double-ceinture catch externe
+- [x] extractUserId fallback subscription_details > invoice > subscription
+
+**Webhook (src/app/api/stripe/webhook/route.ts)**
+- [x] case 'invoice.paid' étape 3 : `await dispatchKarmaSplit(...)` APRÈS
+      dispatchCommissionsFromStripeInvoice, try/catch safety net
+- [x] Garantie 200 Stripe quoi qu'il arrive
+
+**Tests**
+- [x] 30 tests unit `computeKarmaSplit` (9,99/39/79/390€ + bornes + 1000
+      montants random invariant somme=gross + invalides) × 2 viewports
+- [x] 20 tests unit `dispatchKarmaSplit` mock Supabase in-memory :
+      no_invoice_id, zero_amount avec/sans log, nominal 9,99€ avec
+      vérification args RPC, nominal 39€, user_id fallbacks, idempotence,
+      erreur RPC → failed log écrit
+- [x] **50/50 karma tests + 36/36 commission tests = 86/86 PASS**
+- [x] Smoke test PostgREST live (curl https://auth.purama.dev/rest/v1/rpc/
+      karma_split_apply) : 1er call already_processed=false + 4 tx UUIDs,
+      2e call same invoice already_processed=true + tx=[]
+- [x] tsc --noEmit : 0 erreur
+- [x] npm run build : Compiled successfully (0 erreur, 0 warning)
+
+**Hors scope session — backlog Axe 3+**
+- Realign primes J1/J30/J60 (remplace J+0/M+1/M+2) — brief V4.1 §Primes
+- CRONs karma-split-audit quotidien (vérif sum pools vs CA Stripe)
+- Skeleton CRON treezor-batch (gated TREEZOR_ACTIVE, Phase 2)
+- ENV ADYA_POOL_ID/PURAMA_ASSO_POOL_ID/PURAMA_SASU_POOL_ID → inutile
+  tant que Treezor pas actif (pool_type string suffit comme identifiant)
+- UI admin /admin/financement à étendre pour afficher les 5 pools (silent
+  fallback aujourd'hui via POOL_LABELS ?? pool_type)
+- Deploy prod : à valider par Tissma sur preview Vercel
