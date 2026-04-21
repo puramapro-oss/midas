@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { PLANS, getPlanByPriceId } from '@/lib/stripe/plans';
 import { dispatchCommissionsFromStripeInvoice } from '@/lib/commission-engine';
 import { syncConnectAccount } from '@/lib/stripe/connect';
+import { dispatchKarmaSplit } from '@/lib/karma/dispatch';
 
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!, { typescript: true });
@@ -151,6 +152,17 @@ export async function POST(request: Request) {
         } catch {
           // Safety net : dispatchCommissionsFromStripeInvoice ne throw pas,
           // mais on double-ceinture pour garantir que Stripe reçoit 200.
+        }
+
+        // 3. Karma Split V4.1 Axe 2 — 50/10/10/30 sur 4 pools (reward/adya/
+        //    asso/sasu). S'exécute APRÈS les commissions (ordre imposé : la
+        //    logique commission lit partner_referrals, le split n'en dépend
+        //    pas). Idempotent via UNIQUE(stripe_invoice_id). Ne throw jamais.
+        try {
+          await dispatchKarmaSplit(invoice, adminSupabase);
+        } catch {
+          // Safety net idem — dispatchKarmaSplit ne throw pas nativement,
+          // mais on garantit le 200 à Stripe quoi qu'il arrive.
         }
 
         break;
