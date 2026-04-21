@@ -509,3 +509,75 @@ Pour debloquer :
 - grep TODO/Lorem/any/console.log dans src/ : 0 résultat
 - Engine tests         : 18/18 PASS
 - E2E prod live        : 32/32 PASS
+
+---
+
+## Phase V4.1 — Migration V7.1 (2026-04-21)
+
+### ✅ Axe 1 — Stripe Connect Embedded Components — COMPLET
+12 tâches complétées, 10 commits atomiques, 0 placeholder / 0 TODO / 0 mock.
+
+**DB**
+- [x] `migrations/v4.1-connect-accounts.sql` appliqué sur VPS (idempotent)
+  - Table `public.connect_accounts` (user_id PK, stripe_account_id UNIQUE,
+    flags KYC, capabilities/requirements JSONB)
+  - RLS : service_role ALL, user SELECT own row, super_admin SELECT all
+  - RPC `upsert_connect_account()` SECURITY DEFINER idempotent pour webhook
+  - 5 indexes (stripe_account_id, payouts_enabled partial, pending partial)
+  - Trigger `updated_at`
+
+**Deps**
+- [x] `@stripe/connect-js@3.3.35` + `@stripe/react-connect-js@3.3.34`
+- [x] PAS de `STRIPE_CONNECT_CLIENT_ID` (ca_...) — Embedded utilise
+  AccountSession serveur avec STRIPE_SECRET_KEY existant
+
+**Types**
+- [x] `src/types/database.ts` : ConnectAccount, ConnectOnboardingStage,
+  ConnectAccountSummary
+- [x] `src/types/stripe.ts` : ConnectPayoutStatus, ConnectPayoutEvent,
+  ConnectAccountSessionResponse, ConnectOnboardResponse
+
+**Helper lib**
+- [x] `src/lib/stripe/connect.ts` : ensureConnectAccount,
+  createConnectAccountSession, syncConnectAccount, getConnectAccountRow,
+  getConnectAccountSummary, deriveOnboardingStage (exporté pour tests)
+- [x] Controller Stripe : fees.payer=account, losses.payments=application,
+  stripe_dashboard.type=none, requirement_collection=application
+
+**API routes**
+- [x] `POST /api/connect/onboard` : idempotent, crée ou retourne compte
+- [x] `POST /api/connect/account-session` : retourne client_secret 30min
+- [x] `GET /api/connect/status` : summary UI avec refetch Stripe si besoin
+
+**UI**
+- [x] `src/components/connect/ConnectRoot.tsx` : provider client avec
+  loadConnectAndInitialize, 4 états (loading/no_account/error/ready),
+  appearance dark MIDAS (gold #FFD700 sur #0E1220, DM Sans, fr-FR)
+- [x] 7 pages `/compte/*` : configuration, gestion, virements, paiements,
+  soldes, documents, notifications — layout partage DashboardShell
+
+**Webhook**
+- [x] `src/app/api/stripe/webhook/route.ts` étendu : cases account.updated,
+  transfer.created, payout.paid, payout.failed (safety-net, jamais throw)
+
+**Middleware**
+- [x] `/compte/*` auth-gated par défaut (routes hors PUBLIC → redirect /login)
+
+**Tests**
+- [x] 11 tests unit `e2e/stripe-connect-lib.spec.ts` (lib helpers)
+- [x] 6 tests API `e2e/stripe-connect-api.spec.ts` (auth guards + 405)
+- [x] 7 tests pages `e2e/stripe-connect-pages.spec.ts` (redirect login)
+- [x] 2 tests sécurité webhook `e2e/stripe-webhook-security.spec.ts`
+- [x] 26 tests Connect V4.1 + 8 tests dispatch V4 + 21 tests régression
+  E2E (api, auth) = **57/57 PASS**
+- [x] `npm run build` : compiled successfully, 10 nouvelles routes registered
+
+### 🔜 Prochaine étape — Axe 2 (Karma Split 50/10/10/30)
+À démarrer après /clear + "Continue lis task_plan.md" :
+- migrations/v4.1-karma-split.sql (pool_balances ALTER + karma_split_log +
+  cpa_earnings)
+- src/lib/karma/split.ts + dispatch.ts
+- Branchement sur webhook invoice.paid APRÈS dispatchCommissions existant
+- Realign primes J1/J30/J60 (remplace J+0/M+1/M+2)
+- CRONs karma-split-audit + treezor-batch (skeleton gated par TREEZOR_ACTIVE)
+- ENV : ADYA_POOL_ID, PURAMA_ASSO_POOL_ID, PURAMA_SASU_POOL_ID
