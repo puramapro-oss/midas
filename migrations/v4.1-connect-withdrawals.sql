@@ -148,4 +148,25 @@ $$;
 REVOKE ALL ON FUNCTION public.credit_wallet_on_withdrawal_failure(UUID, NUMERIC) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.credit_wallet_on_withdrawal_failure(UUID, NUMERIC) TO service_role;
 
+-- 4. RPC get_wallet_balance — lecture wallet (midas non exposé REST) --------
+--
+-- PGRST_DB_SCHEMAS=public ne permet pas de lire midas.profiles directement
+-- via supabase-js. Cette RPC comble le besoin lecture-seule pour les API
+-- routes qui doivent afficher le solde sans écrire.
+
+CREATE OR REPLACE FUNCTION public.get_wallet_balance(
+  p_user_id UUID
+) RETURNS NUMERIC
+LANGUAGE sql SECURITY DEFINER
+SET search_path = midas, public, pg_temp
+AS $$
+  SELECT COALESCE(wallet_balance, 0)::NUMERIC
+    FROM midas.profiles
+   WHERE id = p_user_id;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_wallet_balance(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_wallet_balance(UUID) TO service_role;
+GRANT EXECUTE ON FUNCTION public.get_wallet_balance(UUID) TO authenticated;
+
 COMMIT;
