@@ -312,3 +312,47 @@
 - npm run build : Compiled successfully (0 err / 0 warn)
 - 86/86 tests engines PASS (50 karma + 36 commission/dispatch V4)
 - Deploy prod : NON fait cette session (Tissma décide)
+
+## Session 2026-04-21 — V4.1 Axe 3 Stripe Connect Withdrawals
+
+### Commits
+- d1e3eef — F1 migration SQL connect_withdrawals + 3 RPCs SECURITY DEFINER
+  (debit_wallet_for_withdrawal atomique SELECT FOR UPDATE,
+  credit_wallet_on_withdrawal_failure symétrique, get_wallet_balance)
+- d92f7b5 — F4 POST /api/connect/withdraw (Zod, auth, MIN 20€, Stripe
+  Transfers API, reversal auto si Stripe fail)
+- 7edbd23 — F5 WithdrawButton client + GET /api/wallet/balance
+- 1b6f26e — F2 hub /compte/connect (status card + ConnectAccountOnboarding +
+  WithdrawButton + 7 quick-links)
+- f4f0b52 — F3 webhook activation transitions + transfer.reversed +
+  payout.failed enrichi
+- eb9d01a — F6 e2e/connect-withdraw.spec.ts (16 tests × 2 viewports)
+
+### Découverte session
+- midas.profiles reste source de vérité wallet_balance → RPCs en public
+  avec SET search_path=midas,public,pg_temp + GRANT service_role only
+  (authenticated revoked) pour forcer passage par API route auth.
+- /compte/connect première compilation Turbopack = ~20s (deps
+  @stripe/connect-js lourd) → warm-up obligatoire avant Playwright.
+
+### Fichiers créés
+- migrations/v4.1-connect-withdrawals.sql
+- src/app/api/connect/withdraw/route.ts
+- src/app/api/wallet/balance/route.ts
+- src/app/compte/connect/page.tsx
+- src/components/connect/WithdrawButton.tsx
+- e2e/connect-withdraw.spec.ts (16 tests)
+
+### Fichiers modifiés
+- src/app/api/stripe/webhook/route.ts (case transfer.reversed, payout.failed
+  enrichi, notifications transitions payouts_enabled)
+- task_plan.md (Axe 3 section COMPLET)
+- progress.md (cette session)
+
+### État
+- tsc --noEmit : PASS
+- npm run build : Compiled successfully (0 err / 0 warn)
+- grep TODO/FIXME/Lorem/originstamp/tryterra/sk_live : 0
+- 16/16 F6 tests PASS (localhost:3002)
+- 900/900 régression E2E PASS (Phase 2 + Axe 1+2 intacts)
+- Deploy prod : NON fait cette session (Tissma décide sur preview Vercel)
