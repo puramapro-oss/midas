@@ -166,7 +166,9 @@ AS $$
 $$;
 
 REVOKE ALL ON FUNCTION public.get_wallet_balance(UUID) FROM PUBLIC;
+-- Uniquement service_role : force passage par une API route serveur qui
+-- vérifie auth.uid() = p_user_id (sinon un client authenticated pourrait
+-- appeler la RPC avec n'importe quel UUID).
 GRANT EXECUTE ON FUNCTION public.get_wallet_balance(UUID) TO service_role;
-GRANT EXECUTE ON FUNCTION public.get_wallet_balance(UUID) TO authenticated;
 
 COMMIT;
