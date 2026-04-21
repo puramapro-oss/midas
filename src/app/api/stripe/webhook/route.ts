@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 import { PLANS, getPlanByPriceId } from '@/lib/stripe/plans';
 import { dispatchCommissionsFromStripeInvoice } from '@/lib/commission-engine';
+import { syncConnectAccount } from '@/lib/stripe/connect';
 
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!, { typescript: true });
@@ -301,6 +302,64 @@ export async function POST(request: Request) {
           processed_at: new Date().toISOString(),
           notes: within30j ? 'Annulation <30j — prime déduite (Art. L221-28 3°)' : 'Remboursement hors fenêtre prime',
         });
+        break;
+      }
+
+      // V4.1 — Stripe Connect Express (Embedded Components) --------------
+
+      case 'account.updated': {
+        // Sync de la ligne public.connect_accounts via la RPC idempotente
+        // upsert_connect_account. Le userId est porté en metadata (setté par
+        // ensureConnectAccount au moment de stripe.accounts.create).
+        const account = event.data.object as Stripe.Account;
+        const userId = account.metadata?.user_id ?? null;
+        if (!userId) break;
+
+        try {
+          await syncConnectAccount(adminSupabase, userId, account);
+        } catch {
+          // Safety net : on ne bloque pas le webhook Stripe sur une erreur
+          // de sync DB (retry via /api/connect/status à la prochaine visite).
+        }
+        break;
+      }
+
+      case 'transfer.created': {
+        // Événement informatif : un transfert a été créé vers le compte
+        // Connect de l'user. Le crédit wallet se fait ailleurs (via prime
+        // tranches + karma split — axe 2). Ici on log seulement pour audit.
+        const transfer = event.data.object as Stripe.Transfer;
+        const destinationAccountId = typeof transfer.destination === 'string'
+          ? transfer.destination
+          : transfer.destination?.id ?? null;
+        if (!destinationAccountId) break;
+
+        await adminSupabase
+          .from('connect_accounts')
+          .update({ last_synced_at: new Date().toISOString() })
+          .eq('stripe_account_id', destinationAccountId);
+        break;
+      }
+
+      case 'payout.paid':
+      case 'payout.failed': {
+        // On remet à jour last_synced_at — les détails de payout sont lus
+        // directement via ConnectPayouts Embedded Component côté client.
+        const payout = event.data.object as Stripe.Payout;
+        const accountIdOnEvent =
+          typeof (event as unknown as { account?: string }).account === 'string'
+            ? (event as unknown as { account: string }).account
+            : null;
+        if (!accountIdOnEvent) break;
+
+        await adminSupabase
+          .from('connect_accounts')
+          .update({ last_synced_at: new Date().toISOString() })
+          .eq('stripe_account_id', accountIdOnEvent);
+
+        // (payout.id / payout.status accessible si besoin d'écrire un log
+        // ultérieurement — table payouts à créer en axe 2 si nécessaire.)
+        void payout;
         break;
       }
     }
