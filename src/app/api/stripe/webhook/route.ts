@@ -327,12 +327,75 @@ export async function POST(request: Request) {
         const userId = account.metadata?.user_id ?? null;
         if (!userId) break;
 
+        // Lit l'état AVANT sync pour détecter les transitions
+        // payouts_enabled false → true (account vient d'être vérifié) ou
+        // true → false (action requise par Stripe).
+        let previousPayoutsEnabled = false;
+        try {
+          const { data: prevRow } = await adminSupabase
+            .from('connect_accounts')
+            .select('payouts_enabled')
+            .eq('user_id', userId)
+            .maybeSingle();
+          previousPayoutsEnabled = Boolean(prevRow?.payouts_enabled);
+        } catch {
+          // Best-effort — si la lecture rate, on traitera comme première
+          // activation (la notif sera peut-être doublée mais pas manquante).
+        }
+
         try {
           await syncConnectAccount(adminSupabase, userId, account);
         } catch {
           // Safety net : on ne bloque pas le webhook Stripe sur une erreur
           // de sync DB (retry via /api/connect/status à la prochaine visite).
         }
+
+        const nowPayoutsEnabled = Boolean(account.payouts_enabled);
+
+        // Transition false → true : compte vérifié pour la première fois.
+        // On insère une notif in-app + on marque un timestamp d'activation
+        // pour audit. Pas de bloc-error, jamais throw.
+        if (!previousPayoutsEnabled && nowPayoutsEnabled) {
+          try {
+            await adminSupabase.from('notifications').insert({
+              user_id: userId,
+              type: 'connect_payouts_enabled',
+              title: 'Ton compte Purama est prêt 🎉',
+              body: 'Tu peux maintenant retirer tes gains vers ton compte bancaire. Rendez-vous sur /compte/connect pour ton premier retrait (min 20€).',
+              data: {
+                stripe_account_id: account.id,
+                transitioned_at: new Date().toISOString(),
+                previous_state: 'payouts_disabled',
+                new_state: 'payouts_enabled',
+              },
+            });
+          } catch {
+            // Best-effort — la notif peut rater sans casser le webhook.
+          }
+        }
+
+        // Transition true → false : action requise (KYC expiré, doc manquant).
+        // On notifie l'user pour l'inviter à compléter sur /compte/gestion.
+        if (previousPayoutsEnabled && !nowPayoutsEnabled) {
+          try {
+            await adminSupabase.from('notifications').insert({
+              user_id: userId,
+              type: 'connect_payouts_disabled',
+              title: 'Action requise sur ton compte',
+              body: 'Stripe a besoin de compléments d\'information pour continuer à traiter tes retraits. Rends-toi sur /compte/gestion.',
+              data: {
+                stripe_account_id: account.id,
+                transitioned_at: new Date().toISOString(),
+                previous_state: 'payouts_enabled',
+                new_state: 'payouts_disabled',
+                disabled_reason: account.requirements?.disabled_reason ?? null,
+              },
+            });
+          } catch {
+            /* best-effort */
+          }
+        }
+
         break;
       }
 
@@ -353,6 +416,60 @@ export async function POST(request: Request) {
         break;
       }
 
+      case 'transfer.reversed': {
+        // Un transfer a été reverse par Stripe (ex: compte Connect rejeté,
+        // conflit bancaire). On doit :
+        //   1. Mettre le row connect_withdrawals status='reversed'
+        //   2. Re-créditer le wallet user (RPC credit_wallet_on_withdrawal_failure)
+        // Idempotent : si déjà reversed, on ne re-crédite pas.
+        const transfer = event.data.object as Stripe.Transfer;
+        const transferId = transfer.id;
+        const userId = transfer.metadata?.user_id ?? null;
+
+        if (!transferId || !userId) break;
+
+        try {
+          // Lit la ligne actuelle pour éviter double-crédit
+          const { data: withdrawal } = await adminSupabase
+            .from('connect_withdrawals')
+            .select('id, amount_eur, status')
+            .eq('stripe_transfer_id', transferId)
+            .maybeSingle();
+
+          if (!withdrawal || withdrawal.status === 'reversed') {
+            break;
+          }
+
+          await adminSupabase
+            .from('connect_withdrawals')
+            .update({
+              status: 'reversed',
+              completed_at: new Date().toISOString(),
+              error: 'transfer_reversed_by_stripe',
+            })
+            .eq('id', withdrawal.id);
+
+          await adminSupabase.rpc('credit_wallet_on_withdrawal_failure', {
+            p_user_id: userId,
+            p_amount: Number(withdrawal.amount_eur),
+          });
+
+          await adminSupabase.from('notifications').insert({
+            user_id: userId,
+            type: 'connect_withdrawal_reversed',
+            title: 'Retrait annulé par la banque',
+            body: `Ton retrait de ${Number(withdrawal.amount_eur).toFixed(2)}€ a été reversé par Stripe. Ton solde a été rétabli. Vérifie ton IBAN sur /compte/gestion.`,
+            data: {
+              transfer_id: transferId,
+              amount_eur: Number(withdrawal.amount_eur),
+            },
+          });
+        } catch {
+          /* best-effort — ne pas faire retry Stripe */
+        }
+        break;
+      }
+
       case 'payout.paid':
       case 'payout.failed': {
         // On remet à jour last_synced_at — les détails de payout sont lus
@@ -369,9 +486,34 @@ export async function POST(request: Request) {
           .update({ last_synced_at: new Date().toISOString() })
           .eq('stripe_account_id', accountIdOnEvent);
 
-        // (payout.id / payout.status accessible si besoin d'écrire un log
-        // ultérieurement — table payouts à créer en axe 2 si nécessaire.)
-        void payout;
+        // payout.failed : notifier l'user que Stripe n'a pas pu virer
+        // (mauvais IBAN, compte fermé). Pas de re-crédit wallet car le
+        // payout concerne le compte Connect de l'user, pas notre transfer.
+        if (event.type === 'payout.failed') {
+          try {
+            const { data: connectRow } = await adminSupabase
+              .from('connect_accounts')
+              .select('user_id')
+              .eq('stripe_account_id', accountIdOnEvent)
+              .maybeSingle();
+            if (connectRow?.user_id) {
+              await adminSupabase.from('notifications').insert({
+                user_id: connectRow.user_id,
+                type: 'connect_payout_failed',
+                title: 'Virement Stripe échoué',
+                body: `Stripe n'a pas pu virer ${((payout.amount ?? 0) / 100).toFixed(2)}€ vers ton compte bancaire. Vérifie ton IBAN sur /compte/gestion.`,
+                data: {
+                  payout_id: payout.id,
+                  amount_eur: (payout.amount ?? 0) / 100,
+                  failure_code: payout.failure_code ?? null,
+                  failure_message: payout.failure_message ?? null,
+                },
+              });
+            }
+          } catch {
+            /* best-effort */
+          }
+        }
         break;
       }
     }
