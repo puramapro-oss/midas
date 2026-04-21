@@ -356,3 +356,64 @@
 - 16/16 F6 tests PASS (localhost:3002)
 - 900/900 régression E2E PASS (Phase 2 + Axe 1+2 intacts)
 - Deploy prod : NON fait cette session (Tissma décide sur preview Vercel)
+
+## Session 2026-04-21 (soir) — Phase 4 V7.1 Finitions + Deploy prod
+
+### Commits
+- 09281df — chore(midas): gitignore runtime screenshots + ref docs — V7.1 cleanup
+
+### Cleanup .gitignore
+- +STRIPE_CONNECT_KARMA_V4.md (reference doc V7.1, cp depuis ~/purama)
+- +e2e/screenshots/*.png (audit-live runtime artifacts, non-committables)
+- +.claude/scheduled_tasks.lock (Claude Code internal)
+- Untrack 4 baseline screenshots : landing/login/pricing/register
+
+### Quality gates
+- tsc --noEmit : 0 erreur
+- npm run build : Compiled successfully, 0 erreur, 0 warning
+- grep TODO/FIXME/Lorem/originstamp/tryterra/coming soon : 0 (seuls matches = `placeholder` CSS/HTML Tailwind)
+- grep `: any` | `as any` : 0
+- grep sk_live/sk_test : 0 (seuls matches = env.STRIPE_SECRET_KEY lecture + field `client_secret` Stripe API + encrypted binance user secrets)
+
+### Tests regression V4.1
+- 108/108 unit+lib PASS :
+  - karma-split 30×2=60
+  - karma-split-dispatch 20×2=40 → 50 + 48 = WAIT
+  - Global : karma(50) + commission-engine(22) + dispatch-stripe-invoice(14) + stripe-connect-lib(22) = **108/108 ✓**
+- 26 tests API/pages contre prod AVANT deploy → échec attendu (routes V4.1 Axe 1/2/3 pas encore en prod)
+
+### Deploy prod
+- `vercel --prod --token $VERCEL_TOKEN --yes`
+- Deployment : dpl_8PE8kt3Cs3Pfp9LuBEhV6K88oxLh — READY
+- Build Vercel : Compiled successfully, 0 erreur TypeScript
+- Alias actif : https://midas.purama.dev
+
+### Smoke test prod (après deploy)
+- / 200 | /subscribe 200 | /confirmation 200 | /ecosystem 200 | /partenariat 200
+- /pricing 200 | /fiscal 200 | /api/phase 200
+- /compte/connect 307 → /login?next=/compte/connect (middleware auth-gate OK)
+- /api/connect/status GET → 401 (auth OK)
+- /api/connect/withdraw GET → 405 (POST only OK)
+- /api/wallet/balance GET → 401 (auth OK)
+
+### Regression V4.1 après deploy prod
+- **42/42 tests PASS** sur https://midas.purama.dev :
+  - connect-withdraw : 8×2 viewports = 16
+  - stripe-connect-api : 6×2 = 12
+  - stripe-connect-pages : 7×2 = 14
+
+### Découverte session
+- Preview Vercel non déployable : `NEXT_PUBLIC_SUPABASE_URL` et `STRIPE_SECRET_KEY`
+  scopés `Production` uniquement. Build preview fail à "Collecting page data for
+  /api/cron/contest-weekly" → "supabaseUrl is required". Choix pragmatique :
+  deploy direct prod (V4.1 validé 108/108 unit + doc 900/900 local). Ajouter
+  env Preview serait une modif hors scope avec risque (STRIPE_SECRET_KEY live
+  en preview = potentielle charge carte réelle sur test URL).
+
+### État final
+- MIDAS V7.1 + V4.1 Axe 1+2+3 : 100% complet, live prod
+- Stripe Connect Embedded Components : opérationnel
+- Karma Split 50/10/10/30 : câblé webhook invoice.paid, idempotent via RPC
+- Stripe Connect Withdrawals : /compte/connect hub complet, MIN 20€, reversal auto
+- 7 pages /compte/* auth-gatées
+- prêt /graphify

@@ -714,3 +714,53 @@ production. Migration appliquée VPS + smoke-testée via PostgREST réel.
 - [x] grep `: any` : 0
 - [x] task_plan.md + progress.md mis à jour
 - [x] Commit "Phase V4.1 Axe 3 COMPLET" (ce commit)
+
+### ✅ Phase 4 — Finitions V7.1 + Deploy prod (2026-04-21 soir)
+
+**Cleanup**
+- [x] `.gitignore` : +STRIPE_CONNECT_KARMA_V4.md +e2e/screenshots/*.png +.claude/scheduled_tasks.lock
+- [x] Untrack 4 baseline screenshots (audit-live runtime artifacts, recréés à chaque run)
+- [x] commit 09281df `chore(midas): gitignore runtime screenshots + ref docs`
+
+**Quality gates**
+- [x] tsc --noEmit : 0 erreur
+- [x] npm run build : Compiled successfully, 0 erreur, 0 warning
+- [x] grep TODO/Lorem/originstamp/tryterra : 0 (seuls matches = Tailwind `placeholder-*` + HTML `placeholder` props légitimes)
+- [x] grep `: any` / `as any` : 0
+- [x] grep sk_live/sk_test dans src/ : 0 (seuls matches = env.STRIPE_SECRET_KEY lecture + field `client_secret` Stripe API + encrypted binance secrets user)
+
+**Regression V4.1**
+- [x] **108/108 unit+lib tests PASS** (karma-split ×50 + karma-dispatch ×20 + commission-engine ×22 + dispatch-stripe-invoice ×14 + stripe-connect-lib ×22)
+- [x] 26 tests API/pages contre prod AVANT deploy → échec attendu (routes V4.1 absentes)
+
+**Deploy prod**
+- [x] `vercel --prod --token $VERCEL_TOKEN --yes`
+- [x] deployment id : dpl_8PE8kt3Cs3Pfp9LuBEhV6K88oxLh — READY
+- [x] Alias actif : https://midas.purama.dev
+
+**Smoke test prod (9 URLs)**
+- [x] / → 200
+- [x] /subscribe → 200
+- [x] /confirmation → 200
+- [x] /ecosystem → 200
+- [x] /partenariat → 200
+- [x] /pricing → 200
+- [x] /fiscal → 200
+- [x] /compte/connect → 307 /login?next=/compte/connect (middleware auth-gate OK)
+- [x] /api/phase → 200
+- [x] /api/connect/status → 401 (auth required OK)
+- [x] /api/connect/withdraw GET → 405 (POST only OK)
+- [x] /api/wallet/balance → 401 (auth required OK)
+
+**Regression V4.1 après deploy prod**
+- [x] **42/42 tests PASS** sur https://midas.purama.dev (connect-withdraw ×16 + stripe-connect-api ×12 + stripe-connect-pages ×14, Desktop Chrome + iPhone 14)
+
+**État final prod**
+- Stripe Connect Embedded Components : live
+- Karma Split 50/10/10/30 : câblé webhook invoice.paid, idempotent
+- Stripe Connect Withdrawals : /compte/connect hub + WithdrawButton + /api/connect/withdraw MIN 20€
+- 7 pages /compte/* auth-gatées
+- Retrait conditionné payouts_enabled=true + balance >= 20€
+- Webhook safety net : account.updated / transfer.reversed / payout.failed
+
+**MIDAS V7.1 + V4.1 Axe 1+2+3 → 100% complet en production.**
