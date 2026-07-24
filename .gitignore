@@ -52,3 +52,7 @@ next-env.d.ts
 graphify-out/
 scripts/
 
+-e 
+# Secret-bearing files purged from history
+MIDAS-BRIEF-ULTIMATE.md
+MIDAS-ULTIMATE-BRIEF.md
