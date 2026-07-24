@@ -27,6 +27,7 @@ export async function createCheckoutSession(
   const metadata: Record<string, string> = {
     user_id: userId,
     app: 'midas',
+    app_slug: 'midas',
     plan,
     period,
   };

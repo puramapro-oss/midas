@@ -16,8 +16,15 @@ function getAdminSupabase() {
 
 export async function POST(request: Request) {
   try {
+    // 1. Vérifier le secret interne (karma dispatcher)
+    const internalSecret = request.headers.get('x-internal-secret');
+    if (internalSecret !== process.env.INTERNAL_WEBHOOK_SECRET) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    }
+
+    // 2. Defense-in-depth: re-vérifier signature Stripe
     const rawBody = await request.text();
-    const signature = request.headers.get('stripe-signature');
+    const signature = request.headers.get('x-stripe-signature');
 
     if (!signature) {
       return NextResponse.json({ error: 'Signature manquante' }, { status: 400 });

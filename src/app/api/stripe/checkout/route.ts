@@ -116,6 +116,7 @@ export async function POST(request: Request) {
     const metadata: Record<string, string> = {
       user_id: user.id,
       app: 'midas',
+      app_slug: 'midas',
       plan,
       period,
     };
