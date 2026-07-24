@@ -177,7 +177,7 @@ test.describe('syncConnectAccount', () => {
     });
     const { client, state } = makeMockSupabase({ rpcResponse: updated });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const stripeAccount = {
       id: 'acct_42',
       details_submitted: true,
@@ -206,7 +206,7 @@ test.describe('syncConnectAccount', () => {
     const updated = makeAccount();
     const { client, state } = makeMockSupabase({ rpcResponse: updated });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     const stripeAccount = {
       id: 'acct_nodis',
       details_submitted: false,

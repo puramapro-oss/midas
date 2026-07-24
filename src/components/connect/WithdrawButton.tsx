@@ -14,7 +14,7 @@
 // Accessibilité : aria-label, focus trap basique dans modal, ESC ferme.
 // =============================================================================
 
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 
 const MIN_WITHDRAWAL_EUR = 20;
 const RECOMMENDED_WITHDRAWAL_EUR = 50;
@@ -66,9 +66,11 @@ export default function WithdrawButton({
   // Initialise le montant par défaut = solde complet quand la modal s'ouvre
   useEffect(() => {
     if (modalOpen) {
-      setAmount(balanceEur.toFixed(2));
-      setError(null);
-      setSuccess(null);
+      queueMicrotask(() => {
+        setAmount(balanceEur.toFixed(2));
+        setError(null);
+        setSuccess(null);
+      });
     }
   }, [modalOpen, balanceEur]);
 
@@ -82,17 +84,17 @@ export default function WithdrawButton({
     return () => window.removeEventListener('keydown', onKey);
   }, [modalOpen, submitting]);
 
-  const openModal = useCallback(() => {
+  const openModal = () => {
     if (!canWithdraw) return;
     setModalOpen(true);
-  }, [canWithdraw]);
+  };
 
-  const closeModal = useCallback(() => {
+  const closeModal = () => {
     if (submitting) return;
     setModalOpen(false);
-  }, [submitting]);
+  };
 
-  const submit = useCallback(async () => {
+  const submit = async () => {
     setError(null);
     const parsed = Number(amount.replace(',', '.'));
     if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -145,7 +147,7 @@ export default function WithdrawButton({
       setError(e instanceof Error ? e.message : 'Erreur réseau');
       setSubmitting(false);
     }
-  }, [amount, balanceEur, onSuccess]);
+  };
 
   // ---- Button -------------------------------------------------------------
 

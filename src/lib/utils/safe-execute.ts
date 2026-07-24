@@ -176,7 +176,7 @@ function reportToSentry(
         context,
         timestamp: new Date().toISOString(),
       };
-      // eslint-disable-next-line no-console -- Structured logging for monitoring
+       
       console.error('[MIDAS:CRITICAL]', JSON.stringify(logEntry));
     }
   } catch {

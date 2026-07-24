@@ -27,7 +27,9 @@ export default function PartenaireScreen() {
   }, []);
 
   useEffect(() => {
-    load();
+    void (async () => {
+      await load();
+    })();
   }, [load]);
 
   const onRefresh = useCallback(async () => {

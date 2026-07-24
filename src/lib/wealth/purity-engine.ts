@@ -73,7 +73,7 @@ export function calculateCashback(
   natureScore: number = 50 // 0-100 Nature Score (90-day avg)
 ): { cashback: number; level: PurityLevel; bonus_pct: number } {
   const tier = getPurityLevel(mcc);
-  let baseCashback = tier.cashback_pct;
+  const baseCashback = tier.cashback_pct;
 
   // Nature Score bonus: +1% per 10 points above 50
   const bonus = Math.max(0, Math.floor((natureScore - 50) / 10));

@@ -28,7 +28,7 @@ export function useAuth(): UseAuthReturn {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   const supabase = useMemo(() => createClient(), []);
 
   const fetchProfile = useCallback(

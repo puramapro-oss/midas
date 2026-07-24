@@ -29,7 +29,9 @@ export default function AlertsScreen() {
   }, []);
 
   useEffect(() => {
-    load();
+    void (async () => {
+      await load();
+    })();
   }, [load]);
 
   const createAlert = async () => {

@@ -7,18 +7,21 @@ import { getRandomAffirmation } from '@/lib/spiritual/affirmations';
 
 export default function AffirmationModal() {
   const [show, setShow] = useState(false);
-  const [affirmation, setAffirmation] = useState('');
+  const [affirmation] = useState(() => {
+    const key = 'midas_affirmation_shown';
+    const lastShown = sessionStorage.getItem(key);
+    return lastShown ? '' : getRandomAffirmation();
+  });
 
   useEffect(() => {
     // Show once per session (login)
     const key = 'midas_affirmation_shown';
     const lastShown = sessionStorage.getItem(key);
-    if (!lastShown) {
-      setAffirmation(getRandomAffirmation());
+    if (!lastShown && affirmation) {
       const timer = setTimeout(() => setShow(true), 1500);
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [affirmation]);
 
   const handleAccept = () => {
     sessionStorage.setItem('midas_affirmation_shown', Date.now().toString());

@@ -14,9 +14,14 @@ interface ParticleBackgroundProps {
 }
 
 function useIsMobile() {
-  const [mobile, setMobile] = useState(false);
+  const [mobile, setMobile] = useState(() =>
+    typeof window !== 'undefined' && window.innerWidth < 768
+  );
   useEffect(() => {
-    setMobile(window.innerWidth < 768);
+    if (typeof window !== 'undefined') {
+      // Batch setState via queueMicrotask
+      queueMicrotask(() => setMobile(window.innerWidth < 768));
+    }
   }, []);
   return mobile;
 }

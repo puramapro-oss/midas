@@ -4,10 +4,9 @@ import { useState, useEffect } from 'react';
 import { getRandomQuote } from '@/lib/spiritual/affirmations';
 
 export default function WisdomFooter() {
-  const [quote, setQuote] = useState({ text: '', author: '' });
+  const [quote, setQuote] = useState(() => getRandomQuote());
 
   useEffect(() => {
-    setQuote(getRandomQuote());
     const interval = setInterval(() => {
       setQuote(getRandomQuote());
     }, 30 * 60 * 1000); // Rotate every 30min

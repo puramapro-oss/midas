@@ -47,7 +47,9 @@ export default function ReferralPage() {
 
   useEffect(() => {
     if (profile?.referral_code) {
-      setStats((prev) => ({ ...prev, code: profile.referral_code ?? '' }));
+      queueMicrotask(() =>
+        setStats((prev) => ({ ...prev, code: profile.referral_code ?? '' }))
+      );
     }
   }, [profile]);
 

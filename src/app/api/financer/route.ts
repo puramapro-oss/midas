@@ -41,7 +41,7 @@ export async function GET(request: Request) {
 
     const supabase = getServiceClient();
 
-    let query = supabase
+    const query = supabase
       .from('aides')
       .select('*')
       .eq('active', true)

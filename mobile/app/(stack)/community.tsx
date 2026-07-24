@@ -35,7 +35,9 @@ export default function CommunityScreen() {
   }, []);
 
   useEffect(() => {
-    load();
+    void (async () => {
+      await load();
+    })();
   }, [load]);
 
   const submitPost = async () => {

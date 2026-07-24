@@ -15,7 +15,11 @@ export default function PaperScreen() {
     } catch {}
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    void (async () => {
+      await load();
+    })();
+  }, [load]);
 
   const totalPnl = trades.reduce((sum, t) => sum + (t.pnl ?? 0), 0);
   const winRate = trades.length > 0

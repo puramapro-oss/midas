@@ -49,7 +49,9 @@ export default function DashboardScreen() {
   }, [fetchPrices]);
 
   useEffect(() => {
-    loadData();
+    void (async () => {
+      await loadData();
+    })();
   }, [loadData]);
 
   const onRefresh = useCallback(async () => {

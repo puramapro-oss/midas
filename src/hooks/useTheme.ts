@@ -23,15 +23,14 @@ function applyTheme(theme: Theme) {
 }
 
 export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>('dark');
+  const [theme, setThemeState] = useState<Theme>(getStoredTheme);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const stored = getStoredTheme();
-    setThemeState(stored);
-    applyTheme(stored);
-    setMounted(true);
-  }, []);
+    applyTheme(theme);
+    // Batch setState via queueMicrotask
+    queueMicrotask(() => setMounted(true));
+  }, [theme]);
 
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);

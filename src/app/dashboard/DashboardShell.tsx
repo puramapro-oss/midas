@@ -49,14 +49,12 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const [chatOpen, setChatOpen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialChecked, setTutorialChecked] = useState(false);
-  const [showIntro, setShowIntro] = useState(false);
-
-  // Check if cinematic intro should play
-  useEffect(() => {
+  const [showIntro, setShowIntro] = useState(() => {
     if (typeof window !== 'undefined' && !localStorage.getItem('midas-intro-seen')) {
-      setShowIntro(true);
+      return true;
     }
-  }, []);
+    return false;
+  });
 
   // Redirect to onboarding if not completed
   useEffect(() => {
@@ -68,19 +66,19 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   // Check tutorial status (read directly from DB since Profile type may not have field yet on server)
   useEffect(() => {
     if (!loading && profile && profile.onboarding_completed && user && !tutorialChecked) {
-      setTutorialChecked(true);
-      const supabase = createClient();
-      supabase
-        .from('profiles')
-        .select('tutorial_completed')
-        .eq('id', user.id)
-        .single()
-        .then(({ data }: { data: { tutorial_completed: boolean } | null }) => {
-          if (data && !data.tutorial_completed) {
-            // Small delay to let dashboard render first
-            setTimeout(() => setShowTutorial(true), 1500);
-          }
-        });
+      void (async () => {
+        setTutorialChecked(true);
+        const supabase = createClient();
+        const { data } = await supabase
+          .from('profiles')
+          .select('tutorial_completed')
+          .eq('id', user.id)
+          .single();
+        if (data && !data.tutorial_completed) {
+          // Small delay to let dashboard render first
+          setTimeout(() => setShowTutorial(true), 1500);
+        }
+      })();
     }
   }, [loading, profile, user, tutorialChecked]);
 

@@ -32,7 +32,9 @@ export default function ClassementScreen() {
   }, []);
 
   useEffect(() => {
-    load();
+    void (async () => {
+      await load();
+    })();
   }, [load]);
 
   const onRefresh = useCallback(async () => {

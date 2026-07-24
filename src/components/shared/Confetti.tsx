@@ -14,6 +14,8 @@ interface ConfettiPiece {
   rotation: number;
   delay: number;
   drift: number;
+  duration: number;
+  isCircle: boolean;
 }
 
 function generatePieces(): ConfettiPiece[] {
@@ -25,17 +27,19 @@ function generatePieces(): ConfettiPiece[] {
     rotation: Math.random() * 360,
     delay: Math.random() * 0.6,
     drift: (Math.random() - 0.5) * 80,
+    duration: 2.6 + Math.random() * 0.8,
+    isCircle: Math.random() > 0.5,
   }));
 }
 
 export default function Confetti({ active }: { active: boolean }) {
-  const [pieces, setPieces] = useState<ConfettiPiece[]>([]);
+  const [pieces, setPieces] = useState<ConfettiPiece[]>(() => active ? generatePieces() : []);
 
   useEffect(() => {
-    if (active) {
-      setPieces(generatePieces());
+    if (active && pieces.length === 0) {
+      queueMicrotask(() => setPieces(generatePieces()));
     }
-  }, [active]);
+  }, [active, pieces.length]);
 
   return (
     <AnimatePresence>
@@ -60,7 +64,7 @@ export default function Confetti({ active }: { active: boolean }) {
               }}
               exit={{ opacity: 0 }}
               transition={{
-                duration: 2.6 + Math.random() * 0.8,
+                duration: piece.duration,
                 delay: piece.delay,
                 ease: [0.25, 0.46, 0.45, 0.94],
               }}
@@ -69,7 +73,7 @@ export default function Confetti({ active }: { active: boolean }) {
                 width: piece.size,
                 height: piece.size,
                 backgroundColor: piece.color,
-                borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+                borderRadius: piece.isCircle ? '50%' : '2px',
                 boxShadow: `0 0 ${piece.size}px ${piece.color}40`,
               }}
             />

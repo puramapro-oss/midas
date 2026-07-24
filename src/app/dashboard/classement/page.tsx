@@ -393,7 +393,7 @@ function RecompensesTab({ data }: { data: ContestData | null }) {
 
   useEffect(() => {
     const endDate = data?.weekly?.end_date ? new Date(data.weekly.end_date) : getNextMonday();
-    setTimeLeft(getTimeLeft(endDate));
+    queueMicrotask(() => setTimeLeft(getTimeLeft(endDate)));
     const interval = setInterval(() => setTimeLeft(getTimeLeft(endDate)), 1000);
     return () => clearInterval(interval);
   }, [data?.weekly?.end_date]);
@@ -610,7 +610,9 @@ export default function ClassementPage() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    void (async () => {
+      await fetchData();
+    })();
   }, [fetchData]);
 
   return (

@@ -42,7 +42,9 @@ export default function TradingScreen() {
   }, []);
 
   useEffect(() => {
-    loadData();
+    void (async () => {
+      await loadData();
+    })();
   }, [loadData]);
 
   const executeTrade = async () => {

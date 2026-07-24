@@ -20,88 +20,88 @@ export function VoiceWaveform({
   const animationFrameRef = useRef<number>(0)
   const phaseRef = useRef(0)
 
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+  useEffect(() => {
+    const draw = () => {
+      const canvas = canvasRef.current
+      if (!canvas) return
 
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
 
-    const dpr = window.devicePixelRatio || 1
-    const rect = canvas.getBoundingClientRect()
-    canvas.width = rect.width * dpr
-    canvas.height = rect.height * dpr
-    ctx.scale(dpr, dpr)
+      const dpr = window.devicePixelRatio || 1
+      const rect = canvas.getBoundingClientRect()
+      canvas.width = rect.width * dpr
+      canvas.height = rect.height * dpr
+      ctx.scale(dpr, dpr)
 
-    const width = rect.width
-    const height = rect.height
-    const centerY = height / 2
+      const width = rect.width
+      const height = rect.height
+      const centerY = height / 2
 
-    ctx.clearRect(0, 0, width, height)
+      ctx.clearRect(0, 0, width, height)
 
-    if (isActive && analyserNode) {
-      const bufferLength = analyserNode.frequencyBinCount
-      const dataArray = new Uint8Array(bufferLength)
-      analyserNode.getByteFrequencyData(dataArray)
+      if (isActive && analyserNode) {
+        const bufferLength = analyserNode.frequencyBinCount
+        const dataArray = new Uint8Array(bufferLength)
+        analyserNode.getByteFrequencyData(dataArray)
 
-      // Draw frequency bars as smooth wave
-      const barCount = 64
-      const barWidth = width / barCount
-      const step = Math.floor(bufferLength / barCount)
+        // Draw frequency bars as smooth wave
+        const barCount = 64
+        const barWidth = width / barCount
+        const step = Math.floor(bufferLength / barCount)
 
-      for (let i = 0; i < barCount; i++) {
-        const dataIndex = i * step
-        const value = dataArray[dataIndex] ?? 0
-        const normalizedValue = value / 255
-        const barHeight = normalizedValue * (height * 0.8)
+        for (let i = 0; i < barCount; i++) {
+          const dataIndex = i * step
+          const value = dataArray[dataIndex] ?? 0
+          const normalizedValue = value / 255
+          const barHeight = normalizedValue * (height * 0.8)
 
-        const x = i * barWidth
-        const alpha = 0.3 + normalizedValue * 0.7
+          const x = i * barWidth
+          const alpha = 0.3 + normalizedValue * 0.7
 
-        ctx.fillStyle = hexToRgba(color, alpha)
-        ctx.beginPath()
-        ctx.roundRect(
-          x + 1,
-          centerY - barHeight / 2,
-          Math.max(barWidth - 2, 1),
-          Math.max(barHeight, 2),
-          2
-        )
-        ctx.fill()
-      }
-    } else {
-      // Idle: subtle sine wave pulse
-      phaseRef.current += 0.02
-      const phase = phaseRef.current
-
-      ctx.beginPath()
-      ctx.strokeStyle = hexToRgba(color, 0.2)
-      ctx.lineWidth = 2
-
-      for (let x = 0; x < width; x++) {
-        const progress = x / width
-        const amplitude = 3 + Math.sin(phase) * 2
-        const y = centerY + Math.sin(progress * Math.PI * 4 + phase) * amplitude
-        if (x === 0) {
-          ctx.moveTo(x, y)
-        } else {
-          ctx.lineTo(x, y)
+          ctx.fillStyle = hexToRgba(color, alpha)
+          ctx.beginPath()
+          ctx.roundRect(
+            x + 1,
+            centerY - barHeight / 2,
+            Math.max(barWidth - 2, 1),
+            Math.max(barHeight, 2),
+            2
+          )
+          ctx.fill()
         }
+      } else {
+        // Idle: subtle sine wave pulse
+        phaseRef.current += 0.02
+        const phase = phaseRef.current
+
+        ctx.beginPath()
+        ctx.strokeStyle = hexToRgba(color, 0.2)
+        ctx.lineWidth = 2
+
+        for (let x = 0; x < width; x++) {
+          const progress = x / width
+          const amplitude = 3 + Math.sin(phase) * 2
+          const y = centerY + Math.sin(progress * Math.PI * 4 + phase) * amplitude
+          if (x === 0) {
+            ctx.moveTo(x, y)
+          } else {
+            ctx.lineTo(x, y)
+          }
+        }
+        ctx.stroke()
       }
-      ctx.stroke()
+
+      animationFrameRef.current = requestAnimationFrame(draw)
     }
 
-    animationFrameRef.current = requestAnimationFrame(draw)
-  }, [analyserNode, isActive, color])
-
-  useEffect(() => {
     animationFrameRef.current = requestAnimationFrame(draw)
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
       }
     }
-  }, [draw])
+  }, [analyserNode, isActive, color])
 
   return (
     <canvas

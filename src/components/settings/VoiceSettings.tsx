@@ -11,18 +11,15 @@ const SAMPLE_PHRASE = 'Bonjour, je suis ton assistant MIDAS. Je suis la pour t\'
 
 export function VoiceSettings() {
   const { speak, isPlaying, stopSpeaking } = useVoice()
-  const [selectedVoiceId, setSelectedVoiceId] = useState<string>(DEFAULT_VOICE_ID)
-  const [testingVoiceId, setTestingVoiceId] = useState<string | null>(null)
-
-  // Load saved voice on mount
-  useEffect(() => {
+  const [selectedVoiceId, setSelectedVoiceId] = useState<string>(() => {
     try {
       const saved = localStorage.getItem('midas-voice-id')
-      if (saved) {
-        setSelectedVoiceId(saved)
-      }
-    } catch { /* ignore */ }
-  }, [])
+      return saved ?? DEFAULT_VOICE_ID
+    } catch {
+      return DEFAULT_VOICE_ID
+    }
+  })
+  const [testingVoiceId, setTestingVoiceId] = useState<string | null>(null)
 
   const handleSelect = useCallback((voiceId: string) => {
     setSelectedVoiceId(voiceId)

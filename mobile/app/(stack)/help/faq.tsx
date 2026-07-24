@@ -25,7 +25,9 @@ export default function FaqScreen() {
   }, []);
 
   useEffect(() => {
-    load();
+    void (async () => {
+      await load();
+    })();
   }, [load]);
 
   const filtered = articles.filter(

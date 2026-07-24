@@ -64,17 +64,18 @@ export default function VoiceConversationPage() {
 
   // Update conversation state based on voice state
   useEffect(() => {
-    if (isRecording) {
-      setConversationState('listening')
-    } else if (voiceState === 'transcribing') {
-      setConversationState('transcribing')
-    } else if (chatLoading) {
-      setConversationState('thinking')
-    } else if (isPlaying) {
-      setConversationState('speaking')
-    } else {
-      setConversationState('idle')
-    }
+    const nextState: ConversationState = isRecording
+      ? 'listening'
+      : voiceState === 'transcribing'
+        ? 'transcribing'
+        : chatLoading
+          ? 'thinking'
+          : isPlaying
+            ? 'speaking'
+            : 'idle';
+
+    // Batch state update via queueMicrotask to avoid sync setState warning
+    queueMicrotask(() => setConversationState(nextState));
   }, [isRecording, voiceState, chatLoading, isPlaying])
 
   const handleClose = useCallback(() => {
@@ -93,27 +94,26 @@ export default function VoiceConversationPage() {
     if (messages.length > lastMessageCountRef.current) {
       const lastMsg = messages[messages.length - 1]
       if (lastMsg && lastMsg.role === 'assistant' && pendingTTSRef.current && loopActiveRef.current) {
-        pendingTTSRef.current = false
-        const responseText = lastMsg.content
-        setLastResponse(responseText)
-        setConversationState('speaking')
+        void (async () => {
+          pendingTTSRef.current = false
+          const responseText = lastMsg.content
+          setLastResponse(responseText)
+          setConversationState('speaking')
 
-        // Auto-play TTS then optionally restart recording
-        speak(responseText, selectedVoiceId)
-          .then(() => {
+          // Auto-play TTS then optionally restart recording
+          try {
+            await speak(responseText, selectedVoiceId)
             if (autoLoop && loopActiveRef.current) {
-              return startRecording()
+              await startRecording()
             }
-            return undefined
-          })
-          .catch(() => {
+          } catch {
             // ignore
-          })
-          .finally(() => {
+          } finally {
             if (!loopActiveRef.current || !autoLoop) {
               setConversationState('idle')
             }
-          })
+          }
+        })();
       }
     }
     lastMessageCountRef.current = messages.length

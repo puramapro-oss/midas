@@ -18,7 +18,7 @@ export default function SpiritualLayer({
 }) {
   const [showPause, setShowPause] = useState(false);
   const pauseTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const activityRef = useRef(Date.now());
+  const activityRef = useRef(0);
 
   // Track last user activity
   useEffect(() => {

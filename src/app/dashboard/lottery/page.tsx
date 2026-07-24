@@ -44,16 +44,19 @@ export default function LotteryPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/lottery')
-      .then(r => r.json())
-      .then(data => {
+    void (async () => {
+      try {
+        const r = await fetch('/api/lottery');
+        const data = await r.json();
         setCurrentDraw(data.current_draw);
         setTickets(data.my_tickets ?? []);
         setTicketCount(data.my_tickets_count ?? 0);
         setWins(data.my_wins ?? []);
         setPastDraws(data.past_draws ?? []);
-      })
-      .finally(() => setLoading(false));
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
   if (loading) {

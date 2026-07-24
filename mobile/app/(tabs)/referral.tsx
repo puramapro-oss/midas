@@ -47,7 +47,9 @@ export default function ReferralScreen() {
   }, []);
 
   useEffect(() => {
-    load();
+    void (async () => {
+      await load();
+    })();
   }, [load]);
 
   const onRefresh = useCallback(async () => {

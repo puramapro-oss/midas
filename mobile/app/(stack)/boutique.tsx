@@ -27,7 +27,9 @@ export default function BoutiqueScreen() {
   }, []);
 
   useEffect(() => {
-    load();
+    void (async () => {
+      await load();
+    })();
   }, [load]);
 
   const purchase = async (item: ShopItem) => {

@@ -16,7 +16,11 @@ export default function BotsScreen() {
     } catch {}
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    void (async () => {
+      await load();
+    })();
+  }, [load]);
 
   const onRefresh = useCallback(async () => { setRefreshing(true); await load(); setRefreshing(false); }, [load]);
 
