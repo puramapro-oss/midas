@@ -6,6 +6,7 @@ import { askClaudeWithHistory } from '@/lib/ai/claude-client';
 import { CHAT_SYSTEM_PROMPT } from '@/lib/ai/system-prompts';
 import { buildLiveContext } from '@/lib/ai/chat-context';
 import { PLAN_LIMITS } from '@/lib/utils/constants';
+import { checkRouteRateLimit, rateLimitHeaders } from '@/lib/utils/rate-limiter';
 import type { MidasPlan } from '@/types/stripe';
 
 const bodySchema = z.object({
@@ -55,9 +56,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Profil introuvable' }, { status: 404 });
     }
 
-    // Check daily limit (super_admin bypass)
+    // Rate limit check (super_admin bypass)
     if (profile.role !== 'super_admin') {
       const plan = (profile.plan as MidasPlan) ?? 'free';
+      const rlResult = await checkRouteRateLimit(user.id, '/api/ai/chat', plan);
+      if (!rlResult.allowed) {
+        return NextResponse.json(
+          { error: 'Rate limit atteint. Réessayez plus tard.' },
+          { status: 429, headers: rateLimitHeaders(rlResult) }
+        );
+      }
+
+      // Check daily limit (DB-based secondary check)
       const limit = PLAN_LIMITS[plan]?.limits.daily_questions ?? 15;
 
       // Check if reset is needed
