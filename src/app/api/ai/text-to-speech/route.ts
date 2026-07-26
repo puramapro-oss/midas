@@ -62,10 +62,16 @@ async function getAuthUser() {
   return { user, supabase, isSuperAdmin };
 }
 
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY ?? 'ceb3c780b157ff7b2cf71853c5dfbe8b3f4273b72a3d64cbfcb55a0fb9f7033d';
-
 export async function POST(request: Request) {
   try {
+    const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
+    if (!elevenLabsApiKey) {
+      return NextResponse.json(
+        { error: 'Synthese vocale non configuree (ELEVENLABS_API_KEY manquante)' },
+        { status: 503 }
+      );
+    }
+
     const { user, isSuperAdmin } = await getAuthUser();
     if (!user) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
@@ -97,7 +103,7 @@ export async function POST(request: Request) {
       {
         method: 'POST',
         headers: {
-          'xi-api-key': ELEVENLABS_API_KEY,
+          'xi-api-key': elevenLabsApiKey,
           'Content-Type': 'application/json',
           'Accept': 'audio/mpeg',
         },
