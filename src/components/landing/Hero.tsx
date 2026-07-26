@@ -278,7 +278,7 @@ export default function Hero() {
             <motion.div
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
               className="text-center lg:text-left"
             >
               <motion.div
@@ -297,7 +297,7 @@ export default function Hero() {
               <motion.h1
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
+                transition={{ duration: 0.4, delay: 0 }}
                 className="font-[family-name:var(--font-orbitron)] text-[44px] sm:text-6xl lg:text-7xl xl:text-[88px] font-black leading-[0.95] tracking-tight mb-6"
               >
                 <span className="block text-white">Transforme tes</span>
