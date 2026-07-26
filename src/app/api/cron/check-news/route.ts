@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getNews, calculateNewsSentiment } from '@/lib/data/cryptopanic';
+import { fetchFreeCryptoNews } from '@/lib/data/free-crypto-news';
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
@@ -15,23 +15,16 @@ export async function GET(request: NextRequest) {
       { db: { schema: 'public' } }
     );
 
-    const posts = await getNews({ currencies: 'BTC,ETH,SOL', kind: 'news' });
-    const sentiment = calculateNewsSentiment(posts);
+    const posts = await fetchFreeCryptoNews();
 
     const now = new Date().toISOString();
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
     const newsItems = posts.slice(0, 20).map((post) => ({
       title: post.title,
-      url: post.url,
-      source: post.source?.title ?? post.domain,
-      published_at: post.published_at,
-      currencies: post.currencies?.map((c) => c.code) ?? [],
-      votes: {
-        positive: post.votes.positive,
-        negative: post.votes.negative,
-        important: post.votes.important,
-      },
+      url: post.link,
+      source: post.source,
+      published_at: post.publishedAt,
     }));
 
     const { error } = await supabase.from('market_cache').upsert(
@@ -40,7 +33,6 @@ export async function GET(request: NextRequest) {
         type: 'news',
         data: {
           posts: newsItems,
-          sentiment,
           fetched_at: now,
         },
         expires_at: expiresAt,
@@ -56,7 +48,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       fetched: newsItems.length,
-      sentiment_score: sentiment.score,
       timestamp: now,
     });
   } catch (error) {

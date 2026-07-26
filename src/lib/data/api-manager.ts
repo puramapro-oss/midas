@@ -32,7 +32,7 @@ export const API_QUOTAS: Record<string, { limit: number; period: 'day' | 'month'
 // -----------------------------------------------------------------------------
 export const FALLBACK_MAP: Record<string, string[]> = {
   coinmarketcap: ['coinpaprika', 'binance', 'coingecko'],
-  newsapi: ['free-crypto-news', 'reddit', 'cryptopanic'],
+  newsapi: ['free-crypto-news', 'reddit'],
   etherscan: ['dune', 'binance'],
   coinmarketcal: ['coinpaprika'],
   youtube: ['reddit', 'google-trends'],
@@ -40,7 +40,7 @@ export const FALLBACK_MAP: Record<string, string[]> = {
   binance: ['coingecko'],
   reddit: ['free-crypto-news'],
   dune: ['etherscan'],
-  'free-crypto-news': ['reddit', 'cryptopanic'],
+  'free-crypto-news': ['reddit'],
   'fear-greed': [],
   'google-trends': [],
   coinpaprika: ['coinmarketcap', 'coingecko'],

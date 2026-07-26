@@ -1,14 +1,13 @@
 // =============================================================================
 // MIDAS — Sentiment Analysis Agent
-// Analyse CryptoPanic news + Fear & Greed Index via Claude pour scoring
+// Analyse cryptocurrency.cv news + Fear & Greed Index via Claude pour scoring
 // =============================================================================
 
 import type { AgentResult } from '@/lib/agents/types';
-import { getNews, calculateNewsSentiment } from '@/lib/data/cryptopanic';
 import { getCurrentIndex, fearGreedToSignal } from '@/lib/data/fear-greed';
 import { fetchCryptoNews } from '@/lib/data/newsapi';
 import { fetchCryptoTrends } from '@/lib/data/google-trends';
-import { fetchFreeCryptoNews } from '@/lib/data/free-crypto-news';
+import { fetchFreeCryptoNews, coinToNewsCategory } from '@/lib/data/free-crypto-news';
 import { getCryptoSubredditPosts, analyzeRedditSentiment } from '@/lib/data/reddit';
 import { getTrendingCryptoVideos, analyzeYouTubeSentiment } from '@/lib/data/youtube';
 import { askClaudeJSON } from '@/lib/ai/claude-client';
@@ -28,9 +27,6 @@ interface SentimentData {
   fear_greed_value: number;
   fear_greed_classification: string;
   fear_greed_signal: string;
-  news_sentiment_score: number;
-  news_bullish_count: number;
-  news_bearish_count: number;
   news_total: number;
   claude_analysis: SentimentClaudeResponse | null;
   headlines: string[];
@@ -39,22 +35,22 @@ interface SentimentData {
     reddit: { score: number; posts: number };
     youtube: { score: number; videos: number };
     google_trends: { bitcoin: number | null; ethereum: number | null; crypto: number | null; fomoIndex: number } | null;
-    free_crypto_news: { score: number; items: number };
+    free_crypto_news: { items: number };
   };
 }
 
 // --- Constants ---
 
-// 6 sources : F&G, CryptoPanic, NewsAPI, Reddit, YouTube, Google Trends, free-crypto-news
-// + Claude synthesis layer
+// 5 sources chiffrees : F&G, NewsAPI, Reddit, YouTube, Google Trends
+// + Claude synthesis layer (lit les headlines cryptocurrency.cv, sans score de sentiment natif —
+// l'offre gratuite ne fournit pas de classification bullish/bearish, contrairement a CryptoPanic
+// (devenu payant) : le poids qui lui revenait est reporte sur Claude plutot que d'inventer un score).
 const W_FEAR_GREED = 0.20;
-const W_CRYPTOPANIC = 0.10;
 const W_NEWSAPI = 0.15;
 const W_REDDIT = 0.10;
 const W_YOUTUBE = 0.05;
 const W_TRENDS = 0.05;
-const W_FCN = 0.05;
-const W_CLAUDE = 0.30;
+const W_CLAUDE = 0.45;
 // Brief: F&G < 20 → contrarian buy, > 80 → danger
 function fearGreedContrarian(value: number): number {
   if (value < 20) return 0.6; // extreme fear → bullish bias
@@ -96,15 +92,15 @@ function extractCoinSymbol(pair: string): string {
 
 /**
  * Analyse le sentiment du marche pour une paire donnee.
- * Combine Fear & Greed Index, news CryptoPanic, et analyse Claude.
+ * Combine Fear & Greed Index, news cryptocurrency.cv, et analyse Claude.
  */
 export async function analyzeSentiment(pair: string): Promise<AgentResult> {
   const coin = extractCoinSymbol(pair);
+  const newsCategory = coinToNewsCategory(coin);
 
-  // Fetch des 7 sources en parallèle (résilient — chaque source peut échouer)
+  // Fetch des 6 sources en parallèle (résilient — chaque source peut échouer)
   const [
     fearGreedResult,
-    newsResult,
     newsApiResult,
     redditResult,
     youtubeResult,
@@ -112,12 +108,11 @@ export async function analyzeSentiment(pair: string): Promise<AgentResult> {
     fcnResult,
   ] = await Promise.allSettled([
     getCurrentIndex(),
-    getNews({ currencies: coin, kind: 'news' }).catch(() => []),
     fetchCryptoNews(`${coin} OR bitcoin OR crypto`, 30).catch(() => null),
     getCryptoSubredditPosts(['CryptoCurrency', 'Bitcoin', 'CryptoMarkets'], 15).catch(() => []),
     getTrendingCryptoVideos(coin, 20).catch(() => []),
     fetchCryptoTrends().catch(() => null),
-    fetchFreeCryptoNews().catch(() => []),
+    fetchFreeCryptoNews(newsCategory).catch(() => []),
   ]);
 
   // Fear & Greed
@@ -131,10 +126,9 @@ export async function analyzeSentiment(pair: string): Promise<AgentResult> {
     fearGreedSignal = fearGreedToSignal(fearGreedValue);
   }
 
-  // CryptoPanic
-  const newsPosts = newsResult.status === 'fulfilled' ? newsResult.value : [];
-  const newsSentiment = calculateNewsSentiment(newsPosts);
-  const headlines = newsPosts.slice(0, 15).map((p) => p.title);
+  // cryptocurrency.cv — headlines brutes (pas de score natif, voir constants)
+  const fcnItems = fcnResult.status === 'fulfilled' ? fcnResult.value : [];
+  const headlines = fcnItems.slice(0, 15).map((i) => i.title);
 
   // NewsAPI mainstream
   const newsApi = newsApiResult.status === 'fulfilled' ? newsApiResult.value : null;
@@ -155,12 +149,6 @@ export async function analyzeSentiment(pair: string): Promise<AgentResult> {
   // FOMO élevé = signal contrariant (le retail est dans le trade → souvent un top)
   const trendsScore = trends ? -((trends.fomoIndex - 50) / 100) : 0;
 
-  // free-crypto-news (fallback aggregator)
-  const fcnItems = fcnResult.status === 'fulfilled' ? fcnResult.value : [];
-  const fcnScore = fcnItems.length > 0
-    ? Math.max(-1, Math.min(1, fcnItems.reduce((s, i) => s + (i.sentiment ?? 0), 0) / (fcnItems.length * 100)))
-    : 0;
-
   // Claude analysis (si on a des donnees)
   let claudeAnalysis: SentimentClaudeResponse | null = null;
 
@@ -169,8 +157,6 @@ export async function analyzeSentiment(pair: string): Promise<AgentResult> {
       const userMessage = [
         `Paire analysee: ${pair}`,
         `Fear & Greed Index: ${fearGreedValue} (${fearGreedClassification})`,
-        `Score sentiment news brut: ${newsSentiment.score.toFixed(3)}`,
-        `News haussiers: ${newsSentiment.bullish_count}, baissiers: ${newsSentiment.bearish_count}`,
         '',
         'Titres recents:',
         ...headlines.map((h, i) => `${i + 1}. ${h}`),
@@ -187,24 +173,20 @@ export async function analyzeSentiment(pair: string): Promise<AgentResult> {
     }
   }
 
-  // Score composite (8 dimensions)
+  // Score composite (5 dimensions chiffrees + Claude)
   const fearGreedScore = fearGreedContrarian(fearGreedValue);
-  const cpScore = newsSentiment.score;
   const claudeScore = claudeAnalysis?.score ?? 0;
   const claudeActualWeight = claudeAnalysis ? W_CLAUDE : 0;
 
-  const totalWeight =
-    W_FEAR_GREED + W_CRYPTOPANIC + W_NEWSAPI + W_REDDIT + W_YOUTUBE + W_TRENDS + W_FCN + claudeActualWeight;
+  const totalWeight = W_FEAR_GREED + W_NEWSAPI + W_REDDIT + W_YOUTUBE + W_TRENDS + claudeActualWeight;
 
   const compositeScore =
     totalWeight > 0
       ? (fearGreedScore * W_FEAR_GREED +
-          cpScore * W_CRYPTOPANIC +
           newsApiScore * W_NEWSAPI +
           redditScore * W_REDDIT +
           ytScore * W_YOUTUBE +
           trendsScore * W_TRENDS +
-          fcnScore * W_FCN +
           claudeScore * claudeActualWeight) /
         totalWeight
       : 0;
@@ -227,7 +209,7 @@ export async function analyzeSentiment(pair: string): Promise<AgentResult> {
   // Reasoning
   const reasoningParts = [
     `Sentiment ${pair} — F&G: ${fearGreedValue} (${fearGreedClassification})`,
-    `News: ${newsSentiment.bullish_count} bull / ${newsSentiment.bearish_count} bear sur ${newsSentiment.total_posts}`,
+    `News: ${headlines.length} titres analyses (cryptocurrency.cv)`,
   ];
 
   if (claudeAnalysis) {
@@ -243,10 +225,7 @@ export async function analyzeSentiment(pair: string): Promise<AgentResult> {
     fear_greed_value: fearGreedValue,
     fear_greed_classification: fearGreedClassification,
     fear_greed_signal: fearGreedSignal.signal,
-    news_sentiment_score: newsSentiment.score,
-    news_bullish_count: newsSentiment.bullish_count,
-    news_bearish_count: newsSentiment.bearish_count,
-    news_total: newsSentiment.total_posts,
+    news_total: headlines.length,
     claude_analysis: claudeAnalysis,
     headlines,
     sources: {
@@ -256,7 +235,7 @@ export async function analyzeSentiment(pair: string): Promise<AgentResult> {
       reddit: { score: redditScore, posts: redditPosts.length },
       youtube: { score: ytScore, videos: ytVideos.length },
       google_trends: trends,
-      free_crypto_news: { score: fcnScore, items: fcnItems.length },
+      free_crypto_news: { items: fcnItems.length },
     },
   };
 
