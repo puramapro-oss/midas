@@ -190,12 +190,12 @@ function LevelItem({
           >
             LV.{level.level}
           </span>
-          <h4
+          <h3
             className="text-sm font-semibold transition-colors duration-300"
             style={{ color: isActive ? '#F8FAFC' : 'rgba(248,250,252,0.3)' }}
           >
             {level.name}
-          </h4>
+          </h3>
         </div>
         <p
           className="text-xs leading-relaxed mt-1 transition-colors duration-300"

@@ -33,7 +33,7 @@ export function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex gap-4">
             <AlertTriangle className="h-5 w-5 text-[#FFD700]/60 shrink-0 mt-0.5" />
-            <p className="text-white/40 text-xs leading-relaxed font-[var(--font-dm-sans)]">
+            <p className="text-white/70 text-xs leading-relaxed font-[var(--font-dm-sans)]">
               <span className="text-[#FFD700]/60 font-semibold">Avertissement :</span>{' '}
               MIDAS est un outil d&apos;aide a la decision. Le trading de cryptomonnaies comporte des risques significatifs de perte en capital. Les performances passees ne garantissent pas les resultats futurs. N&apos;investissez jamais plus que ce que vous etes pret a perdre. MIDAS ne fournit pas de conseils financiers et ne detient jamais vos fonds. Vous etes seul responsable de vos decisions d&apos;investissement.
             </p>
@@ -56,22 +56,22 @@ export function Footer() {
                 MIDAS
               </span>
             </div>
-            <p className="text-white/40 text-sm leading-relaxed font-[var(--font-dm-sans)] max-w-xs">
+            <p className="text-white/70 text-sm leading-relaxed font-[var(--font-dm-sans)] max-w-xs">
               L&apos;intelligence artificielle au service de vos trades. Analysez, tradez et protegez vos investissements crypto.
             </p>
           </div>
 
           {/* Produit */}
           <div>
-            <h4 className="text-white text-xs font-bold uppercase tracking-wider mb-4 font-[var(--font-orbitron)]">
+            <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-4 font-[var(--font-orbitron)]">
               Produit
-            </h4>
+            </h3>
             <ul className="space-y-3">
               {footerLinks.produit.map((link) => (
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="text-white/40 text-sm hover:text-[#FFD700] transition-colors font-[var(--font-dm-sans)]"
+                    className="text-white/70 text-sm hover:text-[#FFD700] transition-colors font-[var(--font-dm-sans)]"
                   >
                     {link.label}
                   </Link>
@@ -82,15 +82,15 @@ export function Footer() {
 
           {/* Legal */}
           <div>
-            <h4 className="text-white text-xs font-bold uppercase tracking-wider mb-4 font-[var(--font-orbitron)]">
+            <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-4 font-[var(--font-orbitron)]">
               Legal
-            </h4>
+            </h3>
             <ul className="space-y-3">
               {footerLinks.legal.map((link) => (
                 <li key={link.label}>
                   <Link
                     href={link.href}
-                    className="text-white/40 text-sm hover:text-[#FFD700] transition-colors font-[var(--font-dm-sans)]"
+                    className="text-white/70 text-sm hover:text-[#FFD700] transition-colors font-[var(--font-dm-sans)]"
                   >
                     {link.label}
                   </Link>
@@ -101,23 +101,23 @@ export function Footer() {
 
           {/* Support */}
           <div>
-            <h4 className="text-white text-xs font-bold uppercase tracking-wider mb-4 font-[var(--font-orbitron)]">
+            <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-4 font-[var(--font-orbitron)]">
               Support
-            </h4>
+            </h3>
             <ul className="space-y-3">
               {footerLinks.support.map((link) => (
                 <li key={link.label}>
                   {link.href.startsWith('mailto') ? (
                     <a
                       href={link.href}
-                      className="text-white/40 text-sm hover:text-[#FFD700] transition-colors font-[var(--font-dm-sans)]"
+                      className="text-white/70 text-sm hover:text-[#FFD700] transition-colors font-[var(--font-dm-sans)]"
                     >
                       {link.label}
                     </a>
                   ) : (
                     <Link
                       href={link.href}
-                      className="text-white/40 text-sm hover:text-[#FFD700] transition-colors font-[var(--font-dm-sans)]"
+                      className="text-white/70 text-sm hover:text-[#FFD700] transition-colors font-[var(--font-dm-sans)]"
                     >
                       {link.label}
                     </Link>
