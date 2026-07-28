@@ -29,7 +29,7 @@
     "framer-motion": "^12.38.0",
     "javascript-opentimestamps": "^0.4.5",
     "jspdf": "^4.2.1",
-    "lightweight-charts": "^5.1.0",
+    "lightweight-charts": "^5.2.0",
     "lucide-react": "^1.7.0",
     "next": "16.2.11",
     "next-intl": "^4.9.0",
