@@ -90,7 +90,7 @@ export default function AdminFinancementPage() {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    queueMicrotask(() => fetchData());
   }, [fetchData]);
 
   async function handleSubmit(e: React.FormEvent) {

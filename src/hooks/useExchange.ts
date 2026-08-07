@@ -152,7 +152,7 @@ export function useExchange(): UseExchangeReturn {
   );
 
   useEffect(() => {
-    fetchConnections();
+    queueMicrotask(() => fetchConnections());
   }, [fetchConnections]);
 
   const connected = connections.some((c) => c.status === 'connected');

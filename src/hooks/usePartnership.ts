@@ -177,12 +177,12 @@ export function usePartnership(): UsePartnershipReturn {
   }, [fetchPayouts, fetchPartner]);
 
   useEffect(() => {
-    fetchPartner();
+    queueMicrotask(() => fetchPartner());
   }, [fetchPartner]);
 
   useEffect(() => {
     if (partner) {
-      fetchStats();
+      queueMicrotask(() => fetchStats());
     }
   }, [partner, fetchStats]);
 

@@ -72,7 +72,7 @@ export function useMarketData(): UseMarketDataReturn {
   }, [fetchPrices]);
 
   useEffect(() => {
-    fetchPrices();
+    queueMicrotask(() => fetchPrices());
 
     intervalRef.current = setInterval(() => {
       fetchPrices();

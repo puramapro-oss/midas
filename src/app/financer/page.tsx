@@ -151,7 +151,7 @@ export default function FinancerPage() {
   };
 
   useEffect(() => {
-    if (step === 4) fetchDossiers();
+    if (step === 4) queueMicrotask(() => fetchDossiers());
   }, [step, fetchDossiers]);
 
   const probabilityBadge = (p: string) => {

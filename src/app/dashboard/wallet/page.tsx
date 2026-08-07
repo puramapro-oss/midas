@@ -71,7 +71,7 @@ export default function WalletPage() {
   }, []);
 
   useEffect(() => {
-    fetchWallet();
+    queueMicrotask(() => fetchWallet());
   }, [fetchWallet]);
 
   const handleWithdraw = async () => {

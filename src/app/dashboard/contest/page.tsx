@@ -95,13 +95,13 @@ export default function ContestPage() {
   }, []);
 
   useEffect(() => {
-    fetchContest();
+    queueMicrotask(() => fetchContest());
   }, [fetchContest]);
 
   // Countdown timer
   useEffect(() => {
     const endDate = data?.weekly?.end_date ? new Date(data.weekly.end_date) : getNextMonday();
-    setTimeLeft(getTimeLeft(endDate));
+    queueMicrotask(() => setTimeLeft(getTimeLeft(endDate)));
     const interval = setInterval(() => setTimeLeft(getTimeLeft(endDate)), 1000);
     return () => clearInterval(interval);
   }, [data?.weekly?.end_date]);

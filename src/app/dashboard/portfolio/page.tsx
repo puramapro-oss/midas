@@ -43,7 +43,7 @@ export default function PortfolioPage() {
           Portfolio
         </h1>
         <p className="text-sm text-[var(--text-secondary)] mt-1">
-          Vue d'ensemble de tes performances et allocations
+          Vue d&apos;ensemble de tes performances et allocations
         </p>
       </div>
 

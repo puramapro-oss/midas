@@ -36,7 +36,7 @@ export default function AdminPartenairesPage() {
 
   useEffect(() => {
     if (isSuperAdmin) {
-      fetchPartners();
+      queueMicrotask(() => fetchPartners());
     }
   }, [isSuperAdmin, fetchPartners]);
 

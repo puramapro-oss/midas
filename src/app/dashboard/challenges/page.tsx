@@ -57,7 +57,7 @@ export default function ChallengesPage() {
   }, []);
 
   useEffect(() => {
-    fetchChallenges();
+    queueMicrotask(() => fetchChallenges());
   }, [fetchChallenges]);
 
   const handleCreate = async () => {

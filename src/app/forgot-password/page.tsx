@@ -75,7 +75,7 @@ export default function ForgotPasswordPage() {
                 Mot de passe oublie
               </h1>
               <p className="text-sm text-white/50 mt-2">
-                Entre ton email et nous t'enverrons un lien pour reinitialiser ton mot de passe.
+                Entre ton email et nous t&apos;enverrons un lien pour reinitialiser ton mot de passe.
               </p>
             </div>
 

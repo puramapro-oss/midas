@@ -100,7 +100,7 @@ test.describe('Auth & Layout Verification', () => {
     const response = await page.request.get(`${BASE}/api/status`)
     const json = await response.json()
     console.log(`API status: ${json.status}`)
-    console.log(`Services: ${Object.entries(json.services).map(([k, v]: [string, any]) => `${k}=${v.status}`).join(', ')}`)
+    console.log(`Services: ${Object.entries(json.services as Record<string, {status: string}>).map(([k, v]) => `${k}=${v.status}`).join(', ')}`)
     expect(json.status).toBe('ok')
   })
 })

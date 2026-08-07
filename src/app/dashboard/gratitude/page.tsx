@@ -44,7 +44,7 @@ export default function GratitudePage() {
   }, []);
 
   useEffect(() => {
-    fetchEntries();
+    queueMicrotask(() => fetchEntries());
   }, [fetchEntries]);
 
   const handleSubmit = async () => {

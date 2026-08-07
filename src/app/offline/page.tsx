@@ -13,7 +13,7 @@ export default function OfflinePage() {
           Hors ligne
         </h1>
         <p className="text-sm text-white/40 leading-relaxed">
-          MIDAS a besoin d'une connexion internet pour fonctionner. Verifie ta connexion et reessaie.
+          MIDAS a besoin d&apos;une connexion internet pour fonctionner. Verifie ta connexion et reessaie.
         </p>
         <button
           onClick={() => window.location.reload()}

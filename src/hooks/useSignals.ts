@@ -59,7 +59,7 @@ export function useSignals(): UseSignalsReturn {
   }, [fetchSignals]);
 
   useEffect(() => {
-    fetchSignals();
+    queueMicrotask(() => fetchSignals());
 
     intervalRef.current = setInterval(() => {
       fetchSignals();

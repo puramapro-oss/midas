@@ -126,7 +126,7 @@ export function usePerformance(): UsePerformanceReturn {
   }, [computeStats]);
 
   useEffect(() => {
-    computeStats();
+    queueMicrotask(() => computeStats());
   }, [computeStats]);
 
   return {

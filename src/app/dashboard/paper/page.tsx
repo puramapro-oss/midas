@@ -70,7 +70,7 @@ export default function PaperTradingPage() {
   };
 
   useEffect(() => {
-    fetchTrades();
+    queueMicrotask(() => fetchTrades());
   }, []);
 
   return (

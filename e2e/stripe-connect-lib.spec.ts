@@ -6,6 +6,7 @@
 
 import { test, expect } from '@playwright/test';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import type Stripe from 'stripe';
 import {
   deriveOnboardingStage,
   getConnectAccountRow,
@@ -177,7 +178,7 @@ test.describe('syncConnectAccount', () => {
     });
     const { client, state } = makeMockSupabase({ rpcResponse: updated });
 
-     
+
     const stripeAccount = {
       id: 'acct_42',
       details_submitted: true,
@@ -187,7 +188,7 @@ test.describe('syncConnectAccount', () => {
       default_currency: 'eur',
       capabilities: { transfers: 'active' },
       requirements: { disabled_reason: null, currently_due: [], past_due: [] },
-    } as any;
+    } as Partial<Stripe.Account> as Stripe.Account;
 
     const result = await syncConnectAccount(client, 'user-42', stripeAccount);
 
@@ -206,7 +207,7 @@ test.describe('syncConnectAccount', () => {
     const updated = makeAccount();
     const { client, state } = makeMockSupabase({ rpcResponse: updated });
 
-     
+
     const stripeAccount = {
       id: 'acct_nodis',
       details_submitted: false,
@@ -214,7 +215,7 @@ test.describe('syncConnectAccount', () => {
       payouts_enabled: false,
       country: 'FR',
       default_currency: 'eur',
-    } as any;
+    } as Partial<Stripe.Account> as Stripe.Account;
 
     await syncConnectAccount(client, 'user-1', stripeAccount);
 

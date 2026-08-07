@@ -252,7 +252,7 @@ export default function AlertsPage() {
                   className="w-full py-3 rounded-xl bg-[#FFD700] text-[#0A0A0F] text-sm font-bold hover:bg-[#FFD700]/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                   data-testid="create-alert-submit"
                 >
-                  Creer l'alerte
+                  Creer l&apos;alerte
                 </button>
               </div>
             </motion.div>

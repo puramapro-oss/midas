@@ -54,7 +54,7 @@ export default function StatusPage() {
   }
 
   useEffect(() => {
-    checkStatus()
+    queueMicrotask(() => checkStatus());
   }, [])
 
   const allOperational = services.every((s) => s.status === 'operational')

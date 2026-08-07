@@ -109,7 +109,7 @@ export default function TradingPage() {
   // Fetch real candles from Binance via /api/market/candles
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
+    queueMicrotask(() => setLoading(true));
     fetchRealCandles(selectedPair, selectedTimeframe)
       .then((data) => {
         if (!cancelled) setCandles(data)

@@ -58,6 +58,7 @@ const particles = Array.from({ length: 24 }, (_, i) => ({
   delay: Math.random() * 0.6,
   duration: 1.5 + Math.random() * 1.5,
   size: 3 + Math.random() * 5,
+  yOffset: Math.random() * 200,
 }));
 
 export default function ContactPage() {
@@ -161,7 +162,7 @@ export default function ContactPage() {
                     initial={{ opacity: 0, y: '50%', x: `${p.x}%`, scale: 0 }}
                     animate={{
                       opacity: [0, 1, 0],
-                      y: [50, -100 - Math.random() * 200],
+                      y: [50, -100 - p.yOffset],
                       scale: [0, 1, 0.5],
                     }}
                     transition={{

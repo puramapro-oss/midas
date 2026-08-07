@@ -41,7 +41,7 @@ export default function WithdrawalsPage() {
   }, []);
 
   useEffect(() => {
-    fetchWithdrawals();
+    queueMicrotask(() => fetchWithdrawals());
   }, [fetchWithdrawals]);
 
   const handleAction = async (id: string, action: 'processed' | 'rejected') => {

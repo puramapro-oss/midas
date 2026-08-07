@@ -46,7 +46,7 @@ export default function CopyTradingPage() {
     }
   }, []);
 
-  useEffect(() => { fetchData(tab); }, [tab, fetchData]);
+  useEffect(() => { queueMicrotask(() => fetchData(tab)); }, [tab, fetchData]);
 
   const handleAction = async (action: string, trader_id?: string) => {
     setActionLoading(trader_id ?? 'global');

@@ -50,7 +50,7 @@ export default function KycPage() {
     }
   }, []);
 
-  useEffect(() => { fetchKyc(); }, [fetchKyc]);
+  useEffect(() => { queueMicrotask(() => fetchKyc()); }, [fetchKyc]);
 
   const handleSubmit = async () => {
     if (!fullName || !dateOfBirth || !addressLine || !city || !postalCode) {

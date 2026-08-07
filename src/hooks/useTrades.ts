@@ -118,7 +118,7 @@ export function useTrades(): UseTradesReturn {
   );
 
   useEffect(() => {
-    fetchTrades();
+    queueMicrotask(() => fetchTrades());
   }, [fetchTrades]);
 
   return {

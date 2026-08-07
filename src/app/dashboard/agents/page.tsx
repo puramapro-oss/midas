@@ -61,6 +61,7 @@ export default function AgentsPage() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [now] = useState(() => Date.now());
 
   const fetchStatus = async () => {
     try {
@@ -99,7 +100,7 @@ export default function AgentsPage() {
   };
 
   useEffect(() => {
-    fetchStatus();
+    queueMicrotask(() => fetchStatus());
     const id = setInterval(fetchStatus, 15_000);
     return () => clearInterval(id);
   }, []);
@@ -169,7 +170,7 @@ export default function AgentsPage() {
           <CardContent className="p-5">
             <div className="text-white/60 text-xs uppercase">Dernier cycle</div>
             <div className="mt-2 text-3xl font-bold text-amber-400">
-              {signals[0] ? `${Math.round((Date.now() - signals[0].ts) / 1000)}s` : '—'}
+              {signals[0] ? `${Math.round((now - signals[0].ts) / 1000)}s` : '—'}
             </div>
           </CardContent>
         </Card>

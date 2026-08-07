@@ -138,7 +138,7 @@ export function useBots(): UseBotsReturn {
   }, []);
 
   useEffect(() => {
-    fetchBots();
+    queueMicrotask(() => fetchBots());
   }, [fetchBots]);
 
   return {

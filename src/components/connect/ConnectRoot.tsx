@@ -83,11 +83,11 @@ export default function ConnectRoot({
     initialised.current = true;
 
     if (!publishableKey) {
-      setPhase({
+      queueMicrotask(() => setPhase({
         status: 'error',
         message:
           'Clé publique Stripe manquante. Configure NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.',
-      });
+      }));
       return;
     }
 

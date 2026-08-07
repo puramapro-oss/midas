@@ -57,7 +57,7 @@ export default function SharePage() {
   }, []);
 
   useEffect(() => {
-    fetchStats();
+    queueMicrotask(() => fetchStats());
   }, [fetchStats]);
 
   const handleCopy = async () => {

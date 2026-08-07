@@ -65,7 +65,7 @@ export default function AdminUsersPage() {
   }, [page, debouncedSearch]);
 
   useEffect(() => {
-    fetchUsers();
+    queueMicrotask(() => fetchUsers());
   }, [fetchUsers]);
 
   return (

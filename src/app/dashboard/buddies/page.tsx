@@ -63,7 +63,7 @@ export default function BuddiesPage() {
   }, []);
 
   useEffect(() => {
-    fetchBuddies();
+    queueMicrotask(() => fetchBuddies());
   }, [fetchBuddies]);
 
   const handleCheckin = async (buddyPairId: string) => {

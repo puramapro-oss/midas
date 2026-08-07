@@ -14,7 +14,7 @@ export default function CinematicIntro({ onComplete }: { onComplete: () => void 
       onComplete();
       return;
     }
-    setVisible(true);
+    queueMicrotask(() => setVisible(true));
 
     const timer = setTimeout(() => {
       finish();

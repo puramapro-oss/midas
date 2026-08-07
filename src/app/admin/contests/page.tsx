@@ -18,6 +18,7 @@ interface Contest {
 
 export default function AdminContestsPage() {
   const [contests, setContests] = useState<Contest[]>([]);
+  const [now] = useState(() => Date.now());
   const [loading, setLoading] = useState(true);
   const [drawing, setDrawing] = useState<string | null>(null);
 
@@ -36,7 +37,7 @@ export default function AdminContestsPage() {
   }, []);
 
   useEffect(() => {
-    fetchContests();
+    queueMicrotask(() => fetchContests());
   }, [fetchContests]);
 
   const handleManualDraw = async (id: string) => {
@@ -109,7 +110,7 @@ export default function AdminContestsPage() {
                 </div>
                 <div className="rounded-lg bg-white/[0.03] p-3 text-center">
                   <Calendar className="w-4 h-4 text-purple-400 mx-auto mb-1" />
-                  <p className="text-sm font-bold text-white">{Math.max(0, Math.ceil((new Date(c.end_date).getTime() - Date.now()) / 86400000))}j</p>
+                  <p className="text-sm font-bold text-white">{Math.max(0, Math.ceil((new Date(c.end_date).getTime() - now) / 86400000))}j</p>
                   <p className="text-[10px] text-white/30">Restant</p>
                 </div>
               </div>

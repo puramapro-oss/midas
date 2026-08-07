@@ -61,7 +61,7 @@ export default function TaxPage() {
   };
 
   useEffect(() => {
-    fetchReport(year);
+    queueMicrotask(() => fetchReport(year));
   }, [year]);
 
   const downloadJson = () => {

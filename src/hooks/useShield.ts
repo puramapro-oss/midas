@@ -161,7 +161,7 @@ export function useShield(): UseShieldReturn {
   );
 
   useEffect(() => {
-    fetchShieldData();
+    queueMicrotask(() => fetchShieldData());
   }, [fetchShieldData]);
 
   return {

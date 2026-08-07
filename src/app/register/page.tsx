@@ -47,7 +47,7 @@ function RegisterContent() {
   useEffect(() => {
     const ref = searchParams.get('ref')
     if (ref) {
-      setReferralCode(ref)
+      queueMicrotask(() => setReferralCode(ref));
       try {
         localStorage.setItem('midas_referral_code', ref)
       } catch {
@@ -56,7 +56,7 @@ function RegisterContent() {
     } else {
       try {
         const stored = localStorage.getItem('midas_referral_code')
-        if (stored) setReferralCode(stored)
+        if (stored) queueMicrotask(() => setReferralCode(stored));
       } catch {
         // storage unavailable
       }

@@ -74,7 +74,7 @@ export default function NotificationBell() {
   };
 
   useEffect(() => {
-    fetchNotifs();
+    queueMicrotask(() => fetchNotifs());
     const id = setInterval(fetchNotifs, 30_000);
     return () => clearInterval(id);
   }, []);

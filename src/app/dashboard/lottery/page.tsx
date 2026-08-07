@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Ticket, Gift, Trophy, Clock, Star } from 'lucide-react';
 
 interface DrawData {
@@ -59,6 +59,14 @@ export default function LotteryPage() {
     })();
   }, []);
 
+  const [now] = useState(() => Date.now());
+  const timeUntilDraw = useMemo(() => {
+    if (!currentDraw) return 0;
+    return Math.max(0, new Date(currentDraw.draw_date).getTime() - now);
+  }, [currentDraw, now]);
+  const daysLeft = Math.floor(timeUntilDraw / 86400000);
+  const hoursLeft = Math.floor((timeUntilDraw % 86400000) / 3600000);
+
   if (loading) {
     return (
       <div className="p-6 space-y-6">
@@ -67,12 +75,6 @@ export default function LotteryPage() {
       </div>
     );
   }
-
-  const timeUntilDraw = currentDraw
-    ? Math.max(0, new Date(currentDraw.draw_date).getTime() - Date.now())
-    : 0;
-  const daysLeft = Math.floor(timeUntilDraw / 86400000);
-  const hoursLeft = Math.floor((timeUntilDraw % 86400000) / 3600000);
 
   return (
     <div className="p-6 space-y-8">

@@ -62,7 +62,7 @@ export default function FAQPage() {
   }, []);
 
   useEffect(() => {
-    fetchArticles();
+    queueMicrotask(() => fetchArticles());
   }, [fetchArticles]);
 
   const toggleOpen = (id: string) => {

@@ -382,7 +382,7 @@ export default function GuidePage() {
         className="text-center py-4 text-xs text-[var(--text-tertiary)]"
       >
         Le trading de crypto-monnaies comporte des risques significatifs de perte en capital.
-        MIDAS est un outil d'aide à la décision, pas un conseil en investissement.
+        MIDAS est un outil d&apos;aide à la décision, pas un conseil en investissement.
       </motion.div>
     </motion.div>
   );

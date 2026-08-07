@@ -95,9 +95,9 @@ export default function EarnPage() {
   }, []);
 
   useEffect(() => {
-    if (tab === 'opportunities') fetchOpps();
-    else if (tab === 'positions') fetchPositions();
-    else if (tab === 'history') fetchHistory();
+    if (tab === 'opportunities') queueMicrotask(() => fetchOpps());
+    else if (tab === 'positions') queueMicrotask(() => fetchPositions());
+    else if (tab === 'history') queueMicrotask(() => fetchHistory());
   }, [tab, fetchOpps, fetchPositions, fetchHistory]);
 
   const filtered = useMemo(() => {

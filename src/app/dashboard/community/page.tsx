@@ -28,8 +28,10 @@ export default function CommunityPage() {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
-    Promise.all([loadWall(), loadCircles()]).finally(() => setLoading(false));
+    queueMicrotask(() => {
+      setLoading(true);
+      Promise.all([loadWall(), loadCircles()]).finally(() => setLoading(false));
+    });
   }, [loadWall, loadCircles]);
 
   const handlePost = async () => {

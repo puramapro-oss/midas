@@ -39,7 +39,7 @@ export default function AdminPartnerDetailPage() {
 
   useEffect(() => {
     if (isSuperAdmin) {
-      fetchPartner();
+      queueMicrotask(() => fetchPartner());
     }
   }, [isSuperAdmin, fetchPartner]);
 

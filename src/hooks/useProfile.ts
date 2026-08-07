@@ -47,7 +47,7 @@ export function useProfile(userId: string | null): UseProfileReturn {
   }, [userId, supabase]);
 
   useEffect(() => {
-    void fetchProfile();
+    queueMicrotask(() => { void fetchProfile(); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
