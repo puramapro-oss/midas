@@ -11,6 +11,7 @@ import PrimeTracker from '@/components/wallet/PrimeTracker';
 import CardTeaser from '@/components/wallet/CardTeaser';
 import FiscalBanner from '@/components/fiscal/FiscalBanner';
 import { usePhase } from '@/hooks/usePhase';
+import { formatWalletAmount } from '@/lib/utils/formatters';
 
 interface Transaction {
   id: string;
@@ -170,7 +171,7 @@ export default function WalletPage() {
           </span>
         </div>
         <p className="text-4xl font-bold text-[#FFD700] mb-4" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
-          {wallet.balance.toFixed(2)}€
+          {formatWalletAmount(wallet.balance, phase.walletMode)}
         </p>
         <button
           type="button"
@@ -316,7 +317,7 @@ export default function WalletPage() {
                 <span className={`text-sm font-semibold shrink-0 ml-3 ${
                   tx.type === 'credit' ? 'text-emerald-400' : 'text-red-400'
                 }`} style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
-                  {tx.type === 'credit' ? '+' : '-'}{Number(tx.amount).toFixed(2)}€
+                  {tx.type === 'credit' ? '+' : '-'}{formatWalletAmount(Number(tx.amount), phase.walletMode)}
                 </span>
               </motion.div>
             ))}

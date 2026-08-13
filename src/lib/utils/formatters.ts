@@ -13,6 +13,19 @@ export function formatPrice(amount: number, currency = 'EUR'): string {
   }).format(amount)
 }
 
+/**
+ * Formate un solde wallet universel selon la phase active (lib/phase.ts) : en points tant
+ * que walletMode === 'points' (défaut pilote), en € une fois WALLET_MODE=euros. Ne touche
+ * jamais aux valeurs de trading ($), qui sont le produit MIDAS lui-même.
+ */
+export function formatWalletAmount(amountEur: number, walletMode: 'points' | 'euros'): string {
+  if (walletMode === 'points') {
+    const points = Math.round(amountEur * 100)
+    return `${new Intl.NumberFormat('fr-FR').format(points)} pts`
+  }
+  return formatPrice(amountEur)
+}
+
 export function formatNumber(num: number): string {
   return new Intl.NumberFormat('fr-FR').format(num)
 }

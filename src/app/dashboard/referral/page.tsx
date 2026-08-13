@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { usePhase } from '@/hooks/usePhase';
+import { formatWalletAmount } from '@/lib/utils/formatters';
 
 const TIERS = [
   { name: 'Bronze', min: 1, icon: Award, color: '#CD7F32', reward: 'Badge Bronze' },
@@ -36,6 +38,7 @@ const fadeUp = {
 
 export default function ReferralPage() {
   const { profile } = useAuth();
+  const phase = usePhase();
   const [copied, setCopied] = useState(false);
   const [stats, setStats] = useState<ReferralStats>({
     code: '',
@@ -163,7 +166,7 @@ export default function ReferralPage() {
           { label: 'Filleuls', value: stats.totalReferred, icon: Users, color: '#FFD700' },
           { label: 'En attente', value: stats.pendingCount, icon: Gift, color: '#F59E0B' },
           { label: 'Convertis', value: stats.convertedCount, icon: Check, color: '#10B981' },
-          { label: 'Gains totaux', value: `${stats.totalEarned.toFixed(2)}€`, icon: DollarSign, color: '#FFD700' },
+          { label: 'Gains totaux', value: formatWalletAmount(stats.totalEarned, phase.walletMode), icon: DollarSign, color: '#FFD700' },
         ].map((stat, i) => (
           <motion.div
             key={stat.label}
