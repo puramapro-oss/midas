@@ -112,11 +112,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Un retrait est déjà en cours' }, { status: 400 });
     }
 
-    // Debit wallet
-    await service
+    // Debit wallet — verrou optimiste anti-course (2 retraits quasi-simultanés,
+    // cf task_plan.md P3) : n'écrit QUE si balance n'a pas bougé depuis la lecture.
+    const { data: debited } = await service
       .from('wallets')
       .update({ balance: wallet.balance - amount })
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .eq('balance', wallet.balance)
+      .select('balance')
+      .maybeSingle();
+
+    if (!debited) {
+      return NextResponse.json({ error: 'Le solde a changé entre-temps. Réessaie.' }, { status: 409 });
+    }
 
     // Record transaction
     await service.from('wallet_transactions').insert({
@@ -135,10 +143,11 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      // Rollback wallet
+      // Rollback wallet — recrédite depuis le solde réel post-débit (pas la valeur
+      // pré-débit lue plus haut, qui pourrait être périmée).
       await service
         .from('wallets')
-        .update({ balance: wallet.balance })
+        .update({ balance: debited.balance + amount })
         .eq('user_id', user.id);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
