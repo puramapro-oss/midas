@@ -88,19 +88,31 @@ export async function POST(request: Request) {
               }, { onConflict: 'stripe_subscription_id' });
 
               // V6 — Prime 100€ en 3 tranches (J+0 25€ | M+1 25€ | M+2 50€)
-              // Crédit immédiat tranche 1
-              const t1 = 25;
-              const m1 = new Date(now); m1.setMonth(m1.getMonth() + 1);
-              const m2 = new Date(now); m2.setMonth(m2.getMonth() + 2);
+              // Anti-rejeu (event redelivré par Stripe ou re-forward karma après perte
+              // de réponse, cf task_plan.md P3) : tranche 1 déjà créditée pour ce user ?
+              const { data: existingT1 } = await adminSupabase
+                .from('prime_tranches')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('app_id', 'midas')
+                .eq('palier', 1)
+                .maybeSingle();
 
-              await adminSupabase.from('prime_tranches').insert([
-                { user_id: userId, app_id: 'midas', palier: 1, amount: t1, scheduled_for: now.toISOString(), credited_at: now.toISOString(), status: 'credited' },
-                { user_id: userId, app_id: 'midas', palier: 2, amount: 25, scheduled_for: m1.toISOString(), status: 'scheduled' },
-                { user_id: userId, app_id: 'midas', palier: 3, amount: 50, scheduled_for: m2.toISOString(), status: 'scheduled' },
-              ]);
+              if (!existingT1) {
+                // Crédit immédiat tranche 1
+                const t1 = 25;
+                const m1 = new Date(now); m1.setMonth(m1.getMonth() + 1);
+                const m2 = new Date(now); m2.setMonth(m2.getMonth() + 2);
 
-              // Créditer tranche 1 dans wallet_balance
-              await adminSupabase.rpc('increment_wallet_balance', { uid: userId, delta: t1 });
+                await adminSupabase.from('prime_tranches').insert([
+                  { user_id: userId, app_id: 'midas', palier: 1, amount: t1, scheduled_for: now.toISOString(), credited_at: now.toISOString(), status: 'credited' },
+                  { user_id: userId, app_id: 'midas', palier: 2, amount: 25, scheduled_for: m1.toISOString(), status: 'scheduled' },
+                  { user_id: userId, app_id: 'midas', palier: 3, amount: 50, scheduled_for: m2.toISOString(), status: 'scheduled' },
+                ]);
+
+                // Créditer tranche 1 dans wallet_balance
+                await adminSupabase.rpc('increment_wallet_balance', { uid: userId, delta: t1 });
+              }
             }
           }
         }
