@@ -56,7 +56,7 @@ export default function OnboardingPage() {
     }
     setSaving(true);
     try {
-      const res = await fetch('/api/keys/save', {
+      const res = await fetch('/api/exchange/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey, apiSecret, exchange: 'binance' }),

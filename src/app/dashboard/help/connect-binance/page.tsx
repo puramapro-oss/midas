@@ -89,7 +89,7 @@ export default function ConnectBinancePage() {
     if (!apiKey || !apiSecret) return;
     setConnecting(true);
     try {
-      const res = await fetch('/api/keys/save', {
+      const res = await fetch('/api/exchange/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ exchange: 'binance', apiKey, apiSecret }),
