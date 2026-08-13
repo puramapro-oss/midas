@@ -4,10 +4,12 @@ import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { isWithdrawalAvailable, isWithdrawalUnlocked, daysUntilWithdrawal } from '@/lib/phase';
+import { isValidIban } from '@/lib/iban';
 
 const withdrawSchema = z.object({
   amount: z.number().min(5, 'Minimum 5€'),
-  iban: z.string().regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, 'IBAN invalide'),
+  iban: z.string().regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, 'IBAN invalide')
+    .refine(isValidIban, 'IBAN invalide (clé de contrôle incorrecte).'),
 });
 
 async function getAuthClient() {
