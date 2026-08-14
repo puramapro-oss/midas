@@ -120,6 +120,7 @@ export function Pricing() {
         body: JSON.stringify({
           plan: planSlug,
           period: isYearly ? 'yearly' : 'monthly',
+          idempotencyKey: crypto.randomUUID(),
         }),
       })
 

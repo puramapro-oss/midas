@@ -115,7 +115,7 @@ export default function WithdrawButton({
       const res = await fetch('/api/connect/withdraw', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount_eur: parsed }),
+        body: JSON.stringify({ amount_eur: parsed, idempotencyKey: crypto.randomUUID() }),
       });
       const body = (await res.json().catch(() => ({}))) as WithdrawResponse;
 

@@ -45,7 +45,7 @@ export default function UpgradePrompt({ requiredPlan, featureName }: UpgradeProm
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: requiredPlan, period: 'monthly' }),
+        body: JSON.stringify({ plan: requiredPlan, period: 'monthly', idempotencyKey: crypto.randomUUID() }),
       });
       const data = await res.json();
       if (data.url) {

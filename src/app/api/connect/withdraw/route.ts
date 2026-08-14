@@ -81,6 +81,7 @@ const bodySchema = z.object({
     .positive('Le montant doit être positif')
     .max(100_000, 'Montant maximum par retrait : 100 000€')
     .optional(),
+  idempotencyKey: z.string().uuid().optional(),
 });
 
 // Seuil min — brief V4.1 §Grille frais user (20€ = 2,30€ Stripe fee)
@@ -230,7 +231,7 @@ export async function POST(req: NextRequest) {
           app: 'midas',
           source: 'connect_withdraw',
         },
-      });
+      }, { idempotencyKey: parsedBody.idempotencyKey ?? crypto.randomUUID() });
       transferId = transfer.id;
     } catch (e) {
       stripeError = e instanceof Error ? e.message : 'Stripe transfer failed';

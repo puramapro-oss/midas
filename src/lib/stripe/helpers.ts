@@ -16,6 +16,7 @@ export async function createCheckoutSession(
   plan: MidasPlan,
   period: BillingPeriod,
   referralCode?: string,
+  idempotencyKey?: string,
 ): Promise<Stripe.Checkout.Session> {
   const planConfig = PLANS[plan];
   const priceId = planConfig.priceId[period];
@@ -53,7 +54,7 @@ export async function createCheckoutSession(
     },
     success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/pricing`,
-  });
+  }, { idempotencyKey: idempotencyKey ?? crypto.randomUUID() });
 
   return session;
 }

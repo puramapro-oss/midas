@@ -13,6 +13,7 @@ function getStripe() {
 const bodySchema = z.object({
   plan: z.enum(['pro', 'ultra']),
   period: z.enum(['monthly', 'yearly']),
+  idempotencyKey: z.string().uuid().optional(),
 });
 
 const PROMO_COOKIE = 'purama_promo';
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Donnees invalides', details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { plan, period } = parsed.data;
+    const { plan, period, idempotencyKey } = parsed.data;
     const planConfig = PLANS[plan as MidasPlan];
     const priceId = planConfig.priceId[period as BillingPeriod];
 
@@ -99,7 +100,7 @@ export async function POST(request: Request) {
           user_id: user.id,
           app: 'midas',
         },
-      });
+      }, { idempotencyKey: `midas-customer-${user.id}` });
 
       customerId = customer.id;
 
@@ -147,7 +148,9 @@ export async function POST(request: Request) {
       sessionParams.allow_promotion_codes = true;
     }
 
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    const session = await stripe.checkout.sessions.create(sessionParams, {
+      idempotencyKey: idempotencyKey ?? crypto.randomUUID(),
+    });
 
     if (promo) {
       await supabase
