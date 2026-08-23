@@ -10,24 +10,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
-
-const BINANCE_REF = 'https://www.binance.com/en/register';
-const TOTAL_STEPS = 6;
-const STEP_LABELS = ['Bienvenue', 'Binance', 'Clés API', 'Coller', 'Risque', 'Prêt'];
-
-const RISK_PROFILES = [
-  { id: 0, label: 'Prudent', pct: '1-2%', color: '#10B981', icon: Shield, desc: 'Préservation du capital. Idéal pour débuter.' },
-  { id: 1, label: 'Modéré', pct: '2-5%', color: '#F59E0B', icon: TrendingUp, desc: 'Équilibre risque/rendement. Le plus populaire.' },
-  { id: 2, label: 'Agressif', pct: '5-10%', color: '#EF4444', icon: Rocket, desc: 'Rendements maximaux. Pour les traders expérimentés.' },
-];
-
-const API_STEPS = [
-  { letter: 'a', text: 'Va dans Paramètres > Gestion API sur Binance' },
-  { letter: 'b', text: 'Clique "Créer une API"' },
-  { letter: 'c', text: 'Choisis "Clé API générée par le système"' },
-  { letter: 'd', text: 'Active UNIQUEMENT : Lecture + Trading Spot' },
-  { letter: 'e', text: 'Copie la clé API et la clé secrète' },
-];
+import { BINANCE_REF, TOTAL_STEPS, STEP_LABELS, RISK_PROFILES, API_STEPS } from './constants';
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -39,7 +22,6 @@ export default function OnboardingPage() {
   const [riskLevel, setRiskLevel] = useState(1);
   const [saving, setSaving] = useState(false);
 
-  // If already onboarded, redirect to dashboard
   useEffect(() => {
     if (!loading && profile?.onboarding_completed) {
       router.replace('/dashboard');
@@ -101,8 +83,6 @@ export default function OnboardingPage() {
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[800px] rounded-full bg-[#FFD700]/[0.02] blur-[150px]" />
       </div>
-
-      {/* Progress */}
       <div className="relative z-10 px-4 pt-6 pb-2 max-w-2xl mx-auto w-full">
         <div className="flex items-center justify-between mb-3 px-1">
           {STEP_LABELS.map((label, i) => (
@@ -117,14 +97,10 @@ export default function OnboardingPage() {
         </div>
         <p className="text-xs text-white/30 mt-2 text-right">{step + 1} / {TOTAL_STEPS}</p>
       </div>
-
-      {/* Content */}
       <div className="relative z-10 flex-1 flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-2xl">
           <AnimatePresence mode="wait">
             <motion.div key={step} initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -50 }} transition={{ duration: 0.3 }}>
-
-              {/* STEP 0: Bienvenue */}
               {step === 0 && (
                 <div className="text-center max-w-lg mx-auto">
                   <motion.div initial={{ scale: 0.5 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 15 }} className="mb-8">
@@ -152,7 +128,6 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              {/* STEP 1: Crée ton compte Binance */}
               {step === 1 && (
                 <div className="text-center max-w-lg mx-auto">
                   <div className="w-16 h-16 rounded-2xl bg-[#F0B90B]/15 flex items-center justify-center mx-auto mb-6">
@@ -170,7 +145,6 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              {/* STEP 2: Guide création clés API */}
               {step === 2 && (
                 <div className="max-w-lg mx-auto">
                   <div className="text-center mb-8">
@@ -185,7 +159,6 @@ export default function OnboardingPage() {
                       </motion.div>
                     ))}
                   </div>
-                  {/* Red alert */}
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="p-4 rounded-xl bg-red-500/10 border border-red-500/25 mb-8">
                     <div className="flex items-start gap-3">
                       <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
@@ -201,7 +174,6 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              {/* STEP 3: Coller les clés */}
               {step === 3 && (
                 <div className="max-w-lg mx-auto">
                   <div className="text-center mb-8">
@@ -241,7 +213,6 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              {/* STEP 4: Profil de risque */}
               {step === 4 && (
                 <div className="max-w-lg mx-auto">
                   <div className="text-center mb-8">
@@ -277,7 +248,6 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              {/* STEP 5: MIDAS est prêt */}
               {step === 5 && (
                 <div className="text-center max-w-lg mx-auto">
                   <motion.div initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 200, damping: 15 }} className="mb-8 inline-flex">
@@ -311,7 +281,6 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      {/* Back button */}
       {step > 0 && step < 5 && (
         <div className="relative z-10 px-4 pb-6 max-w-2xl mx-auto w-full">
           <button type="button" onClick={prev} data-testid="onboarding-back" className="text-sm text-white/40 hover:text-white/70 transition-colors flex items-center gap-1.5">
