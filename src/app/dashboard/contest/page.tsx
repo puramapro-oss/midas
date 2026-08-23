@@ -6,13 +6,7 @@ import {
   Trophy, Gift, Users, Clock, Ticket,
   Crown, Star, Award, Loader2,
 } from 'lucide-react';
-
-interface TimeLeft {
-  days: number;
-  hours: number;
-  minutes: number;
-  seconds: number;
-}
+import { getTimeLeft, getNextMonday, fadeUp, type TimeLeft } from './utils';
 
 interface Contest {
   id: string;
@@ -32,32 +26,6 @@ interface ContestData {
   weeklyParticipants: number;
   pastContests: Contest[];
 }
-
-function getTimeLeft(target: Date): TimeLeft {
-  const diff = Math.max(0, target.getTime() - Date.now());
-  return {
-    days: Math.floor(diff / 86400000),
-    hours: Math.floor((diff % 86400000) / 3600000),
-    minutes: Math.floor((diff % 3600000) / 60000),
-    seconds: Math.floor((diff % 60000) / 1000),
-  };
-}
-
-function getNextMonday(): Date {
-  const now = new Date();
-  const d = new Date(now);
-  d.setDate(d.getDate() + ((1 + 7 - d.getDay()) % 7 || 7));
-  d.setHours(12, 0, 0, 0);
-  return d;
-}
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 16 } as const,
-  visible: (i: number) => ({
-    opacity: 1, y: 0,
-    transition: { type: 'spring' as const, stiffness: 280, damping: 22, delay: i * 0.06 },
-  }),
-};
 
 function CountdownUnit({ value, label }: { value: number; label: string }) {
   return (
