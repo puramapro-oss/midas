@@ -42,7 +42,9 @@ export default function FiscalBanner() {
   function dismiss() {
     try {
       localStorage.setItem(DISMISS_KEY, '1');
-    } catch {}
+    } catch {
+      // localStorage not available (privacy mode, etc.)
+    }
     setShown(false);
   }
 

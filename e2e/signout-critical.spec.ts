@@ -52,7 +52,9 @@ test.describe('Critical: SignOut button flow', () => {
             localStorage.removeItem(key);
           }
         }
-      } catch {}
+      } catch {
+        // Expected: localStorage might not be accessible in some contexts
+      }
     });
 
     // 3. Navigate to /login (what window.location.href = '/login' does)

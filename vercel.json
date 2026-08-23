@@ -1,40 +1,133 @@
 {
   "framework": "nextjs",
   "functions": {
-    "src/app/api/chat/route.ts": { "maxDuration": 120 },
-    "src/app/api/analysis/coordinator/route.ts": { "maxDuration": 120 },
-    "src/app/api/backtest/run/route.ts": { "maxDuration": 120 },
-    "src/app/api/cron/deep-analysis/route.ts": { "maxDuration": 120 },
-    "src/app/api/cron/weekly-pdf-report/route.ts": { "maxDuration": 300 },
-    "src/app/api/cron/fiscal-annual-pdf/route.ts": { "maxDuration": 300 },
-    "src/app/api/cron/fiscal-das2/route.ts": { "maxDuration": 120 }
+    "src/app/api/chat/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/analysis/coordinator/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/backtest/run/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/cron/deep-analysis/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/cron/weekly-pdf-report/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/fiscal-annual-pdf/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/fiscal-das2/route.ts": {
+      "maxDuration": 120
+    }
   },
   "crons": [
-    { "path": "/api/cron/generate-signals", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/check-positions", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/monitor-crash", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/analyze-markets", "schedule": "*/15 * * * *" },
-    { "path": "/api/cron/sync-balances", "schedule": "*/15 * * * *" },
-    { "path": "/api/cron/check-whales", "schedule": "*/10 * * * *" },
-    { "path": "/api/cron/deep-analysis", "schedule": "*/30 * * * *" },
-    { "path": "/api/cron/events-sync", "schedule": "0 6 * * *" },
-    { "path": "/api/cron/check-news", "schedule": "*/30 * * * *" },
-    { "path": "/api/cron/update-fear-greed", "schedule": "0 */1 * * *" },
-    { "path": "/api/cron/health-check", "schedule": "*/10 * * * *" },
-    { "path": "/api/cron/reset-counters", "schedule": "0 0 * * *" },
-    { "path": "/api/cron/nightly-learn", "schedule": "0 3 * * *" },
-    { "path": "/api/cron/daily-report", "schedule": "0 8 * * *" },
-    { "path": "/api/cron/cleanup-cache", "schedule": "0 5 * * *" },
-    { "path": "/api/cron/weekly-backtest", "schedule": "0 4 * * 0" },
-    { "path": "/api/cron/weekly-pdf-report", "schedule": "0 10 * * 0" },
-    { "path": "/api/cron/contest-weekly", "schedule": "0 12 * * 1" },
-    { "path": "/api/cron/contest-monthly", "schedule": "0 12 1 * *" },
-    { "path": "/api/cron/ranking-monthly", "schedule": "0 14 1 * *" },
-    { "path": "/api/cron/email-sequence", "schedule": "0 10 * * *" },
-    { "path": "/api/cron/prime-tranches", "schedule": "0 9 * * *" },
-    { "path": "/api/cron/fiscal-paliers", "schedule": "0 11 * * *" },
-    { "path": "/api/cron/fiscal-annual-pdf", "schedule": "0 9 1 1 *" },
-    { "path": "/api/cron/fiscal-das2", "schedule": "0 10 31 1 *" },
-    { "path": "/api/cron/account-deletion", "schedule": "0 3 * * *" }
-  ]
+    {
+      "path": "/api/cron/generate-signals",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/check-positions",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/monitor-crash",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/analyze-markets",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-balances",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/check-whales",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/deep-analysis",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/events-sync",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/check-news",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/update-fear-greed",
+      "schedule": "0 */1 * * *"
+    },
+    {
+      "path": "/api/cron/health-check",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/reset-counters",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/nightly-learn",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/daily-report",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-cache",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-backtest",
+      "schedule": "0 4 * * 0"
+    },
+    {
+      "path": "/api/cron/weekly-pdf-report",
+      "schedule": "0 10 * * 0"
+    },
+    {
+      "path": "/api/cron/contest-weekly",
+      "schedule": "0 12 * * 1"
+    },
+    {
+      "path": "/api/cron/contest-monthly",
+      "schedule": "0 12 1 * *"
+    },
+    {
+      "path": "/api/cron/ranking-monthly",
+      "schedule": "0 14 1 * *"
+    },
+    {
+      "path": "/api/cron/email-sequence",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/prime-tranches",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/fiscal-paliers",
+      "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/fiscal-annual-pdf",
+      "schedule": "0 9 1 1 *"
+    },
+    {
+      "path": "/api/cron/fiscal-das2",
+      "schedule": "0 10 31 1 *"
+    },
+    {
+      "path": "/api/cron/account-deletion",
+      "schedule": "0 3 * * *"
+    }
+  ],
+  "installCommand": "git config --global url.\"https://${SMARANA_GIT_TOKEN}@github.com/\".insteadOf \"ssh://git@github.com/\" && npm install"
 }

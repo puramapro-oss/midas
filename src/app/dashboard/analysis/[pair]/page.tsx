@@ -191,7 +191,9 @@ export default function PairAnalysisPage() {
       if (chart) {
         try {
           chart.remove()
-        } catch {}
+        } catch {
+          // Chart already removed or unavailable
+        }
       }
     }
   }, [activeTimeframe, data.symbol])
