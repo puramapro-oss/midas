@@ -151,7 +151,7 @@ export async function POST(request: Request) {
       ? `${CHAT_SYSTEM_PROMPT}\n${liveContext}`
       : CHAT_SYSTEM_PROMPT;
 
-    const response = await askClaudeWithHistory(enrichedSystemPrompt, chatHistory, maxTokens);
+    const response = await askClaudeWithHistory(enrichedSystemPrompt, chatHistory, maxTokens, user.id);
 
     // Save assistant message
     const estimatedTokens = Math.ceil(response.length / 4);

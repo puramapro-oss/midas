@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
-import Anthropic from '@anthropic-ai/sdk';
+import { smarana } from '@purama/smarana';
 
 function getAdminDb() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -105,40 +105,27 @@ Statistiques du partenaire:
 - Palier atteint: ${partner.milestone_reached} filleuls
 `;
 
-    // Build messages array
-    const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
-
-    // Add recent messages in chronological order
-    if (recentMessages) {
-      const reversed = [...recentMessages].reverse();
-      for (const msg of reversed) {
-        messages.push({
+    // Build recentMessages array (reversed devient chronologique pour smarana)
+    const smaranaRecentMessages = recentMessages
+      ? [...recentMessages].reverse().map(msg => ({
           role: msg.role as 'user' | 'assistant',
           content: msg.content,
-        });
-      }
-    }
+        }))
+      : [];
 
-    // Add current message
-    messages.push({ role: 'user', content: message });
-
-    // Call Claude
-    const anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY!,
-    });
-
-    const response = await anthropic.messages.create({
-      model: process.env.ANTHROPIC_MODEL_MAIN || 'claude-sonnet-4-6',
-      max_tokens: 1024,
+    // Call Claude via smarana
+    const result = await smarana.ask({
+      appSlug: 'midas',
+      userId: user.id,
       system: COACH_SYSTEM_PROMPT + '\n\n' + statsContext,
-      messages,
+      recentMessages: smaranaRecentMessages,
+      message,
+      tier: 'main',
+      maxTokens: 1024,
     });
 
-    const assistantMessage = response.content[0]?.type === 'text'
-      ? response.content[0].text
-      : 'Desole, je n\'ai pas pu generer une reponse.';
-
-    const tokensUsed = (response.usage?.input_tokens ?? 0) + (response.usage?.output_tokens ?? 0);
+    const assistantMessage = result.text;
+    const tokensUsed = result.tokensIn + result.tokensOut;
 
     // Save both messages
     await adminDb.from('partner_coach_messages').insert([

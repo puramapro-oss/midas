@@ -1,52 +1,15 @@
 // =============================================================================
 // MIDAS — Claude API Client
-// Wrapper complet pour l'API Anthropic avec retry et streaming
+// Wrapper migré vers @purama/smarana pour cache + mémoire centralisés
 // =============================================================================
 
+import 'server-only';
+import { smarana } from '@purama/smarana';
 import Anthropic from '@anthropic-ai/sdk';
 
-const MODEL = process.env.ANTHROPIC_MODEL_MAIN || 'claude-sonnet-4-6';
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 1000;
-
-let clientInstance: Anthropic | null = null;
-
-function getClient(): Anthropic {
-  if (!clientInstance) {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new Error('[MIDAS] ANTHROPIC_API_KEY manquante');
-    }
-    clientInstance = new Anthropic({ apiKey });
-  }
-  return clientInstance;
-}
-
-async function withRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-
-      const isRetryable =
-        lastError.message.includes('rate_limit') ||
-        lastError.message.includes('overloaded') ||
-        lastError.message.includes('timeout') ||
-        lastError.message.includes('529') ||
-        lastError.message.includes('500');
-
-      if (!isRetryable || attempt === retries - 1) {
-        throw lastError;
-      }
-
-      const delay = RETRY_DELAY_MS * Math.pow(2, attempt);
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-  }
-  throw lastError ?? new Error('[MIDAS] Retry exhausted');
-}
+// Loi 1 SMARANA-BRIEF.md : "Aucune app n'appelle l'API directement. Tout passe par smarana.ask()."
+// MIDAS ne détient plus de client Anthropic — mémoire cross-écosystème + cache + usage
+// centralisés dans @purama/smarana (packages/smarana).
 
 /**
  * Envoie un message a Claude et retourne la reponse texte.
@@ -54,25 +17,18 @@ async function withRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promis
 export async function askClaude(
   systemPrompt: string,
   userMessage: string,
-  maxTokens = 4096
+  maxTokens = 4096,
+  userId?: string
 ): Promise<string> {
-  const client = getClient();
-
-  const response = await withRetry(() =>
-    client.messages.create({
-      model: MODEL,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMessage }],
-    })
-  );
-
-  const textBlock = response.content.find((block) => block.type === 'text');
-  if (!textBlock || textBlock.type !== 'text') {
-    throw new Error('[MIDAS] Aucun contenu texte dans la reponse Claude');
-  }
-
-  return textBlock.text;
+  const result = await smarana.ask({
+    appSlug: 'midas',
+    userId,
+    system: systemPrompt,
+    message: userMessage,
+    tier: maxTokens >= 8192 ? 'main' : maxTokens < 2000 ? 'fast' : 'main',
+    maxTokens,
+  });
+  return result.text;
 }
 
 /**
@@ -81,11 +37,12 @@ export async function askClaude(
 export async function askClaudeJSON<T>(
   systemPrompt: string,
   userMessage: string,
-  maxTokens = 4096
+  maxTokens = 4096,
+  userId?: string
 ): Promise<T> {
   const jsonSystemPrompt = `${systemPrompt}\n\nIMPORTANT: Tu dois repondre UNIQUEMENT avec du JSON valide, sans markdown, sans backticks, sans texte avant ou apres. Le JSON doit etre directement parsable.`;
 
-  const text = await askClaude(jsonSystemPrompt, userMessage, maxTokens);
+  const text = await askClaude(jsonSystemPrompt, userMessage, maxTokens, userId);
 
   // Extraire le JSON meme si entoure de backticks
   let cleaned = text.trim();
@@ -108,13 +65,22 @@ export async function askClaudeJSON<T>(
 
 /**
  * Stream la reponse de Claude via un ReadableStream.
+ * NOTE: smarana.ask() ne supporte pas le streaming (P0/P1). Streaming hors périmètre.
+ * Cette fonction reste telle quelle (appel direct SDK) pour compatibilité.
  */
 export function streamClaude(
   systemPrompt: string,
   userMessage: string,
   maxTokens = 4096
 ): ReadableStream<string> {
-  const client = getClient();
+  // STREAMING HORS PÉRIMÈTRE @purama/smarana P0/P1 — appel direct SDK conservé
+  // cf packages/smarana/README.md ligne 102-105 "Hors périmètre volontaire"
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error('[MIDAS] ANTHROPIC_API_KEY manquante');
+  }
+  const client = new Anthropic({ apiKey });
+  const MODEL = process.env.ANTHROPIC_MODEL_MAIN || 'claude-sonnet-4-6';
 
   return new ReadableStream<string>({
     async start(controller) {
@@ -150,23 +116,33 @@ export function streamClaude(
 export async function askClaudeWithHistory(
   systemPrompt: string,
   messages: Array<{ role: 'user' | 'assistant'; content: string }>,
-  maxTokens = 4096
+  maxTokens = 4096,
+  userId?: string
 ): Promise<string> {
-  const client = getClient();
-
-  const response = await withRetry(() =>
-    client.messages.create({
-      model: MODEL,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages,
-    })
-  );
-
-  const textBlock = response.content.find((block) => block.type === 'text');
-  if (!textBlock || textBlock.type !== 'text') {
-    throw new Error('[MIDAS] Aucun contenu texte dans la reponse Claude');
+  // Sépare le dernier message utilisateur et utilise les précédents comme recentMessages
+  if (messages.length === 0) {
+    throw new Error('[MIDAS] Aucun message fourni');
   }
 
-  return textBlock.text;
+  const lastMessage = messages[messages.length - 1];
+  if (lastMessage.role !== 'user') {
+    throw new Error('[MIDAS] Le dernier message doit être un message utilisateur');
+  }
+
+  const recentMessages = messages.slice(0, -1).map(m => ({
+    role: m.role,
+    content: m.content,
+  }));
+
+  const result = await smarana.ask({
+    appSlug: 'midas',
+    userId,
+    system: systemPrompt,
+    recentMessages,
+    message: lastMessage.content,
+    tier: maxTokens >= 8192 ? 'main' : maxTokens < 2000 ? 'fast' : 'main',
+    maxTokens,
+  });
+
+  return result.text;
 }
