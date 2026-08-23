@@ -1,44 +1,11 @@
 import { test, expect } from '@playwright/test';
-
-// Dismiss cookie banner by pre-setting consent in localStorage
-async function dismissCookies(page: import('@playwright/test').Page) {
-  await page.evaluate(() => {
-    localStorage.setItem('midas-cookie-consent', JSON.stringify({ essential: true, analytics: true, marketing: true }));
-  });
-  // Reload so the banner doesn't appear
-  await page.reload({ waitUntil: 'domcontentloaded' });
-}
-
-// Collect JS errors
-function collectErrors(page: import('@playwright/test').Page) {
-  const errors: string[] = [];
-  page.on('pageerror', (err) => errors.push(err.message));
-  return errors;
-}
+import { dismissCookies, collectErrors, PUBLIC_PAGES } from './helpers';
 
 // ============================================================
 // 1. PUBLIC PAGES — accessible sans auth, HTTP 200, pas d'erreur JS
 // ============================================================
 test.describe('Public pages load correctly', () => {
-  const publicPages = [
-    { path: '/', name: 'Landing' },
-    { path: '/login', name: 'Login' },
-    { path: '/register', name: 'Register' },
-    { path: '/pricing', name: 'Pricing' },
-    { path: '/status', name: 'Status' },
-    { path: '/changelog', name: 'Changelog' },
-    { path: '/offline', name: 'Offline' },
-    { path: '/onboarding', name: 'Onboarding' },
-    { path: '/forgot-password', name: 'Forgot Password' },
-    { path: '/legal/mentions', name: 'Mentions Legales' },
-    { path: '/legal/privacy', name: 'Politique Confidentialite' },
-    { path: '/legal/cgu', name: 'CGU' },
-    { path: '/legal/cgv', name: 'CGV' },
-    { path: '/legal/cookies', name: 'Cookies' },
-    { path: '/legal/disclaimer', name: 'Disclaimer' },
-  ];
-
-  for (const { path, name } of publicPages) {
+  for (const { path, name } of PUBLIC_PAGES) {
     test(`${name} (${path}) loads with HTTP 200`, async ({ page }) => {
       const errors = collectErrors(page);
       const response = await page.goto(path, { waitUntil: 'domcontentloaded' });
