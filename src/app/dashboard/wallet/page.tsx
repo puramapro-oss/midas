@@ -12,6 +12,7 @@ import CardTeaser from '@/components/wallet/CardTeaser';
 import FiscalBanner from '@/components/fiscal/FiscalBanner';
 import { usePhase } from '@/hooks/usePhase';
 import { formatWalletAmount } from '@/lib/utils/formatters';
+import { SOURCE_LABELS, validateIban, rowFade } from './utils';
 
 interface Transaction {
   id: string;
@@ -26,26 +27,6 @@ interface WalletData {
   balance: number;
   currency: string;
 }
-
-const SOURCE_LABELS: Record<string, string> = {
-  referral: 'Parrainage',
-  contest: 'Concours',
-  withdrawal: 'Retrait',
-  manual: 'Manuel',
-};
-
-function validateIban(iban: string): boolean {
-  const clean = iban.replace(/\s/g, '').toUpperCase();
-  return /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(clean);
-}
-
-const rowFade = {
-  hidden: { opacity: 0, x: -10 } as const,
-  visible: (i: number) => ({
-    opacity: 1, x: 0,
-    transition: { type: 'spring' as const, stiffness: 300, damping: 24, delay: i * 0.04 },
-  }),
-};
 
 export default function WalletPage() {
   const phase = usePhase();
@@ -65,15 +46,13 @@ export default function WalletPage() {
       setWallet(data.wallet ?? { balance: 0, currency: 'EUR' });
       setTransactions(data.transactions ?? []);
     } catch {
-      // silently fail
+      /* silent */
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    queueMicrotask(() => fetchWallet());
-  }, [fetchWallet]);
+  useEffect(() => { queueMicrotask(() => fetchWallet()); }, [fetchWallet]);
 
   const handleWithdraw = async () => {
     const cleanIban = iban.replace(/\s/g, '').toUpperCase();
@@ -115,21 +94,7 @@ export default function WalletPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="space-y-6" data-testid="wallet-page">
-        <div>
-          <h1 className="text-2xl font-bold text-white font-[family-name:var(--font-orbitron)]">Wallet</h1>
-          <p className="text-sm text-white/40 mt-1">Tes gains parrainage et concours.</p>
-        </div>
-        <div className="rounded-2xl border border-[#FFD700]/20 bg-gradient-to-br from-[#FFD700]/[0.06] to-transparent backdrop-blur-sm p-6 animate-pulse">
-          <div className="h-6 w-24 bg-white/10 rounded mb-4" />
-          <div className="h-10 w-32 bg-white/10 rounded mb-4" />
-          <div className="h-10 w-40 bg-white/10 rounded" />
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 text-[#FFD700] animate-spin" /></div>;
 
   return (
     <div className="space-y-6" data-testid="wallet-page">
