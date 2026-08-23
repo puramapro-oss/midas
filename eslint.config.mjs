@@ -1,5 +1,6 @@
 import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
+import puramaConfig from "@purama/eslint-config";
 
 const eslintConfig = [
   {
@@ -20,6 +21,7 @@ const eslintConfig = [
   },
   ...nextCoreWebVitals,
   ...nextTypescript,
+  ...puramaConfig,
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
