@@ -2,16 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  Landmark,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Wallet,
-  X,
-} from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Loader2, Plus, RefreshCw } from 'lucide-react';
+import PoolBalanceCard from '@/components/admin/PoolBalanceCard';
+import AddFundingModal from '@/components/admin/AddFundingModal';
 
 interface PoolBalance {
   id?: string;
@@ -65,15 +58,6 @@ export default function AdminFinancementPage() {
   const [data, setData] = useState<FinancementData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [formSuccess, setFormSuccess] = useState(false);
-
-  // Form fields
-  const [poolType, setPoolType] = useState<'reward' | 'asso' | 'partner'>('reward');
-  const [amount, setAmount] = useState('');
-  const [reason, setReason] = useState('');
-  const [sourceName, setSourceName] = useState('');
 
   const fetchData = useCallback(async () => {
     try {
@@ -92,52 +76,6 @@ export default function AdminFinancementPage() {
   useEffect(() => {
     queueMicrotask(() => fetchData());
   }, [fetchData]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setFormError(null);
-    setFormSuccess(false);
-    setSubmitting(true);
-
-    const numAmount = parseFloat(amount);
-    if (isNaN(numAmount) || numAmount <= 0) {
-      setFormError('Le montant doit etre un nombre positif');
-      setSubmitting(false);
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/admin/financement', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pool_type: poolType,
-          amount: numAmount,
-          reason,
-          source_name: sourceName,
-        }),
-      });
-
-      const json = await res.json();
-      if (!res.ok) {
-        setFormError(json.error ?? 'Erreur lors de l\'ajout');
-      } else {
-        setFormSuccess(true);
-        setAmount('');
-        setReason('');
-        setSourceName('');
-        fetchData();
-        setTimeout(() => {
-          setShowForm(false);
-          setFormSuccess(false);
-        }, 1500);
-      }
-    } catch {
-      setFormError('Erreur reseau');
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   if (loading) {
     return (
@@ -175,150 +113,23 @@ export default function AdminFinancementPage() {
 
       {/* Pool Balances */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {(['reward', 'asso', 'partner'] as const).map((type, i) => {
-          const pool = poolBalances.find(p => p.pool_type === type);
-          const label = POOL_LABELS[type];
-          return (
-            <motion.div
-              key={type}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="bg-[#0A0F1A]/80 border border-white/10 rounded-xl p-5"
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <Wallet className={`w-5 h-5 ${label?.color ?? 'text-white/50'}`} />
-                <span className="text-white/50 text-sm">{label?.label ?? type}</span>
-              </div>
-              <p className={`text-2xl font-bold font-[family-name:var(--font-jetbrains-mono)] ${label?.color ?? 'text-white'}`}>
-                {formatCurrency(pool?.balance ?? 0)}
-              </p>
-              <div className="flex items-center gap-4 mt-2">
-                <div className="flex items-center gap-1">
-                  <ArrowDownLeft className="w-3 h-3 text-green-400" />
-                  <span className="text-xs text-white/40">
-                    Entrees: {formatCurrency(pool?.total_in ?? 0)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <ArrowUpRight className="w-3 h-3 text-red-400" />
-                  <span className="text-xs text-white/40">
-                    Sorties: {formatCurrency(pool?.total_out ?? 0)}
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          );
-        })}
+        {(['reward', 'asso', 'partner'] as const).map((type, i) => (
+          <PoolBalanceCard
+            key={type}
+            type={type}
+            pool={poolBalances.find(p => p.pool_type === type)}
+            index={i}
+            formatCurrency={formatCurrency}
+          />
+        ))}
       </div>
 
       {/* Add Funding Modal */}
       {showForm && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => setShowForm(false)}
-        >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-[#0A0F1A] border border-white/10 rounded-2xl p-6 w-full max-w-md mx-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <Landmark className="w-5 h-5 text-[#FFD700]" />
-                <h2 className="text-lg font-bold font-[family-name:var(--font-orbitron)] text-white">
-                  Ajouter un financement
-                </h2>
-              </div>
-              <button onClick={() => setShowForm(false)} className="text-white/30 hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="text-sm text-white/50 mb-1 block">Pool</label>
-                <select
-                  value={poolType}
-                  onChange={(e) => setPoolType(e.target.value as 'reward' | 'asso' | 'partner')}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#FFD700]/30"
-                >
-                  <option value="reward">Reward Pool (utilisateurs)</option>
-                  <option value="asso">Association PURAMA</option>
-                  <option value="partner">Partenaires</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm text-white/50 mb-1 block">Montant (EUR)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="100.00"
-                  required
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#FFD700]/30 font-[family-name:var(--font-jetbrains-mono)]"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm text-white/50 mb-1 block">Source</label>
-                <input
-                  type="text"
-                  value={sourceName}
-                  onChange={(e) => setSourceName(e.target.value)}
-                  placeholder="Stripe CA, Aide SASU, Don asso..."
-                  required
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#FFD700]/30"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm text-white/50 mb-1 block">Raison</label>
-                <input
-                  type="text"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="Depot CA mensuel, aide BPI..."
-                  required
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#FFD700]/30"
-                />
-              </div>
-
-              {formError && (
-                <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">
-                  {formError}
-                </p>
-              )}
-
-              {formSuccess && (
-                <p className="text-sm text-green-400 bg-green-500/10 rounded-lg px-3 py-2">
-                  Financement ajoute avec succes
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full py-2.5 rounded-lg bg-gradient-to-r from-[#FFD700] to-amber-500 text-black font-bold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {submitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <Plus className="w-4 h-4" />
-                    Ajouter
-                  </>
-                )}
-              </button>
-            </form>
-          </motion.div>
-        </motion.div>
+        <AddFundingModal
+          onClose={() => setShowForm(false)}
+          onSuccess={fetchData}
+        />
       )}
 
       {/* Recent Transactions */}
