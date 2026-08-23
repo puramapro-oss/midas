@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   User,
@@ -11,7 +12,6 @@ import {
   Save,
   Camera,
   LogOut,
-  Shield,
   Moon,
   Sun,
   Monitor,
@@ -395,14 +395,17 @@ export default function SettingsPage() {
             <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-5">
               <div className="flex items-center gap-3 mb-2">
                 <Download className="h-5 w-5 text-[#FFD700]/60" />
-                <h3 className="text-sm font-semibold text-white">Exporter mes donn&eacute;es</h3>
+                <h3 className="text-sm font-semibold text-white">Ma m&eacute;moire</h3>
               </div>
               <p className="text-xs text-white/40 mb-4">
-                T&eacute;l&eacute;charge l&apos;ensemble de tes donn&eacute;es (profil, trades, conversations) au format JSON.
+                Consulte tes acceptations l&eacute;gales, exporte l&apos;ensemble de tes donn&eacute;es (profil, trades,
+                conversations) au format JSON, ou programme la suppression de ton compte (RGPD art. 15/17/20).
               </p>
-              <Button variant="secondary" size="sm" icon={<Download className="h-4 w-4" />}>
-                Exporter (JSON)
-              </Button>
+              <Link href="/dashboard/ma-memoire" data-testid="ma-memoire-link">
+                <Button variant="secondary" size="sm" icon={<Download className="h-4 w-4" />}>
+                  Acc&eacute;der &agrave; Ma m&eacute;moire
+                </Button>
+              </Link>
             </div>
 
             <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-5">
@@ -415,19 +418,6 @@ export default function SettingsPage() {
               </p>
               <Button variant="danger" size="sm" icon={<Trash2 className="h-4 w-4" />}>
                 Supprimer l&apos;historique
-              </Button>
-            </div>
-
-            <div className="rounded-xl border border-red-500/20 bg-red-500/[0.03] p-5">
-              <div className="flex items-center gap-3 mb-2">
-                <Shield className="h-5 w-5 text-red-400/60" />
-                <h3 className="text-sm font-semibold text-red-400">Zone dangereuse</h3>
-              </div>
-              <p className="text-xs text-white/40 mb-4">
-                La suppression de ton compte est d&eacute;finitive. Toutes tes donn&eacute;es, bots et abonnements seront effac&eacute;s.
-              </p>
-              <Button variant="danger" size="sm" icon={<Trash2 className="h-4 w-4" />}>
-                Supprimer mon compte
               </Button>
             </div>
           </div>

@@ -9,6 +9,7 @@ import { useVoice } from '@/hooks/useVoice'
 import { useChat } from '@/hooks/useChat'
 import { VoiceWaveform } from '@/components/chat/VoiceWaveform'
 import { ELEVENLABS_VOICES, DEFAULT_VOICE_ID } from '@/lib/voice/constants'
+import AIDisclosure from '@/lib/legal/components/AIDisclosure'
 
 type ConversationState = 'idle' | 'listening' | 'transcribing' | 'thinking' | 'speaking'
 
@@ -293,6 +294,12 @@ export default function VoiceConversationPage() {
           <X className="h-5 w-5" />
         </button>
       </div>
+
+      <AIDisclosure
+        appName="MIDAS"
+        extra="Les analyses vocales ne constituent pas un conseil en investissement."
+        className="relative z-10 px-6 text-[10px] text-white/25 text-center"
+      />
 
       {/* Center content */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center w-full max-w-lg px-6 gap-8">

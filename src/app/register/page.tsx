@@ -107,6 +107,16 @@ function RegisterContent() {
         }
       }
 
+      for (const docType of ['cgu', 'cgv', 'confidentialite'] as const) {
+        fetch('/api/legal/accept', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ docType }),
+        }).catch(() => {
+          // best-effort : la creation de compte ne doit jamais echouer a cause de ca
+        })
+      }
+
       toast.success('Compte cree avec succes !')
       router.push('/onboarding')
     } catch {

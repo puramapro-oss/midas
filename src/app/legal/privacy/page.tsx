@@ -58,7 +58,7 @@ export default function PrivacyPage() {
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">5. Sous-traitants</h2>
             <ul className="list-disc pl-5 space-y-1">
-              <li><strong className="text-white">Supabase Inc.</strong> (États-Unis) — Base de données et authentification</li>
+              <li><strong className="text-white">Hostinger International Ltd</strong> (Union européenne, Paris) — Hébergement de la base de données et de l&apos;authentification (Supabase auto-hébergé, pas de sous-traitant Supabase Inc.)</li>
               <li><strong className="text-white">Stripe Inc.</strong> (États-Unis) — Traitement des paiements</li>
               <li><strong className="text-white">Vercel Inc.</strong> (États-Unis) — Hébergement de l&apos;application</li>
               <li><strong className="text-white">Anthropic PBC</strong> (États-Unis) — Intelligence artificielle</li>

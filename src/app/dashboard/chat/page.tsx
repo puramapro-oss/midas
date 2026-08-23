@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils/formatters';
 import { Badge } from '@/components/ui/Badge';
+import AIDisclosure from '@/lib/legal/components/AIDisclosure';
 
 interface ChatMessage {
   id: string;
@@ -243,6 +244,12 @@ export default function ChatPage() {
             <Trash2 className="h-4 w-4" />
           </button>
         </div>
+
+        <AIDisclosure
+          appName="MIDAS"
+          extra="Les analyses et signaux ne constituent pas un conseil en investissement."
+          className="px-4 py-2 text-[10px] text-white/30 border-b border-white/[0.04] text-center"
+        />
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" data-testid="messages-area">

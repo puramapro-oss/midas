@@ -40,7 +40,7 @@ export default function MentionsPage() {
 
           <div>
             <h2 className="text-xl font-semibold text-white mb-3">Base de donnees</h2>
-            <p><strong className="text-white">Supabase</strong> — Infrastructure auto-hebergee sur serveur dedie (OVHcloud, France).</p>
+            <p><strong className="text-white">Supabase</strong> — Infrastructure auto-hebergee sur serveur dedie (Hostinger International Ltd, Paris, France).</p>
           </div>
 
           <div>
