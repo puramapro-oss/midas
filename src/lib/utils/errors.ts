@@ -1,7 +1,4 @@
-// =============================================================================
 // MIDAS — Error Handling
-// Classe MidasError et erreurs predefinies avec messages utilisateur en francais
-// =============================================================================
 
 export type ErrorSeverity = 'low' | 'medium' | 'high' | 'critical';
 

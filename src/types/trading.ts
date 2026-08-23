@@ -1,12 +1,8 @@
-// =============================================================================
 // MIDAS — Trading Types
-// Types pour le moteur de trading, backtesting, simulation, et risk management
-// =============================================================================
 
 import type { TradeSide, TradeType, SignalStrength } from '@/types/database';
 
 // --- Market Data ---
-
 export interface Candle {
   timestamp: number;
   open: number;

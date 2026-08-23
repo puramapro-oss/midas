@@ -1,13 +1,9 @@
-// =============================================================================
 // MIDAS — AI Agent Types
-// Types pour les agents IA, le coordinateur, et les analyses multi-sources
-// =============================================================================
 
 import type { TradeSide, SignalStrength } from '@/types/database';
 import type { Timeframe, KeyLevel, MarketRegimeType } from '@/types/trading';
 
 // --- Agent Base ---
-
 export interface AgentResult {
   agent_name: string;
   signal: SignalStrength;
@@ -20,7 +16,6 @@ export interface AgentResult {
   execution_time_ms: number;
   metadata: Record<string, unknown>;
 }
-
 // --- Coordinator ---
 
 export interface CoordinatorDecision {
@@ -39,7 +34,6 @@ export interface CoordinatorDecision {
   market_regime: MarketRegimeType;
   created_at: number;
 }
-
 // --- Multi-Timeframe ---
 
 export interface MultiTimeframeResult {
@@ -67,7 +61,6 @@ export interface TimeframeConflict {
   signal_b: SignalStrength;
   severity: 'minor' | 'major';
 }
-
 // --- Confluence ---
 
 export interface ConfluenceAnalysis {
@@ -95,7 +88,6 @@ export interface ConfluenceZone {
   factors: string[];
   strength: number;
 }
-
 // --- Smart Money ---
 
 export interface SmartMoneyAnalysis {
@@ -155,7 +147,6 @@ export interface StructureBreak {
   direction: 'bullish' | 'bearish';
   timestamp: number;
 }
-
 // --- Wyckoff ---
 
 export type WyckoffPhase =
@@ -200,7 +191,6 @@ export interface WyckoffEvent {
   timestamp: number;
   description: string;
 }
-
 // --- Order Flow ---
 
 export interface OrderFlowAnalysis {
@@ -248,7 +238,6 @@ export interface WhaleActivity {
   confidence: number;
   recent_trades: LargeOrder[];
 }
-
 // --- Derivatives ---
 
 export interface DerivativesAnalysis {
@@ -275,7 +264,6 @@ export interface LiquidationLevel {
   short_liquidation_usd: number;
   total_usd: number;
 }
-
 // --- Correlation ---
 
 export interface CorrelationAnalysis {
@@ -297,7 +285,6 @@ export interface AssetCorrelation {
   is_leading: boolean;
   lead_time_candles: number;
 }
-
 // --- Social / Dominance ---
 
 export interface SocialDominanceAnalysis {
@@ -336,7 +323,6 @@ export interface NewsHeadline {
   relevance_score: number;
   published_at: string;
 }
-
 // --- Manipulation Detection ---
 
 export interface ManipulationDetection {
@@ -364,7 +350,6 @@ export interface ManipulationPattern {
   detected_at: number;
   estimated_size_usd: number;
 }
-
 // --- Dynamic Weighting ---
 
 export interface DynamicWeighting {
