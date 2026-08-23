@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
+import AIDisclosure from '@/lib/legal/components/AIDisclosure';
 
 interface Agent {
   name: string;
@@ -143,6 +144,12 @@ export default function AgentsPage() {
           </button>
         </div>
       </motion.div>
+
+      <AIDisclosure
+        appName="MIDAS"
+        extra="Ce n'est pas un conseil personnalisé : MIDAS n'est ni CIF (conseiller en investissement financier) ni PSAN (prestataire de services sur actifs numériques)."
+        className="text-[11px] text-white/40 border border-white/[0.06] bg-white/[0.02] rounded-xl px-4 py-2.5"
+      />
 
       {error && (
         <div className="flex items-start gap-3 p-4 rounded-xl border border-red-500/30 bg-red-500/5">

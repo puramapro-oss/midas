@@ -270,22 +270,6 @@ export default function ReferralPage() {
           })}
         </div>
       </motion.div>
-
-      {/* Binance referral note */}
-      <div className="rounded-xl border border-[#F0B90B]/20 bg-[#F0B90B]/[0.04] p-4">
-        <p className="text-xs text-white/50">
-          <span className="text-[#F0B90B] font-semibold">Pas encore de compte Binance ?</span>{' '}
-          <a
-            href="https://www.binance.com/activity/referral-entry/CPA?ref=CPA_00BM2GEU29"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#F0B90B] underline underline-offset-2 hover:text-[#F0B90B]/80"
-          >
-            Cree ton compte ici
-          </a>{' '}
-          et recois un bonus a l&apos;inscription.
-        </p>
-      </div>
     </div>
   );
 }

@@ -11,7 +11,7 @@ import {
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 
-const BINANCE_REF = 'https://www.binance.com/activity/referral-entry/CPA?ref=CPA_00BM2GEU29';
+const BINANCE_REF = 'https://www.binance.com/en/register';
 const TOTAL_STEPS = 6;
 const STEP_LABELS = ['Bienvenue', 'Binance', 'Clés API', 'Coller', 'Risque', 'Prêt'];
 
@@ -163,7 +163,7 @@ export default function OnboardingPage() {
                   <a href={BINANCE_REF} target="_blank" rel="noopener noreferrer" data-testid="binance-create" className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-[#F0B90B] text-[#0A0A0F] font-semibold text-sm hover:brightness-110 transition-all mb-4">
                     Créer mon compte Binance <ExternalLink className="w-4 h-4" />
                   </a>
-                  <p className="text-white/30 text-xs mb-8">Tu reçois un bonus à l&apos;inscription via ce lien</p>
+                  <p className="text-white/30 text-xs mb-8">MIDAS ne perçoit aucune commission sur la création de ton compte Binance.</p>
                   <button type="button" onClick={next} data-testid="binance-skip" className="text-sm text-[#FFD700]/70 hover:text-[#FFD700] transition-colors underline underline-offset-2">
                     Tu as déjà un compte ? Passe à l&apos;étape suivante
                   </button>

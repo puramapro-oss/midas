@@ -107,6 +107,15 @@ function RegisterContent() {
         }
       }
 
+      // Si la confirmation email est active, aucune session n'existe encore ici : ce flag
+      // est consomme par useAuth (syncPendingLegalAcceptance) des la premiere session
+      // authentifiee (email confirme + connexion), pour que l'acceptation ne se perde jamais.
+      try {
+        localStorage.setItem('midas_pending_legal_accept', 'true')
+      } catch {
+        // storage unavailable
+      }
+
       for (const docType of ['cgu', 'cgv', 'confidentialite'] as const) {
         fetch('/api/legal/accept', {
           method: 'POST',

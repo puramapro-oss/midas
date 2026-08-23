@@ -18,6 +18,7 @@ import { Card, CardContent } from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 import Skeleton from '@/components/ui/Skeleton'
 import { useMarketStore } from '@/stores/market-store'
+import AIDisclosure from '@/lib/legal/components/AIDisclosure'
 
 const PAIRS = [
   'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT',
@@ -240,6 +241,12 @@ export default function TradingPage() {
 
   return (
     <div className="space-y-4">
+      <AIDisclosure
+        appName="MIDAS"
+        extra="Ce n'est pas un conseil personnalisé : MIDAS n'est ni CIF (conseiller en investissement financier) ni PSAN (prestataire de services sur actifs numériques)."
+        className="text-[11px] text-white/40 border border-white/[0.06] bg-white/[0.02] rounded-xl px-4 py-2.5"
+      />
+
       {/* Header: Pair selector + price */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">

@@ -19,7 +19,7 @@ import {
 import { Card, CardContent } from '@/components/ui/Card';
 import { toast } from 'sonner';
 
-const BINANCE_REFERRAL = 'https://www.binance.com/activity/referral-entry/CPA?ref=CPA_00BM2GEU29';
+const BINANCE_REFERRAL = 'https://www.binance.com/en/register';
 
 interface Step {
   title: string;
@@ -31,7 +31,7 @@ interface Step {
 const STEPS: Step[] = [
   {
     title: 'Créer un compte Binance',
-    description: "Si tu n'as pas encore de compte Binance, clique sur le bouton ci-dessous. C'est gratuit et ça prend 2 minutes. Tu bénéficieras d'une réduction sur tes frais de trading.",
+    description: "Si tu n'as pas encore de compte Binance, clique sur le bouton ci-dessous. C'est gratuit et ça prend 2 minutes. MIDAS ne perçoit aucune commission sur la création de ton compte.",
     imageAlt: "Page d'accueil Binance",
   },
   {

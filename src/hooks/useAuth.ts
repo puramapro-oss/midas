@@ -31,6 +31,34 @@ export function useAuth(): UseAuthReturn {
    
   const supabase = useMemo(() => createClient(), []);
 
+  /**
+   * Consomme le flag posé par /register (`midas_pending_legal_accept`) dès qu'une session
+   * authentifiée existe. Nécessaire quand la confirmation email est active : au moment du
+   * signUp() la session n'existe pas encore, donc POST /api/legal/accept répond 401 (best-effort,
+   * ignoré) — ce flag garantit que l'acceptation CGU/CGV/confidentialité est bien enregistrée
+   * dès la première session authentifiée (email confirmé + connexion, ou OAuth). Idempotent :
+   * /api/legal/accept fait un upsert sur (user_id, doc_type).
+   */
+  const syncPendingLegalAcceptance = useCallback(() => {
+    try {
+      if (localStorage.getItem('midas_pending_legal_accept') !== 'true') return;
+      localStorage.removeItem('midas_pending_legal_accept');
+    } catch {
+      return;
+    }
+
+    for (const docType of ['cgu', 'cgv', 'confidentialite'] as const) {
+      fetch('/api/legal/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ docType }),
+      }).catch(() => {
+        // best-effort, comme l'appel initial dans register/page.tsx — la table upsert
+        // sur (user_id, doc_type) rend un futur POST manuel sans risque de doublon
+      });
+    }
+  }, []);
+
   const fetchProfile = useCallback(
     async (userId: string) => {
       const { data, error } = await supabase
@@ -102,6 +130,7 @@ export function useAuth(): UseAuthReturn {
           // Re-mark session as valid for this browser session
           sessionStorage.setItem('midas_session_valid', 'true');
           await fetchProfile(currentSession.user.id);
+          syncPendingLegalAcceptance();
         }
       } finally {
         setLoading(false);
@@ -118,6 +147,7 @@ export function useAuth(): UseAuthReturn {
 
       if (newSession?.user) {
         await fetchProfile(newSession.user.id);
+        syncPendingLegalAcceptance();
       } else {
         setProfile(null);
       }
@@ -130,7 +160,7 @@ export function useAuth(): UseAuthReturn {
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase, fetchProfile]);
+  }, [supabase, fetchProfile, syncPendingLegalAcceptance]);
 
   const signIn = useCallback(
     async (email: string, password: string): Promise<{ error: string | null }> => {

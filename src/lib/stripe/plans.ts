@@ -45,7 +45,7 @@ export const PLANS: Record<MidasPlan, PlanConfig> = {
       yearly: 'price_1THWUp4Y1unNvKtX7WXhszjM',
     },
     features: [
-      'Questions IA illimitees',
+      '150 questions IA par jour',
       '30 trades automatiques par jour',
       '2 exchanges connectes',
       '5 positions simultanees',
@@ -54,7 +54,7 @@ export const PLANS: Record<MidasPlan, PlanConfig> = {
       'Signaux de trading',
     ],
     limits: {
-      dailyQuestions: 999999,
+      dailyQuestions: 150,
       dailyTrades: 30,
       maxExchanges: 2,
       maxPositions: 5,

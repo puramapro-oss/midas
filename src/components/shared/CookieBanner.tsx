@@ -32,6 +32,21 @@ function setCookieConsent(prefs: CookiePreferences) {
   }
 }
 
+/**
+ * Synchronise le choix cookies en base (best-effort) pour garder une preuve de
+ * consentement indépendante du navigateur, quand l'utilisateur est authentifié.
+ * L'endpoint renvoie { synced: false } sans erreur pour un visiteur anonyme.
+ */
+function syncCookieConsentToServer(prefs: CookiePreferences) {
+  fetch('/api/legal/cookie-consent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mesure: prefs.analytics, marketing: prefs.performance }),
+  }).catch(() => {
+    // best-effort : le consentement local (localStorage) reste la source de vérité côté client
+  });
+}
+
 export default function CookieBanner() {
   const [visible, setVisible] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
@@ -50,18 +65,21 @@ export default function CookieBanner() {
   const handleAcceptAll = useCallback(() => {
     const prefs: CookiePreferences = { necessary: true, analytics: true, performance: true };
     setCookieConsent(prefs);
+    syncCookieConsentToServer(prefs);
     setVisible(false);
   }, []);
 
   const handleRefuseAll = useCallback(() => {
     const prefs: CookiePreferences = { necessary: true, analytics: false, performance: false };
     setCookieConsent(prefs);
+    syncCookieConsentToServer(prefs);
     setVisible(false);
   }, []);
 
   const handleSaveCustom = useCallback(() => {
     const prefs: CookiePreferences = { necessary: true, analytics, performance };
     setCookieConsent(prefs);
+    syncCookieConsentToServer(prefs);
     setVisible(false);
   }, [analytics, performance]);
 
