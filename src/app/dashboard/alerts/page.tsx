@@ -7,15 +7,13 @@ import {
   Plus,
   Trash2,
   CheckCircle,
-  Clock,
   TrendingUp,
-  TrendingDown,
   Volume2,
   Shield,
   Brain,
   X,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader } from '@/components/ui/Card'
+import { Card, CardContent } from '@/components/ui/Card'
 import Badge from '@/components/ui/Badge'
 
 type AlertType = 'price' | 'volume' | 'signal' | 'drawdown'

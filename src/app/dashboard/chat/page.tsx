@@ -3,9 +3,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Send,
-  MessageSquare,
-  Plus,
   Sparkles,
   User,
   Bot,
@@ -14,8 +11,9 @@ import {
   Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/formatters';
-import { Badge } from '@/components/ui/Badge';
 import AIDisclosure from '@/lib/legal/components/AIDisclosure';
+import ChatSidebar from './ChatSidebar';
+import ChatInput from './ChatInput';
 
 interface ChatMessage {
   id: string;
@@ -47,7 +45,7 @@ export default function ChatPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [questionsUsed, setQuestionsUsed] = useState(0);
   const [questionsLimit, setQuestionsLimit] = useState(5);
-  const [conversations, setConversations] = useState<ConversationItem[]>([]);
+  const [conversations, _setConversations] = useState<ConversationItem[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -129,88 +127,14 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-[calc(100vh-8rem)] rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden" data-testid="chat-page">
-      {/* Sidebar */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <motion.aside
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 280, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="hidden md:flex flex-col border-r border-white/[0.06] bg-white/[0.02] overflow-hidden shrink-0"
-            data-testid="chat-sidebar"
-          >
-            {/* New conversation */}
-            <div className="p-3">
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                whileHover={{ scale: 1.01 }}
-                className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#FFD700]/30 text-[#FFD700] text-sm font-medium hover:bg-[#FFD700]/10 transition-all"
-                data-testid="new-conversation-button"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Nouvelle conversation</span>
-              </motion.button>
-            </div>
-
-            {/* Conversations list */}
-            <div className="flex-1 overflow-y-auto px-2 space-y-1">
-              {conversations.length === 0 ? (
-                <p className="text-[11px] text-white/30 text-center py-6 px-2">
-                  Aucune conversation. Commence à poser une question pour démarrer.
-                </p>
-              ) : (
-                conversations.map((conv) => (
-                  <button
-                    key={conv.id}
-                    onClick={() => setActiveConv(conv.id)}
-                    className={cn(
-                      'w-full text-left px-3 py-2.5 rounded-xl transition-all duration-200',
-                      activeConv === conv.id
-                        ? 'bg-[#FFD700]/[0.06] border border-[#FFD700]/10'
-                        : 'hover:bg-white/[0.04] border border-transparent'
-                    )}
-                    data-testid={`conversation-${conv.id}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span
-                        className={cn(
-                          'text-xs font-medium truncate',
-                          activeConv === conv.id ? 'text-white' : 'text-white/60'
-                        )}
-                      >
-                        {conv.title}
-                      </span>
-                      <span className="text-[10px] text-white/20 shrink-0 ml-2">
-                        {conv.date}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-white/30 truncate mt-0.5">
-                      {conv.lastMessage}
-                    </p>
-                  </button>
-                ))
-              )}
-            </div>
-
-            {/* Question counter */}
-            <div className="p-3 border-t border-white/[0.06]">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-white/40">Questions aujourd&apos;hui</span>
-                <Badge variant="gold" size="sm" data-testid="question-counter">
-                  {questionsUsed}/{questionsLimit}
-                </Badge>
-              </div>
-              <div className="mt-2 h-1 rounded-full bg-white/[0.06]">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-[#FFD700] to-[#FFC000] transition-all duration-500"
-                  style={{ width: `${(questionsUsed / questionsLimit) * 100}%` }}
-                />
-              </div>
-            </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
+      <ChatSidebar
+        sidebarOpen={sidebarOpen}
+        conversations={conversations}
+        activeConv={activeConv}
+        questionsUsed={questionsUsed}
+        questionsLimit={questionsLimit}
+        onSetActiveConv={setActiveConv}
+      />
 
       {/* Chat Area */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -335,37 +259,13 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Input bar */}
-        <div className="p-4 border-t border-white/[0.06]" data-testid="chat-input-bar">
-          <div className="flex items-end gap-2 max-w-3xl mx-auto">
-            <div className="flex-1 relative">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Pose une question sur le marche..."
-                rows={1}
-                className="w-full min-h-[44px] max-h-32 px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.03] text-sm text-white placeholder:text-white/20 outline-none resize-none transition-all duration-200 hover:border-white/[0.12] focus:border-[#FFD700]/50 focus:shadow-[0_0_12px_rgba(255,215,0,0.15)]"
-                data-testid="chat-input"
-              />
-            </div>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              whileHover={{ scale: 1.05 }}
-              onClick={handleSend}
-              disabled={!input.trim() || loading}
-              className={cn(
-                'flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200',
-                input.trim() && !loading
-                  ? 'bg-[#FFD700] text-[#0A0A0F] shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:shadow-[0_0_30px_rgba(255,215,0,0.5)]'
-                  : 'bg-white/[0.06] text-white/20 cursor-not-allowed'
-              )}
-              data-testid="chat-send"
-            >
-              <Send className="h-4 w-4" />
-            </motion.button>
-          </div>
-        </div>
+        <ChatInput
+          input={input}
+          loading={loading}
+          onInputChange={setInput}
+          onSend={handleSend}
+          onKeyDown={handleKeyDown}
+        />
       </div>
     </div>
   );
