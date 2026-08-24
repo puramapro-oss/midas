@@ -10,34 +10,8 @@ import { Card, CardContent } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { toast } from 'sonner';
 import type { EarnPosition } from '@/types/database';
-
-interface EarnOpportunity {
-  id: string;
-  asset: string;
-  symbol: string;
-  protocol: string;
-  chain: string;
-  apy: number;
-  tvlUsd: number;
-  category: 'stablecoin' | 'crypto';
-  ilRisk: string;
-  exposure: string;
-  url: string;
-}
-
-type Tab = 'opportunities' | 'positions' | 'history';
-type Filter = 'all' | 'stablecoin' | 'crypto';
-
-function formatTvl(n: number): string {
-  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`;
-  if (n >= 1e6) return `$${(n / 1e6).toFixed(0)}M`;
-  if (n >= 1e3) return `$${(n / 1e3).toFixed(0)}K`;
-  return `$${n.toFixed(0)}`;
-}
-
-function formatProtocol(p: string): string {
-  return p.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-}
+import type { EarnOpportunity, Tab, Filter } from '@/lib/earn/types';
+import { formatTvl, formatProtocol } from '@/lib/earn/utils';
 
 export default function EarnPage() {
   const [tab, setTab] = useState<Tab>('opportunities');
