@@ -1,36 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { motion } from 'framer-motion';
-import {
-  User,
-  TrendingUp,
-  Bell,
-  Palette,
-  Database,
-  Save,
-  Camera,
-  LogOut,
-  Moon,
-  Sun,
-  Monitor,
-  Download,
-  Trash2,
-  Mic,
-} from 'lucide-react';
-import { cn } from '@/lib/utils/formatters';
+import { User, TrendingUp, Bell, Palette, Database, Save, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Toggle } from '@/components/ui/Toggle';
-import { Select } from '@/components/ui/Select';
 import { Tabs } from '@/components/ui/Tabs';
-import { Badge } from '@/components/ui/Badge';
-import { Slider } from '@/components/ui/Slider';
-import { useTheme } from '@/hooks/useTheme';
-import { createClient } from '@/lib/supabase/client';
-import LanguageSelector from '@/components/settings/LanguageSelector';
+import ProfilTab from '@/components/settings/ProfilTab';
+import TradingTab from '@/components/settings/TradingTab';
+import NotificationsTab from '@/components/settings/NotificationsTab';
+import InterfaceTab from '@/components/settings/InterfaceTab';
 import VoiceSettings from '@/components/settings/VoiceSettings';
+import DataTab from '@/components/settings/DataTab';
 
 const TABS = [
   { id: 'profil', label: 'Profil', icon: <User className="h-4 w-4" /> },
@@ -40,41 +20,6 @@ const TABS = [
   { id: 'voix', label: 'Voix', icon: <Mic className="h-4 w-4" /> },
   { id: 'donnees', label: 'Donnees', icon: <Database className="h-4 w-4" /> },
 ];
-
-const riskOptions = [
-  { value: 'conservative', label: 'Conservateur' },
-  { value: 'moderate', label: 'Modere' },
-  { value: 'aggressive', label: 'Agressif' },
-];
-
-const timezoneOptions = [
-  { value: 'Europe/Paris', label: 'Paris (UTC+1)' },
-  { value: 'Europe/London', label: 'Londres (UTC+0)' },
-  { value: 'America/New_York', label: 'New York (UTC-5)' },
-  { value: 'Asia/Tokyo', label: 'Tokyo (UTC+9)' },
-];
-
-
-function handleLogout() {
-  // Set forced logout flag FIRST — prevents auto-reconnection
-  try { localStorage.setItem('midas_forced_logout', 'true'); } catch { /* ignore */ }
-  document.cookie.split(';').forEach((c) => {
-    const name = c.trim().split('=')[0];
-    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-  });
-  try {
-    const keys = Object.keys(localStorage);
-    for (const key of keys) {
-      if (key.startsWith('sb-') || key.startsWith('supabase')) {
-        localStorage.removeItem(key);
-      }
-    }
-    localStorage.removeItem('midas_remember');
-    sessionStorage.removeItem('midas_session_valid');
-  } catch { /* ignore */ }
-  try { createClient().auth.signOut({ scope: 'local' }); } catch { /* ignore */ }
-  window.location.href = '/login';
-}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('profil');
@@ -103,7 +48,6 @@ export default function SettingsPage() {
   const [notifNews, setNotifNews] = useState(false);
 
   // Interface state
-  const { theme, setTheme } = useTheme();
   const [timezone, setTimezone] = useState('Europe/Paris');
   const [compactMode, setCompactMode] = useState(false);
   const [animations, setAnimations] = useState(true);
@@ -119,310 +63,60 @@ export default function SettingsPage() {
   const renderTabContent = () => {
     switch (activeTab) {
       case 'profil':
-        return (
-          <div className="space-y-6" data-testid="settings-profil">
-            {/* Avatar */}
-            <div className="flex items-center gap-5">
-              <div className="relative">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#FFD700]/20 to-[#FFD700]/5 border border-[#FFD700]/20 flex items-center justify-center text-2xl font-bold text-[#FFD700]">
-                  {fullName.charAt(0).toUpperCase()}
-                </div>
-                <button className="absolute -bottom-1 -right-1 w-7 h-7 rounded-lg bg-[#FFD700] text-[#0A0A0F] flex items-center justify-center hover:brightness-110 transition-all">
-                  <Camera className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-white">{fullName}</h3>
-                <p className="text-xs text-white/40">{email}</p>
-                <Badge variant="gold" size="sm" className="mt-1">
-                  Pro
-                </Badge>
-              </div>
-            </div>
-
-            {/* Form */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Nom complet"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                data-testid="settings-name-input"
-              />
-              <Input
-                label="Email"
-                value={email}
-                disabled
-                data-testid="settings-email-input"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs text-white/40 mb-1.5">Bio</label>
-              <textarea
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                rows={3}
-                className="w-full px-4 py-3 rounded-xl border border-white/[0.08] bg-white/[0.03] text-sm text-white placeholder:text-white/20 outline-none resize-none transition-all duration-200 hover:border-white/[0.12] focus:border-[#FFD700]/50 focus:shadow-[0_0_12px_rgba(255,215,0,0.15)]"
-                data-testid="settings-bio-input"
-              />
-            </div>
-
-            <div className="pt-4 border-t border-white/[0.06]">
-              <h3 className="text-xs text-white/40 uppercase tracking-wider mb-3">
-                S&eacute;curit&eacute;
-              </h3>
-              <div className="space-y-3">
-                <Button variant="secondary" size="sm">
-                  Changer le mot de passe
-                </Button>
-                <Button variant="secondary" size="sm">
-                  Activer la 2FA
-                </Button>
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-white/[0.06]">
-              <button
-                type="button"
-                onClick={handleLogout}
-                data-testid="settings-signout-button"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/20 transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-                Deconnexion
-              </button>
-            </div>
-          </div>
-        );
-
+        return <ProfilTab fullName={fullName} setFullName={setFullName} email={email} bio={bio} setBio={setBio} />;
       case 'trading':
         return (
-          <div className="space-y-6" data-testid="settings-trading">
-            <Select
-              label="Profil de risque"
-              options={riskOptions}
-              value={riskProfile}
-              onChange={setRiskProfile}
-            />
-
-            <Slider
-              label="Stop Loss par defaut"
-              min={1}
-              max={15}
-              step={0.5}
-              value={defaultSl}
-              onChange={setDefaultSl}
-              formatValue={(v) => `${v}%`}
-            />
-
-            <Slider
-              label="Take Profit par defaut"
-              min={1}
-              max={30}
-              step={0.5}
-              value={defaultTp}
-              onChange={setDefaultTp}
-              formatValue={(v) => `${v}%`}
-            />
-
-            <Slider
-              label="Perte journaliere max"
-              min={1}
-              max={20}
-              step={0.5}
-              value={maxDailyLoss}
-              onChange={setMaxDailyLoss}
-              formatValue={(v) => `${v}%`}
-            />
-
-            <div className="pt-4 border-t border-white/[0.06] space-y-4">
-              <Toggle
-                checked={autoTrade}
-                onChange={setAutoTrade}
-                label="Trading automatique"
-                description="Autorise les bots a executer des trades"
-              />
-              <Toggle
-                checked={shieldActive}
-                onChange={setShieldActive}
-                label="MIDAS Shield"
-                description="Protection automatique contre les pertes excessives"
-              />
-            </div>
-          </div>
+          <TradingTab
+            riskProfile={riskProfile}
+            setRiskProfile={setRiskProfile}
+            defaultSl={defaultSl}
+            setDefaultSl={setDefaultSl}
+            defaultTp={defaultTp}
+            setDefaultTp={setDefaultTp}
+            maxDailyLoss={maxDailyLoss}
+            setMaxDailyLoss={setMaxDailyLoss}
+            autoTrade={autoTrade}
+            setAutoTrade={setAutoTrade}
+            shieldActive={shieldActive}
+            setShieldActive={setShieldActive}
+          />
         );
-
       case 'notifications':
         return (
-          <div className="space-y-6" data-testid="settings-notifications">
-            <div>
-              <h3 className="text-xs text-white/40 uppercase tracking-wider mb-4">
-                Canaux de notification
-              </h3>
-              <div className="space-y-4">
-                <Toggle
-                  checked={notifEmail}
-                  onChange={setNotifEmail}
-                  label="Email"
-                  description="Recevoir les notifications par email"
-                />
-                <Toggle
-                  checked={notifPush}
-                  onChange={setNotifPush}
-                  label="Push"
-                  description="Notifications push dans le navigateur"
-                />
-                <Toggle
-                  checked={notifSms}
-                  onChange={setNotifSms}
-                  label="SMS"
-                  description="Alertes critiques par SMS (Pro uniquement)"
-                />
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-white/[0.06]">
-              <h3 className="text-xs text-white/40 uppercase tracking-wider mb-4">
-                Types d&apos;alertes
-              </h3>
-              <div className="space-y-4">
-                <Toggle
-                  checked={notifTrades}
-                  onChange={setNotifTrades}
-                  label="Execution de trades"
-                  description="Quand un bot ouvre ou ferme une position"
-                />
-                <Toggle
-                  checked={notifSignals}
-                  onChange={setNotifSignals}
-                  label="Nouveaux signaux"
-                  description="Quand l'IA detecte une opportunite"
-                />
-                <Toggle
-                  checked={notifPnl}
-                  onChange={setNotifPnl}
-                  label="Recap P&L quotidien"
-                  description="Resume de ta performance chaque soir"
-                />
-                <Toggle
-                  checked={notifNews}
-                  onChange={setNotifNews}
-                  label="Actualites marche"
-                  description="Evenements importants du marche crypto"
-                />
-              </div>
-            </div>
-          </div>
+          <NotificationsTab
+            notifEmail={notifEmail}
+            setNotifEmail={setNotifEmail}
+            notifPush={notifPush}
+            setNotifPush={setNotifPush}
+            notifSms={notifSms}
+            setNotifSms={setNotifSms}
+            notifTrades={notifTrades}
+            setNotifTrades={setNotifTrades}
+            notifSignals={notifSignals}
+            setNotifSignals={setNotifSignals}
+            notifPnl={notifPnl}
+            setNotifPnl={setNotifPnl}
+            notifNews={notifNews}
+            setNotifNews={setNotifNews}
+          />
         );
-
       case 'interface':
         return (
-          <div className="space-y-6" data-testid="settings-interface">
-            {/* Theme */}
-            <div>
-              <h3 className="text-xs text-white/40 uppercase tracking-wider mb-3">
-                Th&egrave;me
-              </h3>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { id: 'dark' as const, label: 'Sombre', icon: <Moon className="h-4 w-4" />, bg: 'bg-[#06080F]' },
-                  { id: 'oled' as const, label: 'OLED', icon: <Monitor className="h-4 w-4" />, bg: 'bg-black' },
-                  { id: 'light' as const, label: 'Clair', icon: <Sun className="h-4 w-4" />, bg: 'bg-gray-100' },
-                ].map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setTheme(t.id)}
-                    className={cn(
-                      'flex flex-col items-center gap-2 p-4 rounded-xl border transition-all duration-200',
-                      theme === t.id
-                        ? 'border-[#FFD700]/40 bg-[#FFD700]/[0.06] text-[#FFD700]'
-                        : 'border-white/[0.06] bg-white/[0.03] text-white/40 hover:border-white/[0.12]'
-                    )}
-                    data-testid={`theme-${t.id}`}
-                  >
-                    {t.icon}
-                    <span className="text-xs font-medium">{t.label}</span>
-                    <div className={cn('w-8 h-4 rounded-md border border-white/10', t.bg)} />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <Select
-              label="Fuseau horaire"
-              options={timezoneOptions}
-              value={timezone}
-              onChange={setTimezone}
-            />
-
-            {/* Language */}
-            <div>
-              <h3 className="text-xs text-white/40 uppercase tracking-wider mb-3">
-                Langue
-              </h3>
-              <LanguageSelector />
-            </div>
-
-            <div className="pt-4 border-t border-white/[0.06] space-y-4">
-              <Toggle
-                checked={compactMode}
-                onChange={setCompactMode}
-                label="Mode compact"
-                description="Reduit l'espacement pour afficher plus de donnees"
-              />
-              <Toggle
-                checked={animations}
-                onChange={setAnimations}
-                label="Animations"
-                description="Active les animations de l'interface"
-              />
-              <Toggle
-                checked={sounds}
-                onChange={setSounds}
-                label="Sons"
-                description="Retour sonore sur les actions"
-              />
-            </div>
-          </div>
+          <InterfaceTab
+            timezone={timezone}
+            setTimezone={setTimezone}
+            compactMode={compactMode}
+            setCompactMode={setCompactMode}
+            animations={animations}
+            setAnimations={setAnimations}
+            sounds={sounds}
+            setSounds={setSounds}
+          />
         );
-
       case 'voix':
         return <VoiceSettings />;
-
       case 'donnees':
-        return (
-          <div className="space-y-6" data-testid="settings-donnees">
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-5">
-              <div className="flex items-center gap-3 mb-2">
-                <Download className="h-5 w-5 text-[#FFD700]/60" />
-                <h3 className="text-sm font-semibold text-white">Ma m&eacute;moire</h3>
-              </div>
-              <p className="text-xs text-white/40 mb-4">
-                Consulte tes acceptations l&eacute;gales, exporte l&apos;ensemble de tes donn&eacute;es (profil, trades,
-                conversations) au format JSON, ou programme la suppression de ton compte (RGPD art. 15/17/20).
-              </p>
-              <Link href="/dashboard/ma-memoire" data-testid="ma-memoire-link">
-                <Button variant="secondary" size="sm" icon={<Download className="h-4 w-4" />}>
-                  Acc&eacute;der &agrave; Ma m&eacute;moire
-                </Button>
-              </Link>
-            </div>
-
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-5">
-              <div className="flex items-center gap-3 mb-2">
-                <Trash2 className="h-5 w-5 text-red-400/60" />
-                <h3 className="text-sm font-semibold text-white">Supprimer l&apos;historique</h3>
-              </div>
-              <p className="text-xs text-white/40 mb-4">
-                Supprime d&eacute;finitivement l&apos;historique de tes conversations IA. Tes trades et param&egrave;tres sont conserv&eacute;s.
-              </p>
-              <Button variant="danger" size="sm" icon={<Trash2 className="h-4 w-4" />}>
-                Supprimer l&apos;historique
-              </Button>
-            </div>
-          </div>
-        );
-
+        return <DataTab />;
       default:
         return null;
     }
@@ -432,12 +126,8 @@ export default function SettingsPage() {
     <div className="space-y-6" data-testid="settings-page">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white font-[family-name:var(--font-orbitron)]">
-          Param&egrave;tres
-        </h1>
-        <p className="text-sm text-white/40 mt-1">
-          Configure ton exp&eacute;rience MIDAS.
-        </p>
+        <h1 className="text-2xl font-bold text-white font-[family-name:var(--font-orbitron)]">Paramètres</h1>
+        <p className="text-sm text-white/40 mt-1">Configure ton expérience MIDAS.</p>
       </div>
 
       {/* Tabs */}
