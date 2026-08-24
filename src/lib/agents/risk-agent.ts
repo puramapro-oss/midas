@@ -3,92 +3,24 @@
 // 7 niveaux de verification de risque avant approbation d'un trade
 // =============================================================================
 
-import type { AgentResult, Candle, MarketRegime } from '@/lib/agents/types';
+import type { AgentResult, MarketRegime } from '@/lib/agents/types';
 import { detectManipulation } from '@/lib/analysis/manipulation-detector';
-
-// --- Types ---
-
-type ShieldLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-
-interface ShieldCheck {
-  level: ShieldLevel;
-  name: string;
-  passed: boolean;
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  message: string;
-}
-
-interface RiskData {
-  approved: boolean;
-  checks: ShieldCheck[];
-  passed_count: number;
-  failed_count: number;
-  critical_failures: number;
-  max_position_size_pct: number;
-  suggested_leverage: number;
-  risk_level: 'low' | 'medium' | 'high' | 'extreme';
-  drawdown_limit_pct: number;
-}
-
-interface RiskParams {
-  pair: string;
-  action: 'buy' | 'sell';
-  entry_price: number;
-  stop_loss: number;
-  take_profit: number;
-  position_size_pct: number;
-  account_balance: number;
-  /** Drawdown total (compteur depuis l'inception ou capital initial) */
-  current_drawdown_pct: number;
-  /** Drawdown sur 24h glissantes (optionnel — brief : limite 3%) */
-  daily_drawdown_pct?: number;
-  /** Drawdown sur 7j glissants (optionnel — brief : limite 7%) */
-  weekly_drawdown_pct?: number;
-  open_positions: number;
-  daily_trades_count: number;
-  regime: MarketRegime;
-  candles: Candle[];
-  composite_score: number;
-  confidence: number;
-  /** Corrélation max (Pearson 0-1) avec une position déjà ouverte (optionnel — brief : seuil 0.9) */
-  max_correlation_with_open_positions?: number;
-}
-
-// --- Constants ---
-
-const MAX_DAILY_TRADES = 10;
-const MAX_OPEN_POSITIONS = 5;
-const MAX_DRAWDOWN_PCT = 15; // brief : total
-const MAX_DAILY_DRAWDOWN_PCT = 3; // brief : journalier
-const MAX_WEEKLY_DRAWDOWN_PCT = 7; // brief : hebdo
-const MAX_POSITION_SIZE_PCT = 5;
-const MIN_RISK_REWARD_RATIO = 2.0; // brief : R/R minimum 1:2
-const MAX_SPREAD_PCT = 0.5;
-const MIN_CONFIDENCE = 0.4;
-const MIN_COMPOSITE_SCORE = 0.2;
-const MAX_CORRELATION = 0.9; // brief : seuil 90%
-
-const REGIME_POSITION_LIMITS: Record<MarketRegime, number> = {
-  strong_bull: 5,
-  weak_bull: 3,
-  ranging: 2,
-  weak_bear: 2,
-  strong_bear: 1.5,
-  crash: 0,
-  high_volatility: 1.5,
-  low_volatility: 4,
-};
-
-const REGIME_LEVERAGE_LIMITS: Record<MarketRegime, number> = {
-  strong_bull: 5,
-  weak_bull: 3,
-  ranging: 2,
-  weak_bear: 2,
-  strong_bear: 1,
-  crash: 1,
-  high_volatility: 1,
-  low_volatility: 5,
-};
+import type { ShieldCheck, RiskData, RiskParams } from '@/lib/types/risk';
+import {
+  MAX_DAILY_TRADES,
+  MAX_OPEN_POSITIONS,
+  MAX_DRAWDOWN_PCT,
+  MAX_DAILY_DRAWDOWN_PCT,
+  MAX_WEEKLY_DRAWDOWN_PCT,
+  MAX_POSITION_SIZE_PCT,
+  MIN_RISK_REWARD_RATIO,
+  MAX_SPREAD_PCT,
+  MIN_CONFIDENCE,
+  MIN_COMPOSITE_SCORE,
+  MAX_CORRELATION,
+  REGIME_POSITION_LIMITS,
+  REGIME_LEVERAGE_LIMITS,
+} from '@/lib/constants/risk';
 
 // --- Shield Checks ---
 
