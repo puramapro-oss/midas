@@ -11,13 +11,7 @@ import { Card, CardContent } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { toast } from 'sonner';
 import type { TraderProfile, CopyRelationship } from '@/types/database';
-
-type Tab = 'traders' | 'my-copies' | 'become';
-
-function formatPnl(n: number): string {
-  const sign = n >= 0 ? '+' : '';
-  return `${sign}${n.toFixed(2)}%`;
-}
+import { formatPnl, tabs, type Tab } from '@/lib/copy-trading/utils';
 
 export default function CopyTradingPage() {
   const [tab, setTab] = useState<Tab>('traders');
@@ -73,12 +67,6 @@ export default function CopyTradingPage() {
       setActionLoading(null);
     }
   };
-
-  const tabs: { id: Tab; label: string; icon: typeof Users }[] = [
-    { id: 'traders', label: 'Top Traders', icon: Trophy },
-    { id: 'my-copies', label: 'Mes Copies', icon: Copy },
-    { id: 'become', label: 'Devenir Trader', icon: UserPlus },
-  ];
 
   return (
     <div className="space-y-6 p-4 md:p-6" data-testid="copy-trading-page">
