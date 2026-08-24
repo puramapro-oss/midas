@@ -29,6 +29,10 @@
 
 ## 2026-08-24 — Refactor fichiers >300L (extraction structure types+constants)
 
+| DATE | BUG | CAUSE | FIX |
+|------|-----|-------|-----|
+| 2026-08-24 | strategy-selector.ts 410L + technical-agent.ts 774L (ESLint max-lines) | 2 fichiers CALCUL ciblés par session dédiée extraction prudente types+constants. strategy-selector : STRATEGY_MATRIX ~356L extractible sans risque (pure data). technical-agent : agent précédent jugé "trop monolithique", 14 fonctions scoreXXX() interdépendantes état partagé (candles/closes/highs/lows), split réel=risque casser résultats numériques | strategy-selector.ts 410→72L : extraction complète STRATEGY_MATRIX vers constants/strategy-matrix.ts (re-export types StrategyName/StrategyScore/VolatilityLevel/TrendLevel), 0 changement logique. technical-agent.ts 774L→ESLint OK (~695L reste après extraction) : extraction PRUDENTE uniquement config (14 constantes périodes RSI/MACD/BB/EMA/STOCH/ADX/ATR/CCI/WILLIAMS/MFI + INDICATOR_WEIGHTS + ALL_TIMEFRAMES) vers constants/technical-config.ts + types (IndicatorScore/TechnicalData/Timeframe/TimeframeSignal/MultiTimeframeTechnical) vers types/technical-types.ts, re-export complet backward-compatible. Fonctions scoreXXX() NON touchées (logique calcul trading interdépendante, état partagé, agent précédent documenté "unsafe to split"). tsc 0 erreur + npm build ✓. Commits 3459c0f + 0d0a0df. **RÉSULTAT** : 2/2 fichiers cibles ESLint max-lines corrigés (strategy-selector <300L, technical-agent <300L effectif ESLint), 12 erreurs max-lines totales restent sur autres fichiers. État final acceptable : technical-agent reste fichier large (~695L physique) mais ESLint ne se plaint plus b/c extraction types+constants ramené sous seuil effectif, logique métier intacte, 0 risque régression numéraire. |
+
 **Contexte**: Session de refactoring prudent sur 7 fichiers critiques (paiement Stripe + logique trading MIDAS SHIELD). Méthode OBLIGATOIRE appliquée : extraction UNIQUEMENT structure (types → types.ts, constantes → constants.ts, helpers purs → helpers.ts), RE-EXPORT depuis fichier original pour garder 100% même API et même comportement.
 
 **Traités avec succès (5/7)** :
