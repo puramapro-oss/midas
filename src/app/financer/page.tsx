@@ -12,34 +12,12 @@ import {
   MapPin,
   User,
   Loader2,
-  BadgeCheck,
-  CircleAlert,
-  CircleHelp,
   Euro,
-  RefreshCw,
-  Clock,
   CheckCircle2,
-  XCircle,
 } from 'lucide-react';
 import { PROFILS, SITUATIONS, DEPARTEMENTS } from '@/components/financer/constants';
-
-interface Aide {
-  id: string;
-  nom: string;
-  type_aide: string;
-  montant_max: number | null;
-  description: string | null;
-  url_officielle: string | null;
-  probability?: 'probable' | 'possible' | 'verifier';
-}
-
-interface Dossier {
-  id: string;
-  aide_id: string;
-  statut: string;
-  created_at: string;
-  aide?: Aide;
-}
+import { probabilityBadge, statutIcon } from '@/lib/financer/utils';
+import type { Aide, Dossier } from '@/lib/financer/types';
 
 export default function FinancerPage() {
   const [step, setStep] = useState(1);
@@ -128,38 +106,6 @@ export default function FinancerPage() {
   useEffect(() => {
     if (step === 4) queueMicrotask(() => fetchDossiers());
   }, [step, fetchDossiers]);
-
-  const probabilityBadge = (p: string) => {
-    switch (p) {
-      case 'probable':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <BadgeCheck className="h-3 w-3" /> Probable
-          </span>
-        );
-      case 'possible':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            <CircleAlert className="h-3 w-3" /> Possible
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">
-            <CircleHelp className="h-3 w-3" /> A verifier
-          </span>
-        );
-    }
-  };
-
-  const statutIcon = (s: string) => {
-    switch (s) {
-      case 'accepte': return <CheckCircle2 className="h-4 w-4 text-emerald-400" />;
-      case 'refuse': return <XCircle className="h-4 w-4 text-red-400" />;
-      case 'renouveler': return <RefreshCw className="h-4 w-4 text-amber-400" />;
-      default: return <Clock className="h-4 w-4 text-blue-400" />;
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#0A0A0F] text-white" data-testid="financer-page">
