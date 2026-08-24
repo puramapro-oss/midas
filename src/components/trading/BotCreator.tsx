@@ -2,13 +2,15 @@
 
 import { useState, useCallback, type FormEvent } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, AlertTriangle, Bot, Zap } from 'lucide-react'
+import { X, Bot, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils/formatters'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Slider } from '@/components/ui/Slider'
 import { Toggle } from '@/components/ui/Toggle'
+import { exchangeOptions, pairOptions, strategyOptions } from './bot-creator-data'
+import { RealTradingWarning } from './RealTradingWarning'
 
 export interface BotCreatorFormData {
   name: string
@@ -28,37 +30,6 @@ export interface BotCreatorProps {
   onSubmit: (data: BotCreatorFormData) => void
   className?: string
 }
-
-const exchangeOptions = [
-  { value: 'binance', label: 'Binance' },
-  { value: 'bybit', label: 'Bybit' },
-  { value: 'okx', label: 'OKX' },
-  { value: 'bitget', label: 'Bitget' },
-  { value: 'kucoin', label: 'KuCoin' },
-  { value: 'kraken', label: 'Kraken' },
-]
-
-const pairOptions = [
-  { value: 'BTC/USDT', label: 'BTC/USDT' },
-  { value: 'ETH/USDT', label: 'ETH/USDT' },
-  { value: 'SOL/USDT', label: 'SOL/USDT' },
-  { value: 'BNB/USDT', label: 'BNB/USDT' },
-  { value: 'XRP/USDT', label: 'XRP/USDT' },
-  { value: 'ADA/USDT', label: 'ADA/USDT' },
-  { value: 'DOGE/USDT', label: 'DOGE/USDT' },
-  { value: 'AVAX/USDT', label: 'AVAX/USDT' },
-  { value: 'LINK/USDT', label: 'LINK/USDT' },
-  { value: 'MATIC/USDT', label: 'MATIC/USDT' },
-]
-
-const strategyOptions = [
-  { value: 'dca', label: 'DCA (Dollar Cost Averaging)' },
-  { value: 'grid', label: 'Grid Trading' },
-  { value: 'momentum', label: 'Momentum' },
-  { value: 'mean_reversion', label: 'Mean Reversion' },
-  { value: 'breakout', label: 'Breakout' },
-  { value: 'scalping', label: 'Scalping' },
-]
 
 export function BotCreator({
   isOpen,
@@ -311,50 +282,11 @@ export function BotCreator({
                   }
                 />
 
-                {/* Real trading warning */}
-                <AnimatePresence>
-                  {showRealWarning && !isPaperTrading && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="overflow-hidden"
-                    >
-                      <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 space-y-3">
-                        <div className="flex items-start gap-2">
-                          <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium text-red-400">
-                              Mode Trading Réel
-                            </p>
-                            <p className="text-xs text-red-400/70 leading-relaxed">
-                              Ce bot utilisera de vrais fonds sur ton exchange.
-                              Les pertes sont réelles et irréversibles. Assure-toi
-                              de bien comprendre les risques avant de continuer.
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={confirmRealTrading}
-                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 transition-colors"
-                            data-testid="confirm-real-trading"
-                          >
-                            Je comprends les risques
-                          </button>
-                          <button
-                            type="button"
-                            onClick={cancelRealTrading}
-                            className="px-3 py-1.5 rounded-lg text-xs font-medium text-white/50 hover:text-white/70 transition-colors"
-                          >
-                            Rester en Paper Trading
-                          </button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <RealTradingWarning
+                  show={showRealWarning && !isPaperTrading}
+                  onConfirm={confirmRealTrading}
+                  onCancel={cancelRealTrading}
+                />
               </div>
 
               {/* Submit */}
