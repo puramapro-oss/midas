@@ -25,64 +25,31 @@ import {
   calculateElderRay,
   calculateVolumeProfile,
 } from '@/lib/analysis/indicators/elder';
-
-// --- Indicator Configuration ---
-
-const RSI_PERIOD = 14;
-const MACD_FAST = 12;
-const MACD_SLOW = 26;
-const MACD_SIGNAL = 9;
-const BB_PERIOD = 20;
-const BB_STD_DEV = 2;
-const EMA_PERIODS = [9, 21, 50, 200] as const;
-const STOCH_PERIOD = 14;
-const STOCH_SIGNAL = 3;
-const ADX_PERIOD = 14;
-const ATR_PERIOD = 14;
-const CCI_PERIOD = 20;
-const WILLIAMS_PERIOD = 14;
-const MFI_PERIOD = 14;
-
-// --- Indicator Weights for Composite Score ---
-
-const INDICATOR_WEIGHTS: Record<string, number> = {
-  rsi: 0.10,
-  macd: 0.13,
-  bollinger: 0.08,
-  ema_cross: 0.11,
-  stochastic: 0.06,
-  adx: 0.08,
-  obv: 0.06,
-  cci: 0.05,
-  williams_r: 0.05,
-  mfi: 0.06,
-  ema_200_position: 0.04,
-  // 4 indicateurs ajoutés (brief MIDAS-BRIEF-ULTIMATE.md)
-  stoch_rsi: 0.06,
-  force_index: 0.06,
-  elder_ray: 0.06,
-  volume_profile: 0.05,
-};
-
-// --- Types ---
-
-interface IndicatorScore {
-  name: string;
-  signal: 'bullish' | 'bearish' | 'neutral';
-  score: number;
-  value: number | string;
-  interpretation: string;
-}
-
-interface TechnicalData {
-  indicators: IndicatorScore[];
-  regime: MarketRegime;
-  atr_value: number;
-  adx_value: number;
-  rsi_value: number;
-  current_price: number;
-  ema_200: number | null;
-}
+import {
+  RSI_PERIOD,
+  MACD_FAST,
+  MACD_SLOW,
+  MACD_SIGNAL,
+  BB_PERIOD,
+  BB_STD_DEV,
+  EMA_PERIODS,
+  STOCH_PERIOD,
+  STOCH_SIGNAL,
+  ADX_PERIOD,
+  ATR_PERIOD,
+  CCI_PERIOD,
+  WILLIAMS_PERIOD,
+  MFI_PERIOD,
+  INDICATOR_WEIGHTS,
+  ALL_TIMEFRAMES,
+  type Timeframe,
+} from './constants/technical-config';
+import type {
+  IndicatorScore,
+  TechnicalData,
+  TimeframeSignal,
+  MultiTimeframeTechnical,
+} from './types/technical-types';
 
 // --- Helper: extract close/high/low/volume arrays ---
 
@@ -849,27 +816,6 @@ export async function analyzeTechnical(
 
 import { fetchKlines } from '@/lib/exchange/binance-public';
 import type { MultiTimeframeResult } from '@/lib/agents/types';
-
-export type Timeframe = '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
-
-const ALL_TIMEFRAMES: Timeframe[] = ['1m', '5m', '15m', '1h', '4h', '1d'];
-
-interface TimeframeSignal {
-  timeframe: Timeframe;
-  signal: 'bullish' | 'bearish' | 'neutral';
-  score: number;
-  confidence: number;
-}
-
-export interface MultiTimeframeTechnical {
-  per_tf: TimeframeSignal[];
-  alignment: MultiTimeframeResult;
-  bullish_count: number;
-  bearish_count: number;
-  aligned_3plus: boolean;
-  composite_signal: 'bullish' | 'bearish' | 'neutral';
-  composite_score: number;
-}
 
 /**
  * Lance analyzeTechnical sur les 6 timeframes en parallèle et renvoie
