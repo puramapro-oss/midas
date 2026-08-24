@@ -6,59 +6,8 @@
 
 import type { AgentResult, Candle } from '@/lib/agents/types';
 import { detectAdvancedPatterns, type AdvancedPattern } from '@/lib/analysis/patterns-advanced';
-
-// --- Types ---
-
-type PatternType =
-  | 'double_top'
-  | 'double_bottom'
-  | 'higher_high'
-  | 'lower_low'
-  | 'higher_low'
-  | 'lower_high'
-  | 'support_test'
-  | 'resistance_test'
-  | 'breakout_up'
-  | 'breakout_down';
-
-interface DetectedPattern {
-  type: PatternType;
-  signal: 'bullish' | 'bearish' | 'neutral';
-  strength: number;
-  price_level: number;
-  description: string;
-}
-
-interface SwingPoint {
-  index: number;
-  price: number;
-  type: 'high' | 'low';
-  timestamp: number;
-}
-
-interface SupportResistance {
-  level: number;
-  type: 'support' | 'resistance';
-  touches: number;
-  strength: number;
-}
-
-interface PatternData {
-  patterns: DetectedPattern[];
-  advanced_patterns: AdvancedPattern[];
-  swing_highs: Array<{ price: number; timestamp: number }>;
-  swing_lows: Array<{ price: number; timestamp: number }>;
-  support_levels: SupportResistance[];
-  resistance_levels: SupportResistance[];
-  market_structure: 'bullish' | 'bearish' | 'neutral';
-}
-
-// --- Constants ---
-
-const SWING_LOOKBACK = 5;
-const PRICE_TOLERANCE_PCT = 0.015; // 1.5% pour considerer deux niveaux comme egaux
-const MIN_PATTERN_STRENGTH = 0.3;
-const LEVEL_CLUSTER_PCT = 0.02; // 2% pour regrouper les niveaux S/R
+import type { DetectedPattern, SwingPoint, SupportResistance, PatternData } from '@/lib/types/patterns';
+import { SWING_LOOKBACK, PRICE_TOLERANCE_PCT, MIN_PATTERN_STRENGTH, LEVEL_CLUSTER_PCT } from '@/lib/constants/patterns';
 
 // --- Swing Point Detection ---
 
