@@ -55,6 +55,7 @@
     "@purama/eslint-config": "file:../packages/eslint-config-purama",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.37",
+    "@types/pg": "^8.11.0",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -63,8 +64,7 @@
     "lighthouse": "^13.0.3",
     "playwright": "^1.58.2",
     "tailwindcss": "^4",
-    "typescript": "^5",
-    "@types/pg": "^8.11.0"
+    "typescript": "^5"
   },
   "overrides": {
     "crypto-js": "^4.2.0",
