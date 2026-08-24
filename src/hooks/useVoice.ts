@@ -2,38 +2,14 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { DEFAULT_VOICE_ID } from '@/lib/voice/constants';
-
-type VoiceState = 'idle' | 'recording' | 'transcribing' | 'speaking';
-
-interface SpeechRecognitionEvent {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-}
-
-interface SpeechRecognitionErrorEvent {
-  error: string;
-  message: string;
-}
-
-interface SpeechRecognitionInstance extends EventTarget {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  maxAlternatives: number;
-  start: () => void;
-  stop: () => void;
-  abort: () => void;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
-  onend: (() => void) | null;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition: new () => SpeechRecognitionInstance;
-    webkitSpeechRecognition: new () => SpeechRecognitionInstance;
-  }
-}
+import {
+  type VoiceState,
+  type SpeechRecognitionEvent,
+  type SpeechRecognitionErrorEvent,
+  type SpeechRecognitionInstance,
+  getSpeechRecognitionConstructor,
+  getLocaleFromCookie,
+} from './useVoice-helpers';
 
 export interface UseVoiceReturn {
   isRecording: boolean;
@@ -46,24 +22,6 @@ export interface UseVoiceReturn {
   analyserNode: AnalyserNode | null;
   error: string | null;
   state: VoiceState;
-}
-
-function getSpeechRecognitionConstructor(): (new () => SpeechRecognitionInstance) | null {
-  if (typeof window === 'undefined') return null;
-  return window.SpeechRecognition ?? window.webkitSpeechRecognition ?? null;
-}
-
-function getLocaleFromCookie(): string {
-  if (typeof document === 'undefined') return 'fr-FR';
-  const match = document.cookie.match(/(?:^|;\s*)locale=([^;]*)/);
-  const lang = match?.[1] ?? 'fr';
-  const localeMap: Record<string, string> = {
-    fr: 'fr-FR', en: 'en-US', es: 'es-ES', de: 'de-DE',
-    it: 'it-IT', pt: 'pt-PT', ar: 'ar-SA', zh: 'zh-CN',
-    ja: 'ja-JP', ko: 'ko-KR', hi: 'hi-IN', ru: 'ru-RU',
-    tr: 'tr-TR', nl: 'nl-NL', pl: 'pl-PL', sv: 'sv-SE',
-  };
-  return localeMap[lang] ?? 'fr-FR';
 }
 
 export function useVoice(): UseVoiceReturn {
