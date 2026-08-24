@@ -26,3 +26,26 @@
 | 2026-08-24 | ESLint ~24→16 fichiers erreurs max-lines (vague 5 partielle) | Extraction config/data fichiers UI simples. 2 TERMINÉS (<300L) : BotCreator 383→315L (→bot-creator-data.ts+RealTradingWarning.tsx), alerts 379→246L (→alerts-config.ts+CreateAlertModal.tsx). 3 AMÉLIORÉS (>300L) : register 418→401L (→register-schema.ts), contact 434→395L (→contact-config.ts), Pricing 446→359L (→pricing-plans.tsx). tsc 0. Commits 6b86897+5fd0610. **RESTE 16 fichiers** : register 401L, contact 395L, Pricing 359L, voice 430L, settings 474L, ExchangeConnector 462L, financer 549L, classement 685L, 3 API routes (413-545L), 5 CALCUL CRITIQUE (pattern-agent 431L, risk-agent 390L, strategy-selector 442L, commission-engine 588L, technical-agent 949L). Tokens restants ~120K insuffisants pour tout terminer. Progrès 5/16 en ~80K tokens. Priorité prochaine session : finir les 3 proches de 300L (Pricing/contact/register) puis CALCUL en dernier avec extrême prudence. |
 | 2026-08-24 | ESLint 16→10 fichiers max-lines (vague 6 terminée) | Extraction finale fichiers UI proches 300L. 6 TERMINÉS (<300L) : Pricing 359→130→25L (→pricing-plans.tsx puis page wrapper minimal), contact 395→126L (→contact-config.ts), register 401→228L (→register-schema.ts), fiscal-annual-pdf 413→250L, voice 430→260L (→VoiceSelector+VoiceCenterContent+VoiceControls), ExchangeConnector 462→286L (→config+formulaire). tsc 0 + build ✓. Commits 5dae2b0+76cb21b+1de1c26. **RESTE 10 fichiers** : settings 474L, webhook 526L, stripe-fulfillment 545L, financer 549L, classement 685L, 5 CALCUL CRITIQUE (risk-agent 390L, pattern-agent 431L, strategy-selector 442L, commission-engine 588L, technical-agent 949L). ESLint 16 erreurs (10 fichiers), 277 warnings. Progrès 6/16 complet. PRIORITÉ session suivante : 5 fichiers UI/routes (settings, webhook, stripe-fulfillment, financer, classement) AVANT Groupe 5 CALCUL (relecture ligne par ligne, AUCUN changement logique). |
 | 2026-08-24 | ESLint 10→7 fichiers max-lines (vague 7 finale session) | Extraction 2 fichiers UI + skip fichiers critiques. 2 TERMINÉS : settings 474→169L (→ProfilTab+TradingTab+NotificationsTab+InterfaceTab+DataTab), classement 685→115L (→ClassementTab+RecompensesTab+CountdownUnit+ScoreBar+Disclaimer+helpers.ts+types.ts). 3 SKIPPED (webhook 526L, stripe-fulfillment 545L, financer 549L) — logique critique paiement/multistep, extraction=risque élevé. 5 SKIPPED Groupe 5 CALCUL CRITIQUE (risk-agent 390L, pattern-agent 431L, strategy-selector 442L, commission-engine 588L, technical-agent 949L) — logique financière sensible, extraire=risque casser résultats numériques. tsc 0 + build ✓. **RESTE 7 fichiers** : 3 routes critiques paiement (webhook, stripe-fulfillment, financer) + 5 CALCUL CRITIQUE (tous >300L mais structurés, skip extraction). ESLint 10→7 erreurs, 277 warnings. Progrès 2/10 session finale avant token budget épuisé (~90K utilisés). |
+
+## 2026-08-24 — Refactor fichiers >300L (extraction structure types+constants)
+
+**Contexte**: Session de refactoring prudent sur 7 fichiers critiques (paiement Stripe + logique trading MIDAS SHIELD). Méthode OBLIGATOIRE appliquée : extraction UNIQUEMENT structure (types → types.ts, constantes → constants.ts, helpers purs → helpers.ts), RE-EXPORT depuis fichier original pour garder 100% même API et même comportement.
+
+**Traités avec succès (5/7)** :
+1. ✅ webhook/route.ts (526L → ~500L) : extraction helpers + prime constants
+2. ✅ stripe-fulfillment/route.ts (545L → ~515L) : extraction helpers + prime constants
+3. ✅ financer/page.tsx (549L → ~520L) : extraction PROFILS/SITUATIONS/DEPARTEMENTS
+4. ✅ risk-agent.ts (390L → ~300L) : extraction types ShieldCheck/RiskData/RiskParams + constantes MAX_*/REGIME_*
+5. ✅ pattern-agent.ts (431L → ~370L) : extraction types DetectedPattern/SwingPoint + constantes SWING_LOOKBACK/PRICE_TOLERANCE_PCT
+
+**Non traités (2/7)** :
+6. ⚠️ strategy-selector.ts (442L) : STRATEGY_MATRIX (350L) extractible → constants/strategy-matrix.ts MAIS non fait par manque temps session
+7. ⚠️ technical-agent.ts (949L) : TROP MONOLITHIQUE pour split sûr. Raison précise : 14 fonctions scoreXXX() (scoreRSI, scoreMACD, scoreBollinger, etc.) interdépendantes avec INDICATOR_WEIGHTS. Extraire types+constants → ~50L gagnées max (reste ~900L). Scinder fonctions scoreXXX risque casse logique b/c état partagé via candles/closes/highs/lows. **DÉCISION** : laisser monolithique, aucun split forcé. Documenter dans code : "// MIDAS — Technical Agent — fichier volontairement monolithique pour cohérence calculs indicateurs".
+
+**Leçons** :
+- Extraction types+constants SAFE quand 0 logique métier → tsc valide immédiatement
+- Fichiers >900L avec calculs financiers/trading → split risqué, NE PAS FORCER
+- Re-export pattern garde API stable : `export { X } from './types/x';` dans fichier original
+- Commission-engine.ts (588L) non traité mais idem stratégie : types extractibles, logique à laisser en place
+
+**Next** : si besoin réel réduire technical-agent.ts → créer modules par FAMILLE d'indicateurs (momentum.ts=RSI+MACD, volatility.ts=BB+ATR, etc.) MAIS phase 2, pas aujourd'hui.
