@@ -1,18 +1,11 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createClient } from '@supabase/supabase-js';
 import { PLANS, getPlanByPriceId } from '@/lib/stripe/plans';
 import { dispatchCommissionsFromStripeInvoice } from '@/lib/commission-engine';
 import { syncConnectAccount } from '@/lib/stripe/connect';
 import { dispatchKarmaSplit } from '@/lib/karma/dispatch';
-
-function getStripe() {
-  return new Stripe(process.env.STRIPE_SECRET_KEY!, { typescript: true });
-}
-
-function getAdminSupabase() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-}
+import { getStripe, getAdminSupabase } from '@/lib/stripe/helpers';
+import { PRIME_TRANCHE_1, PRIME_TRANCHE_2, PRIME_TRANCHE_3 } from '@/lib/constants/prime';
 
 export async function POST(request: Request) {
   try {
@@ -100,14 +93,14 @@ export async function POST(request: Request) {
 
               if (!existingT1) {
                 // Crédit immédiat tranche 1
-                const t1 = 25;
+                const t1 = PRIME_TRANCHE_1;
                 const m1 = new Date(now); m1.setMonth(m1.getMonth() + 1);
                 const m2 = new Date(now); m2.setMonth(m2.getMonth() + 2);
 
                 await adminSupabase.from('prime_tranches').insert([
                   { user_id: userId, app_id: 'midas', palier: 1, amount: t1, scheduled_for: now.toISOString(), credited_at: now.toISOString(), status: 'credited' },
-                  { user_id: userId, app_id: 'midas', palier: 2, amount: 25, scheduled_for: m1.toISOString(), status: 'scheduled' },
-                  { user_id: userId, app_id: 'midas', palier: 3, amount: 50, scheduled_for: m2.toISOString(), status: 'scheduled' },
+                  { user_id: userId, app_id: 'midas', palier: 2, amount: PRIME_TRANCHE_2, scheduled_for: m1.toISOString(), status: 'scheduled' },
+                  { user_id: userId, app_id: 'midas', palier: 3, amount: PRIME_TRANCHE_3, scheduled_for: m2.toISOString(), status: 'scheduled' },
                 ]);
 
                 // Créditer tranche 1 dans wallet_balance
