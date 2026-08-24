@@ -2,6 +2,7 @@
 
 | DATE | BUG | CAUSE | FIX |
 |------|-----|-------|-----|
+| 2026-08-24 | 16 fichiers max-lines>300 | Composants/routes trop longs | Extraction composants réutilisables (Pricing 360→130L, contact 395→126L, register 401→228L, fiscal-annual-pdf 413→250L, voice 430→260L, ExchangeConnector 462→286L) |
 | 2026-04-09 | purama_points table missing | Schema oublie lors du push initial | CREATE TABLE midas.purama_points manuellement |
 | 2026-04-09 | Build fail tsparticles | Import SSR incompatible | dynamic(() => import(), { ssr: false }) |
 | 2026-04-13 | Vercel deploy fail git author | Email ne matchait pas le team Vercel | git config user.email purama.pro@gmail.com |

@@ -2,20 +2,12 @@
 
 import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import {
-  Eye,
-  EyeOff,
-  Check,
-  Unplug,
-  Loader2,
-  Wifi,
-  WifiOff,
-  ShieldCheck,
-  ChevronDown,
-} from 'lucide-react'
+import { Check, Unplug, Loader2, Wifi, WifiOff, ShieldCheck, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils/formatters'
 import { Button } from '@/components/ui/Button'
-import { Accordion, type AccordionItem } from '@/components/ui/Accordion'
+import { Accordion } from '@/components/ui/Accordion'
+import { exchangeDisplayNames, exchangeTutorials, getDefaultTutorial } from './exchange-config'
+import { ExchangeForm } from './ExchangeForm'
 
 export interface Exchange {
   name: string
@@ -29,123 +21,6 @@ export interface ExchangeConnectorProps {
   onTest?: () => void
   onDisconnect?: () => void
   className?: string
-}
-
-const exchangeDisplayNames: Record<string, string> = {
-  binance: 'Binance',
-  bybit: 'Bybit',
-  okx: 'OKX',
-  bitget: 'Bitget',
-  kucoin: 'KuCoin',
-  kraken: 'Kraken',
-  gate: 'Gate.io',
-  mexc: 'MEXC',
-  htx: 'HTX',
-  coinbase: 'Coinbase',
-}
-
-const exchangeTutorials: Record<string, AccordionItem[]> = {
-  binance: [
-    {
-      id: 'step-1',
-      title: 'Étape 1 — Accéder aux paramètres API',
-      content: (
-        <div className="space-y-2 text-xs text-white/50">
-          <p>Connecte-toi à ton compte Binance. Va dans <strong className="text-white/70">Profil</strong> puis <strong className="text-white/70">Gestion des API</strong>.</p>
-        </div>
-      ),
-    },
-    {
-      id: 'step-2',
-      title: 'Étape 2 — Créer une clé API',
-      content: (
-        <div className="space-y-2 text-xs text-white/50">
-          <p>Clique sur <strong className="text-white/70">Créer une API</strong>. Donne un label (ex: &quot;MIDAS Bot&quot;). Complète la vérification 2FA.</p>
-        </div>
-      ),
-    },
-    {
-      id: 'step-3',
-      title: 'Étape 3 — Configurer les permissions',
-      content: (
-        <div className="space-y-2 text-xs text-white/50">
-          <p>Active uniquement <strong className="text-white/70">Lecture</strong> et <strong className="text-white/70">Trading Spot & Futures</strong>. Ne coche <strong className="text-red-400/70">jamais</strong> la permission Retrait.</p>
-          <p>Ajoute une restriction IP si possible pour plus de sécurité.</p>
-        </div>
-      ),
-    },
-    {
-      id: 'step-4',
-      title: 'Étape 4 — Copier les clés',
-      content: (
-        <div className="space-y-2 text-xs text-white/50">
-          <p>Copie la <strong className="text-white/70">clé API</strong> et le <strong className="text-white/70">Secret</strong> dans les champs ci-dessus. Le secret n&apos;est visible qu&apos;une seule fois.</p>
-        </div>
-      ),
-    },
-  ],
-  bybit: [
-    {
-      id: 'step-1',
-      title: 'Étape 1 — Accéder aux clés API',
-      content: (
-        <div className="space-y-2 text-xs text-white/50">
-          <p>Connecte-toi à Bybit. Va dans <strong className="text-white/70">Compte</strong> puis <strong className="text-white/70">API Management</strong>.</p>
-        </div>
-      ),
-    },
-    {
-      id: 'step-2',
-      title: 'Étape 2 — Créer une nouvelle clé',
-      content: (
-        <div className="space-y-2 text-xs text-white/50">
-          <p>Clique sur <strong className="text-white/70">Create New Key</strong>. Sélectionne &quot;System-generated API Keys&quot;. Nomme la clé &quot;MIDAS Bot&quot;.</p>
-        </div>
-      ),
-    },
-    {
-      id: 'step-3',
-      title: 'Étape 3 — Permissions',
-      content: (
-        <div className="space-y-2 text-xs text-white/50">
-          <p>Active <strong className="text-white/70">Read-Write</strong> pour les trades. Désactive les retraits. Valide avec ta 2FA.</p>
-        </div>
-      ),
-    },
-  ],
-}
-
-function getDefaultTutorial(name: string): AccordionItem[] {
-  const displayName = exchangeDisplayNames[name] ?? name
-  return [
-    {
-      id: 'step-1',
-      title: 'Étape 1 — Connexion',
-      content: (
-        <div className="space-y-2 text-xs text-white/50">
-          <p>Connecte-toi à ton compte {displayName}. Accède aux paramètres API dans ton profil ou tes réglages de sécurité.</p>
-        </div>
-      ),
-    },
-    {
-      id: 'step-2',
-      title: 'Étape 2 — Créer les clés',
-      content: (
-        <div className="space-y-2 text-xs text-white/50">
-          <p>Crée une nouvelle clé API. Active les permissions de <strong className="text-white/70">Lecture</strong> et de <strong className="text-white/70">Trading</strong>. Ne donne <strong className="text-red-400/70">jamais</strong> la permission de retrait.</p>
-        </div>
-      ),
-    },
-    {
-      id: 'step-3',
-      title: 'Étape 3 — Coller ici',
-      content: (
-        <div className="space-y-2 text-xs text-white/50">
-          <p>Copie ta clé API et ton Secret dans les champs ci-dessus, puis clique sur &quot;Tester la connexion&quot;.</p>
-        </div>
-      ),
-    },
-  ]
 }
 
 export function ExchangeConnector({
@@ -284,94 +159,43 @@ export function ExchangeConnector({
         />
       </div>
 
-      {/* API Key + Secret inputs */}
-      <div className="px-6 space-y-3">
-        {/* API Key */}
-        <div className="space-y-1.5">
-          <label className="text-xs text-white/40">Clé API</label>
-          <div className="relative">
-            <input
-              type={showApiKey ? 'text' : 'password'}
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Colle ta clé API ici..."
-              className={cn(
-                'w-full h-11 px-4 pr-10 rounded-xl border bg-white/[0.03] text-sm text-white placeholder:text-white/20 outline-none transition-all duration-200 font-mono',
-                'border-white/[0.08] hover:border-white/[0.12] focus:border-[#FFD700]/50 focus:shadow-[0_0_12px_rgba(255,215,0,0.15)]'
-              )}
-              data-testid={`api-key-input-${exchange.name}`}
-            />
-            <button
-              type="button"
-              onClick={() => setShowApiKey((prev) => !prev)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
-              aria-label={showApiKey ? 'Masquer la clé API' : 'Afficher la clé API'}
-            >
-              {showApiKey ? (
-                <EyeOff className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
-            </button>
-          </div>
-        </div>
+      <ExchangeForm
+        exchangeName={exchange.name}
+        apiKey={apiKey}
+        secret={secret}
+        showApiKey={showApiKey}
+        showSecret={showSecret}
+        onApiKeyChange={setApiKey}
+        onSecretChange={setSecret}
+        onToggleApiKey={() => setShowApiKey((prev) => !prev)}
+        onToggleSecret={() => setShowSecret((prev) => !prev)}
+      />
 
-        {/* Secret */}
-        <div className="space-y-1.5">
-          <label className="text-xs text-white/40">Secret</label>
-          <div className="relative">
-            <input
-              type={showSecret ? 'text' : 'password'}
-              value={secret}
-              onChange={(e) => setSecret(e.target.value)}
-              placeholder="Colle ton secret ici..."
-              className={cn(
-                'w-full h-11 px-4 pr-10 rounded-xl border bg-white/[0.03] text-sm text-white placeholder:text-white/20 outline-none transition-all duration-200 font-mono',
-                'border-white/[0.08] hover:border-white/[0.12] focus:border-[#FFD700]/50 focus:shadow-[0_0_12px_rgba(255,215,0,0.15)]'
-              )}
-              data-testid={`api-secret-input-${exchange.name}`}
-            />
-            <button
-              type="button"
-              onClick={() => setShowSecret((prev) => !prev)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
-              aria-label={showSecret ? 'Masquer le secret' : 'Afficher le secret'}
-            >
-              {showSecret ? (
-                <EyeOff className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* Test result feedback */}
-        {testResult && (
-          <motion.div
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={cn(
-              'flex items-center gap-2 px-3 py-2 rounded-lg text-xs',
-              testResult === 'success'
-                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                : 'bg-red-500/10 text-red-400 border border-red-500/20'
-            )}
-          >
-            {testResult === 'success' ? (
-              <>
-                <ShieldCheck className="h-3.5 w-3.5" />
-                <span>Connexion réussie — clés valides</span>
-              </>
-            ) : (
-              <>
-                <WifiOff className="h-3.5 w-3.5" />
-                <span>Échec de la connexion — vérifie tes clés</span>
-              </>
-            )}
-          </motion.div>
-        )}
-      </div>
+      {/* Test result feedback */}
+      {testResult && (
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={cn(
+            'flex items-center gap-2 px-3 py-2 rounded-lg text-xs mx-6',
+            testResult === 'success'
+              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+              : 'bg-red-500/10 text-red-400 border border-red-500/20'
+          )}
+        >
+          {testResult === 'success' ? (
+            <>
+              <ShieldCheck className="h-3.5 w-3.5" />
+              <span>Connexion réussie — clés valides</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="h-3.5 w-3.5" />
+              <span>Échec de la connexion — vérifie tes clés</span>
+            </>
+          )}
+        </motion.div>
+      )}
 
       {/* Actions */}
       <div className="px-6 py-4 space-y-3">
