@@ -13,63 +13,42 @@
 // c'est alignée avec le brief : "tous nouveaux signups = v3 par défaut").
 // =============================================================================
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type Stripe from 'stripe';
-import type {
-  CommissionType,
-  PartnershipVersion,
-} from '@/types/partnership';
+import { COMMISSION_RATES_V2, COMMISSION_RATES_V3 } from '@/types/partnership';
 import {
-  COMMISSION_RATES_V2,
-  COMMISSION_RATES_V3,
-} from '@/types/partnership';
+  getAdminClient,
+  round2,
+  extractInvoiceMetadata,
+  writeLog,
+} from './commission-engine-helpers';
+import type {
+  PartnerMinimal,
+  CommissionEvent,
+  CommissionRow,
+  ResolvedChain,
+  DispatchSuccess,
+  DispatchFailure,
+  StripeDispatchResult,
+  StripeDispatchSkipReason,
+  PartnerReferralRow,
+} from './commission-engine-types';
 
-export interface PartnerMinimal {
-  id: string;
-  partnership_version: PartnershipVersion;
-  level2_partner_id: string | null;
-  level3_partner_id: string | null;
-  status: string;
-}
-
-export interface CommissionEvent {
-  /** Le partner L1 direct de l'utilisateur payeur. */
-  partnerId: string;
-  /** Référence stripe pour la traçabilité. */
-  stripePaymentId?: string | null;
-  /** Référence partner_referrals, si disponible. */
-  referralId?: string | null;
-  /** Montant HT du paiement (en EUR, sans centimes). */
-  paidAmountEur: number;
-  /** Est-ce le tout premier paiement du filleul ? (utile v2 pour first_month). */
-  isFirstPayment: boolean;
-  /** Description humaine pour le log. */
-  description?: string;
-}
-
-export interface CommissionRow {
-  partner_id: string;
-  referral_id: string | null;
-  type: CommissionType;
-  amount: number;
-  currency: 'EUR';
-  status: 'pending' | 'approved' | 'paid' | 'rejected';
-  stripe_payment_id: string | null;
-  description: string;
-  level: number;
-  partnership_version: PartnershipVersion;
-}
+export type {
+  PartnerMinimal,
+  CommissionEvent,
+  CommissionRow,
+  ResolvedChain,
+  DispatchSuccess,
+  DispatchFailure,
+  StripeDispatchResult,
+  StripeDispatchSkipReason,
+  PartnerReferralRow,
+} from './commission-engine-types';
 
 // ---------------------------------------------------------------------------
 // Résolution de la chaîne de parrains L1/L2/L3
 // ---------------------------------------------------------------------------
-
-function getAdminClient(): SupabaseClient {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-}
 
 export async function fetchPartnerMinimal(
   supabase: SupabaseClient,
@@ -81,12 +60,6 @@ export async function fetchPartnerMinimal(
     .eq('id', partnerId)
     .maybeSingle<PartnerMinimal>();
   return data ?? null;
-}
-
-interface ResolvedChain {
-  l1: PartnerMinimal;
-  l2: PartnerMinimal | null;
-  l3: PartnerMinimal | null;
 }
 
 async function resolveChain(
@@ -220,16 +193,6 @@ export function computeCommissions(args: {
 // Orchestrateur — utilisé par le webhook Stripe et /api/referral/reward
 // ---------------------------------------------------------------------------
 
-export interface DispatchSuccess {
-  ok: true;
-  rows: CommissionRow[];
-  insertedIds: string[];
-}
-export interface DispatchFailure {
-  ok: false;
-  error: string;
-}
-
 export async function dispatchCommissions(
   event: CommissionEvent,
   supabase?: SupabaseClient,
@@ -287,302 +250,7 @@ export async function dispatchCommissions(
 }
 
 // ---------------------------------------------------------------------------
-// Stripe webhook helper — invoice.paid → dispatchCommissionsFromStripeInvoice
+// Stripe webhook helper — re-exported from commission-engine-stripe.ts
 // ---------------------------------------------------------------------------
 
-export type StripeDispatchResult =
-  | { ok: true; status: 'ok'; dispatchedIds: string[]; amountEur: number }
-  | { ok: true; status: 'skipped'; reason: StripeDispatchSkipReason }
-  | { ok: false; status: 'failed'; error: string };
-
-export type StripeDispatchSkipReason =
-  | 'already_processed'
-  | 'zero_amount'
-  | 'no_user_id'
-  | 'no_partner_referral'
-  | 'partner_inactive'
-  | 'no_commissions_computed';
-
-interface PartnerReferralRow {
-  id: string;
-  partner_id: string;
-  referred_user_id: string;
-  first_payment_at: string | null;
-  status: 'pending' | 'active' | 'churned';
-}
-
-/**
- * Déclenché par le webhook Stripe `invoice.paid`.
- *
- * Responsabilités :
- *  1. Idempotence stricte via `commission_dispatch_log.stripe_invoice_id` UNIQUE.
- *  2. Résout le partner via `partner_referrals.referred_user_id` (dernier non churned).
- *  3. Convertit `invoice.amount_paid` (cents) en EUR, rejette si 0 (trial / crédit).
- *  4. Détermine `isFirstPayment` via `partner_referrals.first_payment_at IS NULL`.
- *  5. Appelle `dispatchCommissions()`, INSERT log row, UPDATE référence status/date.
- *
- * Ne throw JAMAIS — toute erreur est loggée en base avec `status='failed'` pour
- * garantir que le webhook Stripe retourne toujours 200.
- */
-export async function dispatchCommissionsFromStripeInvoice(
-  invoice: Stripe.Invoice,
-  supabase?: SupabaseClient,
-): Promise<StripeDispatchResult> {
-  const db = supabase ?? getAdminClient();
-  const invoiceId = invoice.id ?? '';
-
-  // Identifiants
-  const stripeCustomerId =
-    typeof invoice.customer === 'string' ? invoice.customer : invoice.customer?.id ?? null;
-
-  // user_id provient de subscription.metadata (pattern existant MIDAS : le
-  // webhook checkout + invoice pose metadata.user_id sur la subscription).
-  const subMeta = extractInvoiceMetadata(invoice);
-  const userId = subMeta.userId;
-
-  try {
-    // 1. Idempotence check
-    if (invoiceId) {
-      const existing = await db
-        .from('commission_dispatch_log')
-        .select('id, status')
-        .eq('stripe_invoice_id', invoiceId)
-        .maybeSingle();
-
-      if (existing.data) {
-        return { ok: true, status: 'skipped', reason: 'already_processed' };
-      }
-    }
-
-    // 2. Skip si metadata manquante
-    if (!userId) {
-      await writeLog(db, {
-        stripe_invoice_id: invoiceId || `noid_${Date.now()}`,
-        stripe_customer_id: stripeCustomerId,
-        user_id: null,
-        partner_id: null,
-        amount_eur: 0,
-        is_first_payment: false,
-        commission_ids: [],
-        status: 'skipped',
-        skip_reason: 'no_user_id',
-        error: null,
-      });
-      return { ok: true, status: 'skipped', reason: 'no_user_id' };
-    }
-
-    // 3. Montant
-    const amountEur = (invoice.amount_paid ?? 0) / 100;
-    if (amountEur <= 0) {
-      await writeLog(db, {
-        stripe_invoice_id: invoiceId,
-        stripe_customer_id: stripeCustomerId,
-        user_id: userId,
-        partner_id: null,
-        amount_eur: 0,
-        is_first_payment: false,
-        commission_ids: [],
-        status: 'skipped',
-        skip_reason: 'zero_amount',
-        error: null,
-      });
-      return { ok: true, status: 'skipped', reason: 'zero_amount' };
-    }
-
-    // 4. Resolve partner referral (dernier non churned)
-    const referralRes = await db
-      .from('partner_referrals')
-      .select('id, partner_id, referred_user_id, first_payment_at, status')
-      .eq('referred_user_id', userId)
-      .neq('status', 'churned')
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    const referralRows = (referralRes.data ?? []) as PartnerReferralRow[];
-    const referral = referralRows[0] ?? null;
-
-    if (!referral) {
-      await writeLog(db, {
-        stripe_invoice_id: invoiceId,
-        stripe_customer_id: stripeCustomerId,
-        user_id: userId,
-        partner_id: null,
-        amount_eur: amountEur,
-        is_first_payment: false,
-        commission_ids: [],
-        status: 'skipped',
-        skip_reason: 'no_partner_referral',
-        error: null,
-      });
-      return { ok: true, status: 'skipped', reason: 'no_partner_referral' };
-    }
-
-    const isFirstPayment = referral.first_payment_at === null;
-
-    // 5. Dispatch
-    const dispatchRes = await dispatchCommissions(
-      {
-        partnerId: referral.partner_id,
-        stripePaymentId: invoiceId,
-        referralId: referral.id,
-        paidAmountEur: amountEur,
-        isFirstPayment,
-        description: isFirstPayment
-          ? `Invoice ${invoiceId} — first payment`
-          : `Invoice ${invoiceId} — recurring`,
-      },
-      db,
-    );
-
-    if (!dispatchRes.ok) {
-      // Partner inactif / autre erreur dispatch
-      const isInactive = dispatchRes.error === 'partner_not_found_or_inactive';
-      await writeLog(db, {
-        stripe_invoice_id: invoiceId,
-        stripe_customer_id: stripeCustomerId,
-        user_id: userId,
-        partner_id: referral.partner_id,
-        amount_eur: amountEur,
-        is_first_payment: isFirstPayment,
-        commission_ids: [],
-        status: isInactive ? 'skipped' : 'failed',
-        skip_reason: isInactive ? 'partner_inactive' : null,
-        error: isInactive ? null : dispatchRes.error,
-      });
-      if (isInactive) {
-        return { ok: true, status: 'skipped', reason: 'partner_inactive' };
-      }
-      return { ok: false, status: 'failed', error: dispatchRes.error };
-    }
-
-    if (dispatchRes.rows.length === 0) {
-      await writeLog(db, {
-        stripe_invoice_id: invoiceId,
-        stripe_customer_id: stripeCustomerId,
-        user_id: userId,
-        partner_id: referral.partner_id,
-        amount_eur: amountEur,
-        is_first_payment: isFirstPayment,
-        commission_ids: [],
-        status: 'skipped',
-        skip_reason: 'no_commissions_computed',
-        error: null,
-      });
-      return { ok: true, status: 'skipped', reason: 'no_commissions_computed' };
-    }
-
-    // 6. Success — log + update referral status/date
-    await writeLog(db, {
-      stripe_invoice_id: invoiceId,
-      stripe_customer_id: stripeCustomerId,
-      user_id: userId,
-      partner_id: referral.partner_id,
-      amount_eur: amountEur,
-      is_first_payment: isFirstPayment,
-      commission_ids: dispatchRes.insertedIds,
-      status: 'ok',
-      skip_reason: null,
-      error: null,
-    });
-
-    if (isFirstPayment) {
-      await db
-        .from('partner_referrals')
-        .update({
-          first_payment_at: new Date().toISOString(),
-          status: 'active',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', referral.id);
-    }
-
-    // Accumulateur total_commission_earned sur partner_referrals (reporting)
-    const total = dispatchRes.rows
-      .filter((r) => r.partner_id === referral.partner_id)
-      .reduce((s, r) => s + r.amount, 0);
-    if (total > 0) {
-      await db.rpc('increment_referral_commission_total', {
-        p_referral_id: referral.id,
-        p_amount: total,
-      }).then((res) => {
-        if (res.error) {
-          // noop — RPC facultative, le log suffit pour audit.
-        }
-      }, () => { /* noop */ });
-    }
-
-    return {
-      ok: true,
-      status: 'ok',
-      dispatchedIds: dispatchRes.insertedIds,
-      amountEur,
-    };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'unknown';
-    try {
-      await writeLog(db, {
-        stripe_invoice_id: invoiceId || `exception_${Date.now()}`,
-        stripe_customer_id: stripeCustomerId,
-        user_id: userId ?? null,
-        partner_id: null,
-        amount_eur: (invoice.amount_paid ?? 0) / 100,
-        is_first_payment: false,
-        commission_ids: [],
-        status: 'failed',
-        skip_reason: null,
-        error: msg,
-      });
-    } catch { /* noop */ }
-    return { ok: false, status: 'failed', error: msg };
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-interface LogInsert {
-  stripe_invoice_id: string;
-  stripe_customer_id: string | null;
-  user_id: string | null;
-  partner_id: string | null;
-  amount_eur: number;
-  is_first_payment: boolean;
-  commission_ids: string[];
-  status: 'ok' | 'skipped' | 'failed';
-  skip_reason: string | null;
-  error: string | null;
-}
-
-async function writeLog(db: SupabaseClient, row: LogInsert): Promise<void> {
-  try {
-    await db.from('commission_dispatch_log').insert(row);
-  } catch {
-    // Le log audit ne doit jamais casser le flow webhook — silent catch.
-  }
-}
-
-function extractInvoiceMetadata(invoice: Stripe.Invoice): { userId: string | null } {
-  // Stripe expose invoice.subscription_details.metadata depuis 2024 + metadata
-  // directe sur invoice. Fallback sur invoice.metadata, puis subscription metadata.
-  type WithMetadata = { metadata?: Record<string, string> | null };
-  type InvoiceWithDetails = Stripe.Invoice & {
-    subscription_details?: WithMetadata | null;
-    subscription?: string | (Stripe.Subscription & WithMetadata) | null;
-  };
-
-  const inv = invoice as InvoiceWithDetails;
-
-  const fromDetails = inv.subscription_details?.metadata?.user_id ?? null;
-  const fromInvoice = inv.metadata?.user_id ?? null;
-  const fromSub =
-    typeof inv.subscription === 'object' && inv.subscription !== null
-      ? inv.subscription.metadata?.user_id ?? null
-      : null;
-
-  return { userId: fromDetails ?? fromInvoice ?? fromSub ?? null };
-}
-
-function round2(n: number): number {
-  return Math.round(n * 100) / 100;
-}
+export { dispatchCommissionsFromStripeInvoice } from './commission-engine-stripe';
