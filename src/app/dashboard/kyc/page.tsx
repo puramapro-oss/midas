@@ -12,14 +12,7 @@ import Badge from '@/components/ui/Badge';
 import { toast } from 'sonner';
 import type { KycVerification, KycTier } from '@/types/database';
 import { KYC_TIER_LIMITS } from '@/types/database';
-
-type Step = 'overview' | 'identity' | 'address' | 'document' | 'review';
-
-const DOCUMENT_TYPES = [
-  { id: 'passport' as const, label: "Passeport", icon: '🛂' },
-  { id: 'id_card' as const, label: "Carte d'identité", icon: '🪪' },
-  { id: 'driver_license' as const, label: 'Permis de conduire', icon: '🚗' },
-];
+import { DOCUMENT_TYPES, type Step } from '@/lib/kyc/constants';
 
 export default function KycPage() {
   const [kyc, setKyc] = useState<Partial<KycVerification> | null>(null);
