@@ -48,6 +48,10 @@
 
 **Leçons** :
 - Extraction types+constants SAFE quand 0 logique métier → tsc valide immédiatement
+
+| DATE | BUG | CAUSE | FIX |
+|------|-----|-------|-----|
+| 2026-08-24 | ESLint 8→6 erreurs max-lines (vague copy-trading+trading) | Refactoring 2 fichiers pages UI complexes extraction composants réutilisables | copy-trading/page.tsx 365→~120L (extraction TraderCard+CopyCard+EmptyState+BecomeTraderForm), trading/page.tsx 383→~80L (extraction TradingChart+PairSelector+TimeframeSelector+PriceDisplay+SignalPanel+RecentSignals). tsc 0 + build ✓. Commits 10d91cc + aea7605. **RESTE 6 fichiers** : stripe-fulfillment 408L, webhook 395L, analysis/[pair] 401L, earn 445L, kyc 514L, financer 437L. Progrès 2/8 fichiers initiaux réels détectés par lint (technical-agent.ts 895L non détecté par lint, probablement exception .eslintrc). État: 6 erreurs max-lines restantes, aucune régression build/types.
 - Fichiers >900L avec calculs financiers/trading → split risqué, NE PAS FORCER
 - Re-export pattern garde API stable : `export { X } from './types/x';` dans fichier original
 - Commission-engine.ts (588L) non traité mais idem stratégie : types extractibles, logique à laisser en place
