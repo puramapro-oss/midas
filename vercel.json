@@ -127,6 +127,10 @@
     {
       "path": "/api/cron/account-deletion",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/retention-followup",
+      "schedule": "0 8 * * *"
     }
   ],
   "installCommand": "git config --global url.\"https://${SMARANA_GIT_TOKEN}@github.com/\".insteadOf \"ssh://git@github.com/\" && npm install"

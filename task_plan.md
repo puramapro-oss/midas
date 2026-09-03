@@ -764,3 +764,13 @@ production. Migration appliquée VPS + smoke-testée via PostgREST réel.
 - Webhook safety net : account.updated / transfer.reversed / payout.failed
 
 **MIDAS V7.1 + V4.1 Axe 1+2+3 → 100% complet en production.**
+
+## P11 — Échelle anti-résiliation (RETENTION-BRIEF.md, pilote #10 @purama/retention, 2026-09-03) ✅
+- Migration `midas.promo_codes_log`+`midas.retention_events` appliquée en direct sur le VPS
+- Adapter `src/lib/retention.ts` (profiles+Stripe = source de vérité, pas de table `subscriptions` — D-MI01)
+- 6 routes API `/api/stripe/retention/*` (eligibility/discount50/pause/palier/annual/cancel)
+- `RetentionLadder.tsx` (5-6 écrans selon palier) remplace `CancelModal.tsx` (mort)
+- BUG CRITIQUE corrigé au passage : page abonnement cassée en prod depuis le lancement (D-MI03)
+- Emails J+7/J+30 (`src/lib/notifications/email.ts` étendu) + cron `retention-followup`
+- tsc 0 erreur + next build vert x2 passes réelles
+- Gaps assumés : pas de Playwright (D-MI06), pas de KYC (D-MI07)
