@@ -1,10 +1,14 @@
 /**
  * MIDAS — Types Karma Split V4.1 Axe 2
  *
- * Split automatique des abos Stripe (invoice.paid) — split canonique
- * 50/10/40 (CLAUDE.md §9.1) : reward 50% · asso 10% · sasu 40%.
- * Le pool `adya` (10/10/30 V4.1 obsolète) est neutralisé à 0% mais gardé
- * dans le type et la RPC pour ne pas casser la colonne/le contrat existants.
+ * Split automatique des abos Stripe (invoice.paid) — split canonique gravé
+ * 50/30/20 (CLAUDE.md §9.1, FACTS.md source unique) : reward(membres) 50% ·
+ * asso(désormais pool affiliés-parrains, plus de part association
+ * automatique) 30% · sasu 20%. Le champ/la colonne `asso` est conservé tel
+ * quel (pas de migration de schéma pendant le gel déploiement) mais porte
+ * maintenant la valeur du pool affiliés-parrains, pas une part asso.
+ * Le pool `adya` reste neutralisé à 0% (gardé dans le type/la RPC pour ne
+ * pas casser la colonne/le contrat existants).
  *
  * Voir migrations/v4.1-karma-split.sql + STRIPE_CONNECT_KARMA_V4.md §Flux.
  */
@@ -15,12 +19,12 @@ export type KarmaPoolType = 'reward' | 'asso' | 'partner' | 'adya' | 'sasu';
 /** Les 4 pools qui reçoivent le split automatique d'un paiement abo. */
 export type KarmaSplitPool = 'reward' | 'adya' | 'asso' | 'sasu';
 
-/** Pourcentages immuables du split (somme = 1.00). */
+/** Pourcentages immuables du split (somme = 1.00). `asso` = pool affiliés-parrains (30%, ex-10% association). */
 export const KARMA_SPLIT_RATES: Record<KarmaSplitPool, number> = {
   reward: 0.5,
   adya: 0,
-  asso: 0.1,
-  sasu: 0.4,
+  asso: 0.3,
+  sasu: 0.2,
 };
 
 /** Résultat déterministe du calcul de split (en euros, 2 décimales). */

@@ -1,11 +1,11 @@
 -- =============================================================================
--- MIDAS — V4.1 Axe 2 : Karma Split 50/10/10/30
+-- MIDAS — V4.1 Axe 2 : Karma Split 50/0/30/20 (gravé, FACTS.md source unique)
 --
 -- Split automatique des abos Stripe (invoice.paid) sur 4 pools :
 --   - reward (50%) : pool gains users (missions + tirages + primes)
---   - adya   (10%) : budget marketing ADYA
---   - asso   (10%) : Association Purama (mécénat, convention prestation)
---   - sasu   (30%) : SASU Purama (marge, 0% IS ZFRR)
+--   - adya   (0%)  : neutralisé (colonne/pool gardés pour compat, non utilisé)
+--   - asso   (30%) : pool affiliés-parrains (0% part association automatique — colonne/pool_type 'asso' conservés pour compat, ne représente plus une association)
+--   - sasu   (20%) : SASU Purama (marge, 0% IS ZFRR)
 --
 -- Idempotent via UNIQUE(stripe_invoice_id) sur public.karma_split_log.
 -- Atomicité via RPC karma_split_apply (log + 4 pools en une seule transaction).

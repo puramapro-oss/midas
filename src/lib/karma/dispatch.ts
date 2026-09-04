@@ -3,8 +3,8 @@
  *
  * Orchestrateur appelé par le webhook Stripe `invoice.paid` APRÈS
  * dispatchCommissionsFromStripeInvoice. Prend un Stripe.Invoice, calcule le
- * split 50/10/10/30 et applique atomiquement les 4 increments de pools via
- * la RPC `midas.karma_split_apply`.
+ * split 50/0/30/20 (reward/adya/asso=pool affiliés-parrains/sasu) et applique
+ * atomiquement les 4 increments de pools via la RPC `midas.karma_split_apply`.
  *
  * Contrat critique :
  *  - Ne throw JAMAIS (le webhook doit retourner 200 à Stripe).
@@ -92,7 +92,7 @@ async function writeSkipLog(
 }
 
 /**
- * Split un invoice Stripe sur les 4 pools Purama (50/10/10/30).
+ * Split un invoice Stripe sur les 4 pools Purama (50/0/30/20).
  *
  * @param invoice   invoice Stripe reçu via webhook `invoice.paid`
  * @param supabase  client Supabase admin (optionnel, défaut = service_role)

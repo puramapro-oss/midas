@@ -2,7 +2,7 @@
  * MIDAS — Karma Split engine V4.1 Axe 2 (pure function)
  *
  * Répartit un paiement abonnement Stripe en 4 pools :
- *   reward 50% · adya 10% · asso 10% · sasu 30%
+ *   reward(membres) 50% · adya 0% (neutralisé) · asso(pool affiliés-parrains) 30% · sasu 20%
  *
  * Contrat :
  *   - Entrée  : amount en CENTIMES d'euros (entier, >= 0).
@@ -26,7 +26,7 @@ function centsToEur(cents: number): number {
 }
 
 /**
- * Calcule le split 50/10/10/30 d'un montant (en cents) sur les 4 pools.
+ * Calcule le split 50/0/30/20 (reward/adya/asso/sasu) d'un montant (en cents) sur les 4 pools.
  * sasu absorbe le reliquat d'arrondi pour préserver l'invariant somme=gross.
  *
  * @param amountCents - montant brut en cents (entier, >= 0)

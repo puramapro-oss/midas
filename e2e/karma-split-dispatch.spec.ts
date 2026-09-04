@@ -177,9 +177,9 @@ test.describe('dispatchKarmaSplit — nominal (RPC appelée)', () => {
     expect(res.poolTxIds).toEqual(['tx-r', 'tx-a', 'tx-as', 'tx-s']);
     expect(res.breakdown).toEqual({
       reward_eur: 5.00,
-      adya_eur: 1.00,
-      asso_eur: 1.00,
-      sasu_eur: 2.99,
+      adya_eur: 0.00,
+      asso_eur: 3.00,
+      sasu_eur: 1.99,
       total_eur: 9.99,
     });
 
@@ -191,27 +191,27 @@ test.describe('dispatchKarmaSplit — nominal (RPC appelée)', () => {
       p_user_id: 'user-abc',
       p_amount_eur_gross: 9.99,
       p_split_reward_eur: 5.00,
-      p_split_adya_eur: 1.00,
-      p_split_asso_eur: 1.00,
-      p_split_sasu_eur: 2.99,
+      p_split_adya_eur: 0.00,
+      p_split_asso_eur: 3.00,
+      p_split_sasu_eur: 1.99,
     });
     // Pas de log table-direct : tout passe par la RPC en cas nominal
     expect(state.karma_split_log).toHaveLength(0);
   });
 
-  test('abo 39 € → split 19,50 / 3,90 / 3,90 / 11,70', async () => {
+  test('abo 39 € → split 19,50 / 0,00 / 11,70 / 7,80', async () => {
     const { client, state } = makeMock();
     const inv = makeInvoice({ id: 'in_3900', amount_paid: 3900 });
     const res = await dispatchKarmaSplit(inv, client);
     expect(res.ok).toBe(true);
     expect(res.status).toBe('ok');
     expect(res.breakdown?.reward_eur).toBe(19.50);
-    expect(res.breakdown?.adya_eur).toBe(3.90);
-    expect(res.breakdown?.asso_eur).toBe(3.90);
-    expect(res.breakdown?.sasu_eur).toBe(11.70);
+    expect(res.breakdown?.adya_eur).toBe(0.00);
+    expect(res.breakdown?.asso_eur).toBe(11.70);
+    expect(res.breakdown?.sasu_eur).toBe(7.80);
 
     expect(state.rpcCalls[0].args.p_split_reward_eur).toBe(19.50);
-    expect(state.rpcCalls[0].args.p_split_sasu_eur).toBe(11.70);
+    expect(state.rpcCalls[0].args.p_split_sasu_eur).toBe(7.80);
   });
 
   test('user_id null si aucune metadata présente', async () => {
