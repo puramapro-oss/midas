@@ -37,6 +37,7 @@ import {
   Share2,
   Wind,
   Users,
+  Users2,
   Sparkles,
 } from 'lucide-react';
 import MidasLogo from './MidasLogo';
@@ -64,6 +65,7 @@ const navItems = [
   { label: 'Boutique', icon: ShoppingBag, href: '/dashboard/boutique', testId: 'sidebar-boutique' },
   { label: 'Achievements', icon: Award, href: '/dashboard/achievements', testId: 'sidebar-achievements' },
   { label: 'Communauté', icon: Heart, href: '/dashboard/community', testId: 'sidebar-community' },
+  { label: 'Cercle de Traders', icon: Users2, href: '/dashboard/entraide', testId: 'sidebar-entraide' },
   { label: 'Tirage', icon: Ticket, href: '/dashboard/lottery', testId: 'sidebar-lottery' },
   { label: 'Wealth Engine', icon: Gem, href: '/dashboard/wealth', testId: 'sidebar-wealth' },
   { label: 'Challenges', icon: Swords, href: '/dashboard/challenges', testId: 'sidebar-challenges' },

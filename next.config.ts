@@ -21,7 +21,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@purama/smarana", "@purama/retention"],
+  transpilePackages: ["@purama/smarana", "@purama/retention", "@purama/entraide"],
   experimental: {
     externalDir: true,
   },
@@ -30,6 +30,7 @@ const nextConfig: NextConfig = {
     root: path.join(__dirname, ".."),
     resolveAlias: {
       "@purama/retention": "../packages/purama-retention/src/index.ts",
+      "@purama/entraide": "../packages/purama-entraide/src/index.ts",
     },
   },
   async headers() {
