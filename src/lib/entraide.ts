@@ -160,14 +160,16 @@ export async function resolveContactChannel(
   supabase: SupabaseClient,
   requestId: string
 ): Promise<string> {
-  // 1. Récupérer requester_id + recipient_id de la demande
+  // 1. Récupérer les parties et revalider le consentement côté serveur.
   const { data: request } = await supabase
     .from(`${SCHEMA}.entraide_contact_requests`)
-    .select('requester_id, recipient_id')
+    .select('requester_id, recipient_id, status')
     .eq('id', requestId)
     .single();
 
-  if (!request) throw new Error('Contact request not found');
+  if (!request || request.status !== 'accepted') {
+    throw new Error('Contact request not found or not accepted');
+  }
 
   // 2. Chercher conversation existante entre ces 2 users (bidirectionnelle)
   const { data: existingConv } = await supabase
