@@ -3,11 +3,9 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
   TextInput,
   RefreshControl,
 } from "react-native";
-import { router } from "expo-router";
 import { useMarketStore } from "../../stores/market";
 import { COLORS } from "../../lib/constants";
 
@@ -32,6 +30,9 @@ export default function MarketsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.dark }}>
+      <Text style={{ color: COLORS.gray, fontSize: 13, marginHorizontal: 16, marginTop: 16 }}>
+        Donnees generales a but educatif. Elles ne constituent ni une recommandation ni un signal.
+      </Text>
       <TextInput
         testID="market-search"
         placeholder="Rechercher une paire..."
@@ -60,12 +61,7 @@ export default function MarketsScreen() {
         }
         contentContainerStyle={{ paddingHorizontal: 16 }}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            onPress={() =>
-              router.push(
-                `/(stack)/analysis/${item.symbol.replace("/", "-")}` as never
-              )
-            }
+          <View
             style={{
               flexDirection: "row",
               justifyContent: "space-between",
@@ -105,7 +101,7 @@ export default function MarketsScreen() {
                 {(item.change_24h ?? 0).toFixed(2)}%
               </Text>
             </View>
-          </TouchableOpacity>
+          </View>
         )}
       />
     </View>

@@ -5,28 +5,10 @@ import { COLORS } from "../../lib/constants";
 export default function HelpScreen() {
   const guides = [
     {
-      icon: "🔗",
-      title: "Connecter Binance",
-      desc: "Lie ton exchange pour trader depuis MIDAS",
-      route: "/(stack)/help/connect-binance",
-    },
-    {
       icon: "❓",
       title: "FAQ",
-      desc: "Questions frequentes",
+      desc: "Questions frequentes sur le service educatif",
       route: "/(stack)/help/faq",
-    },
-    {
-      icon: "📖",
-      title: "Guide complet",
-      desc: "Decouvre toutes les fonctionnalites",
-      route: "/(stack)/guide",
-    },
-    {
-      icon: "📧",
-      title: "Contact",
-      desc: "purama.pro@gmail.com",
-      route: null,
     },
   ];
 
@@ -36,13 +18,14 @@ export default function HelpScreen() {
       style={{ backgroundColor: COLORS.dark }}
     >
       <Text style={{ color: COLORS.gray, fontSize: 14, marginBottom: 4 }}>
-        Comment pouvons-nous t'aider ?
+        MIDAS ne fournit ni conseil personnalise, ni signal, ni passage d'ordre,
+        ni promotion de crypto-actifs en France.
       </Text>
 
       {guides.map((g) => (
         <TouchableOpacity
           key={g.title}
-          onPress={() => g.route && router.push(g.route as never)}
+          onPress={() => router.push(g.route as never)}
           style={{
             backgroundColor: "rgba(255,255,255,0.05)",
             borderRadius: 12,
@@ -59,7 +42,7 @@ export default function HelpScreen() {
             </Text>
             <Text style={{ color: COLORS.gray, fontSize: 13 }}>{g.desc}</Text>
           </View>
-          {g.route && <Text style={{ color: COLORS.gray }}>›</Text>}
+          <Text style={{ color: COLORS.gray }}>›</Text>
         </TouchableOpacity>
       ))}
     </ScrollView>

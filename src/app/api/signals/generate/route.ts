@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getPhase } from '@/lib/phase';
 
 const PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'] as const;
 
@@ -52,6 +53,12 @@ function generateMockSignal(pair: string) {
 
 export async function POST(request: Request) {
   try {
+    if (!getPhase().personalizedCryptoAdvice) {
+      return NextResponse.json(
+        { error: 'La génération de signaux est désactivée : information et éducation uniquement.', policy: 'D2=A' },
+        { status: 403 },
+      );
+    }
     // Verify CRON_SECRET
     const authHeader = request.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;

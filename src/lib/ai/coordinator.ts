@@ -330,24 +330,21 @@ export async function coordinate(input: CoordinatorInput): Promise<CoordinatorDe
     claudeDecision.position_size_pct = riskData.max_position_size_pct;
   }
 
-  // Calculate actual risk/reward ratio
-  const riskAmount = Math.abs(claudeDecision.entry_price - claudeDecision.stop_loss);
-  const rewardAmount = Math.abs(claudeDecision.take_profit - claudeDecision.entry_price);
-  const actualRRR = riskAmount > 0 ? rewardAmount / riskAmount : 0;
-
   return {
-    action: claudeDecision.action,
+    // D2=A : la synthèse peut décrire le marché, mais ne devient jamais une
+    // recommandation personnalisée ni un jeu de paramètres actionnables.
+    action: 'hold',
     pair,
     composite_score: composite.score,
     confidence: composite.confidence,
-    entry_price: claudeDecision.entry_price,
-    stop_loss: claudeDecision.stop_loss,
-    take_profit: claudeDecision.take_profit,
-    position_size_pct: claudeDecision.position_size_pct,
-    strategy: claudeDecision.strategy,
-    reasoning: claudeDecision.reasoning,
+    entry_price: 0,
+    stop_loss: 0,
+    take_profit: 0,
+    position_size_pct: 0,
+    strategy: 'education_only',
+    reasoning: `Synthèse éducative uniquement — aucune recommandation d'achat ou de vente. ${claudeDecision.reasoning}`,
     agent_results: allResults,
-    risk_reward_ratio: actualRRR,
+    risk_reward_ratio: 0,
     approved_by_shield: shieldApproved,
   };
 }

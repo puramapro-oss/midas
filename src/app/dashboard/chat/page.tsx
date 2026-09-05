@@ -31,10 +31,10 @@ interface ConversationItem {
 }
 
 const SUGGESTED_QUESTIONS = [
-  'Analyse technique ETH cette semaine',
-  'Quelle strategie pour un marche lateral ?',
-  'Compare DCA vs Grid Trading',
-  'Meilleur moment pour acheter SOL ?',
+  'Comment fonctionne un indicateur RSI ?',
+  'Quels sont les principaux risques des crypto-actifs ?',
+  'Explique le DCA à titre pédagogique',
+  'Quelle différence entre volatilité et liquidité ?',
 ];
 
 export default function ChatPage() {

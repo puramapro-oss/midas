@@ -72,19 +72,11 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="trading"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="Trading" focused={focused} icon="📈" />
-          ),
-        }}
+        options={{ href: null }}
       />
       <Tabs.Screen
         name="classement"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="Classement" focused={focused} icon="🏆" />
-          ),
-        }}
+        options={{ href: null }}
       />
       <Tabs.Screen
         name="chat"
@@ -96,11 +88,7 @@ export default function TabLayout() {
       />
       <Tabs.Screen
         name="referral"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon name="Parrainage" focused={focused} icon="👥" />
-          ),
-        }}
+        options={{ href: null }}
       />
     </Tabs>
   );

@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { z } from 'zod';
 import { coordinate } from '@/lib/ai/coordinator';
 import type { Candle } from '@/lib/agents/types';
+import { getPhase } from '@/lib/phase';
 
 const bodySchema = z.object({
   pair: z.string().min(1).max(30),
@@ -59,6 +60,15 @@ function generateCandles(pair: string, count: number): Candle[] {
 
 export async function POST(request: Request) {
   try {
+    if (!getPhase().personalizedCryptoAdvice) {
+      return NextResponse.json(
+        {
+          error: 'Les décisions personnalisées sont désactivées. MIDAS fournit uniquement des analyses éducatives générales.',
+          policy: 'D2=A',
+        },
+        { status: 403 },
+      );
+    }
     const { user, supabase } = await getAuthUser();
     if (!user) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 });

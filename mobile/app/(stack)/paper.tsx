@@ -38,15 +38,18 @@ export default function PaperScreen() {
       style={{ backgroundColor: COLORS.dark }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.gold} />}
     >
+      <Text style={{ color: COLORS.gray, fontSize: 13, lineHeight: 19 }}>
+        Simulation pedagogique en unites fictives. Aucun ordre reel, conseil personnalise ou resultat futur n'est fourni.
+      </Text>
       <View style={{ flexDirection: "row", gap: 12 }}>
         <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 16, alignItems: "center" }}>
-          <Text style={{ color: COLORS.gray, fontSize: 12 }}>PnL total</Text>
+          <Text style={{ color: COLORS.gray, fontSize: 12 }}>Resultat simule</Text>
           <Text style={{ color: totalPnl >= 0 ? COLORS.green : COLORS.red, fontSize: 24, fontWeight: "700" }}>
             {totalPnl >= 0 ? "+" : ""}{totalPnl.toFixed(2)}%
           </Text>
         </View>
         <View style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 12, padding: 16, alignItems: "center" }}>
-          <Text style={{ color: COLORS.gray, fontSize: 12 }}>Win Rate</Text>
+          <Text style={{ color: COLORS.gray, fontSize: 12 }}>Taux simule</Text>
           <Text style={{ color: COLORS.gold, fontSize: 24, fontWeight: "700" }}>{winRate.toFixed(0)}%</Text>
         </View>
       </View>

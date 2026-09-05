@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getPhase } from '@/lib/phase';
 
 const PAIRS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'] as const;
 
@@ -48,6 +49,12 @@ function generateSignal(pair: string) {
 }
 
 export async function GET(request: NextRequest) {
+  if (!getPhase().personalizedCryptoAdvice) {
+    return NextResponse.json(
+      { error: 'La génération de signaux est désactivée : information et éducation uniquement.', policy: 'D2=A' },
+      { status: 403 },
+    );
+  }
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });

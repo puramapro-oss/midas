@@ -1,104 +1,21 @@
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = {
-  title: 'Politique de Confidentialité',
-};
+export const metadata: Metadata = { title: 'Politique de Confidentialité — MIDAS' };
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-[#06080F] text-white/80">
-      <div className="max-w-3xl mx-auto px-4 py-16">
-        <h1 className="text-3xl font-bold text-white mb-8 font-[family-name:var(--font-orbitron)]">
-          Politique de Confidentialité
-        </h1>
-        <p className="text-white/50 mb-8">Dernière mise à jour : 29 mars 2026 — Conforme au RGPD</p>
-
-        <section className="space-y-6 text-sm leading-relaxed">
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">1. Responsable du traitement</h2>
-            <p><strong className="text-white">PURAMA SASU</strong> — SIRET 941 200 105 00011 — Capital 1 euro</p>
-            <p>Siege social : 8 Rue de la Chapelle, 25560 Frasne, France</p>
-            <p className="mt-1">Contact DPO : matiss.frasne@gmail.com</p>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">2. Données collectées</h2>
-            <ul className="list-disc pl-5 space-y-1">
-              <li><strong className="text-white">Données d&apos;inscription :</strong> adresse email, nom complet, mot de passe (hashé)</li>
-              <li><strong className="text-white">Données de profil :</strong> photo de profil, préférences d&apos;interface, profil de risque</li>
-              <li><strong className="text-white">Clés API d&apos;exchange :</strong> chiffrées en AES-256-GCM, jamais stockées en clair</li>
-              <li><strong className="text-white">Données de trading :</strong> historique des trades, performances, configurations de bots</li>
-              <li><strong className="text-white">Conversations IA :</strong> messages échangés avec l&apos;assistant MIDAS</li>
-              <li><strong className="text-white">Données d&apos;utilisation :</strong> pages visitées, fonctionnalités utilisées, logs d&apos;erreur</li>
-              <li><strong className="text-white">Données de paiement :</strong> gérées entièrement par Stripe, nous ne stockons aucun numéro de carte</li>
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">3. Finalités et bases légales</h2>
-            <ul className="list-disc pl-5 space-y-1">
-              <li><strong className="text-white">Exécution du contrat :</strong> fourniture du service MIDAS, exécution des trades, gestion des abonnements</li>
-              <li><strong className="text-white">Consentement :</strong> envoi d&apos;emails de rapport quotidien, notifications</li>
-              <li><strong className="text-white">Intérêt légitime :</strong> amélioration du service, détection de fraude, sécurité</li>
-              <li><strong className="text-white">Obligation légale :</strong> conservation des données de facturation</li>
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">4. Durée de conservation</h2>
-            <ul className="list-disc pl-5 space-y-1">
-              <li>Données de compte : jusqu&apos;à suppression du compte + 30 jours</li>
-              <li>Historique des trades : 5 ans (obligations fiscales)</li>
-              <li>Données de facturation : 10 ans (obligations comptables)</li>
-              <li>Logs techniques : 12 mois</li>
-              <li>Conversations IA : jusqu&apos;à suppression du compte</li>
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">5. Sous-traitants</h2>
-            <ul className="list-disc pl-5 space-y-1">
-              <li><strong className="text-white">Hostinger International Ltd</strong> (Union européenne, Paris) — Hébergement de la base de données et de l&apos;authentification (Supabase auto-hébergé, pas de sous-traitant Supabase Inc.)</li>
-              <li><strong className="text-white">Stripe Inc.</strong> (États-Unis) — Traitement des paiements</li>
-              <li><strong className="text-white">Vercel Inc.</strong> (États-Unis) — Hébergement de l&apos;application</li>
-              <li><strong className="text-white">Anthropic PBC</strong> (États-Unis) — Intelligence artificielle</li>
-              <li><strong className="text-white">Upstash Inc.</strong> (États-Unis) — Cache et file d&apos;attente</li>
-              <li><strong className="text-white">Resend Inc.</strong> (États-Unis) — Envoi d&apos;emails</li>
-            </ul>
-            <p className="mt-2">Des clauses contractuelles types (SCC) encadrent ces transferts hors UE.</p>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">6. Vos droits (RGPD)</h2>
-            <p>Conformément au RGPD, vous disposez des droits suivants :</p>
-            <ul className="list-disc pl-5 space-y-1 mt-2">
-              <li><strong className="text-white">Droit d&apos;accès :</strong> obtenir une copie de vos données</li>
-              <li><strong className="text-white">Droit de rectification :</strong> corriger vos données inexactes</li>
-              <li><strong className="text-white">Droit à l&apos;effacement :</strong> supprimer votre compte et vos données</li>
-              <li><strong className="text-white">Droit à la portabilité :</strong> exporter vos données (CSV disponible)</li>
-              <li><strong className="text-white">Droit d&apos;opposition :</strong> vous opposer au traitement de vos données</li>
-              <li><strong className="text-white">Droit de retrait du consentement :</strong> à tout moment pour les emails</li>
-            </ul>
-            <p className="mt-2">Pour exercer vos droits : matiss.frasne@gmail.com. Delai de reponse : 30 jours maximum.</p>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">7. Cookies</h2>
-            <p>MIDAS utilise uniquement des cookies strictement nécessaires au fonctionnement du service (session d&apos;authentification). Aucun cookie de tracking ou publicitaire n&apos;est utilisé.</p>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">8. Sécurité</h2>
-            <p>Nous mettons en œuvre des mesures de sécurité appropriées : chiffrement AES-256-GCM des clés API, HTTPS, Row Level Security sur la base de données, authentification sécurisée, monitoring continu.</p>
-          </div>
-
-          <div className="pt-6 border-t border-white/10">
-            <p className="text-white/40">PURAMA SASU — 8 Rue de la Chapelle, 25560 Frasne</p>
-            <p className="text-white/40">Contact DPO : matiss.frasne@gmail.com</p>
-            <p className="text-white/40">Autorite de controle : CNIL — www.cnil.fr</p>
-          </div>
-        </section>
-      </div>
-    </div>
+    <main className="min-h-screen bg-[#06080F] px-4 py-16 text-white/80">
+      <article className="mx-auto max-w-3xl space-y-7 text-sm leading-relaxed">
+        <h1 className="text-3xl font-bold text-white">Politique de Confidentialité</h1>
+        <p className="text-white/50">Dernière mise à jour : 5 septembre 2026</p>
+        <section><h2 className="mb-2 text-xl font-semibold text-white">1. Responsable</h2><p>PURAMA SASU — SIRET 941 200 105 00011 — 8 Rue de la Chapelle, 25560 Frasne. Contact : contact@purama.dev.</p></section>
+        <section><h2 className="mb-2 text-xl font-semibold text-white">2. Données traitées</h2><p>Données de compte, préférences d&apos;interface, simulations fictives, conversations avec l&apos;assistant, journaux techniques et données de paiement gérées par Stripe. MIDAS ne collecte aucune clé d&apos;exchange, position réelle ou historique d&apos;ordre réel.</p></section>
+        <section><h2 className="mb-2 text-xl font-semibold text-white">3. Finalités</h2><p>Authentification, fourniture des contenus éducatifs, sauvegarde des simulations, sécurité, support, gestion des droits PURAMA et obligations comptables. Les données ne servent pas à produire un conseil financier personnalisé.</p></section>
+        <section><h2 className="mb-2 text-xl font-semibold text-white">4. Conservation</h2><p>Compte : durée du compte puis suppression opérationnelle sous 30 jours ; facturation : durée légale applicable ; journaux techniques : 12 mois ; conversations IA : jusqu&apos;à suppression par l&apos;utilisateur ou du compte.</p></section>
+        <section><h2 className="mb-2 text-xl font-semibold text-white">5. Destinataires</h2><p>Prestataires strictement nécessaires à l&apos;hébergement, l&apos;authentification, l&apos;IA, au paiement, au cache et aux emails, dans la limite de leur mission et avec les garanties applicables.</p></section>
+        <section><h2 className="mb-2 text-xl font-semibold text-white">6. Droits</h2><p>Accès, rectification, effacement, limitation, opposition, portabilité et retrait du consentement lorsque celui-ci fonde le traitement. Demande : contact@purama.dev. Réclamation possible auprès de la CNIL.</p></section>
+        <section><h2 className="mb-2 text-xl font-semibold text-white">7. Cookies et sécurité</h2><p>Cookies strictement nécessaires uniquement ; aucun suivi publicitaire. Mesures techniques : HTTPS, contrôle d&apos;accès, Row Level Security et journalisation de sécurité.</p></section>
+      </article>
+    </main>
   );
 }

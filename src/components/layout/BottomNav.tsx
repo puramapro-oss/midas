@@ -3,14 +3,14 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, CandlestickChart, MessageSquare, Gift, Trophy } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, FlaskConical, MessageSquare, HelpCircle } from 'lucide-react';
 
 const items = [
   { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
-  { label: 'Trading', icon: CandlestickChart, href: '/dashboard/trading' },
-  { label: 'Classement', icon: Trophy, href: '/dashboard/classement' },
+  { label: 'Marchés', icon: TrendingUp, href: '/dashboard/markets' },
+  { label: 'Simulation', icon: FlaskConical, href: '/dashboard/paper' },
   { label: 'Chat', icon: MessageSquare, href: '/dashboard/chat' },
-  { label: 'Parrainage', icon: Gift, href: '/dashboard/referral' },
+  { label: 'Aide', icon: HelpCircle, href: '/dashboard/help' },
 ];
 
 export default function BottomNav() {

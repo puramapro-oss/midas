@@ -22,40 +22,18 @@ export default function SettingsScreen() {
 
   const sections = [
     {
-      title: "Compte",
+      title: "Ressources",
       items: [
-        {
-          label: "Exchanges",
-          icon: "🔗",
-          route: "/(stack)/settings/exchanges",
-        },
-        { label: "Achievements", icon: "🏆", route: "/(stack)/achievements" },
-        { label: "Fiscalite", icon: "📋", route: "/(stack)/tax" },
-      ],
-    },
-    {
-      title: "Trading",
-      items: [
+        { label: "Donnees de marche", icon: "📊", route: "/(stack)/markets" },
+        { label: "Simulation fictive", icon: "🧪", route: "/(stack)/paper" },
         { label: "Alertes", icon: "🔔", route: "/(stack)/alerts" },
-        { label: "Agents IA", icon: "🤖", route: "/(stack)/agents" },
-        { label: "Bots", icon: "⚙️", route: "/(stack)/bots" },
-      ],
-    },
-    {
-      title: "Communaute",
-      items: [
-        { label: "Communaute", icon: "❤️", route: "/(stack)/community" },
-        { label: "Concours", icon: "🎯", route: "/(stack)/contest" },
-        { label: "Tirage", icon: "🎰", route: "/(stack)/lottery" },
-        { label: "Partenaire", icon: "🤝", route: "/(stack)/partenaire" },
       ],
     },
     {
       title: "Aide",
       items: [
-        { label: "Guide", icon: "📖", route: "/(stack)/guide" },
         { label: "FAQ", icon: "❓", route: "/(stack)/help/faq" },
-        { label: "Aide", icon: "💡", route: "/(stack)/help" },
+        { label: "Perimetre educatif", icon: "ℹ️", route: "/(stack)/help" },
       ],
     },
   ];
@@ -92,7 +70,7 @@ export default function SettingsScreen() {
         <Text
           style={{ color: COLORS.white, fontSize: 18, fontWeight: "700" }}
         >
-          {profile?.full_name ?? "Trader"}
+          {profile?.full_name ?? "Membre"}
         </Text>
         <Text style={{ color: COLORS.gray, fontSize: 14 }}>
           {profile?.email}

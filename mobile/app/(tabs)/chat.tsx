@@ -20,7 +20,7 @@ export default function ChatScreen() {
       id: "welcome",
       role: "assistant",
       content:
-        "Salut trader ! Je suis ton assistant MIDAS. Pose-moi tes questions sur le marche, les strategies ou l'analyse technique.",
+        "Bienvenue dans MIDAS. Je peux expliquer des notions financieres generales et les risques des crypto-actifs. Je ne fournis ni conseil personnalise, ni signal, ni recommandation d'achat ou de vente.",
       created_at: new Date().toISOString(),
     },
   ]);
@@ -86,7 +86,7 @@ export default function ChatScreen() {
           Chat MIDAS
         </Text>
         <Text style={{ color: COLORS.gray, fontSize: 13 }}>
-          Ton assistant trading IA
+          Information et education financiere uniquement
         </Text>
       </View>
 

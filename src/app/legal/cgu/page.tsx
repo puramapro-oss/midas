@@ -1,83 +1,23 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 
-export const metadata: Metadata = {
-  title: "Conditions Générales d'Utilisation",
-};
+export const metadata: Metadata = { title: "Conditions Générales d'Utilisation — MIDAS" };
 
 export default function CGUPage() {
   return (
-    <div className="min-h-screen bg-[#06080F] text-white/80">
-      <div className="max-w-3xl mx-auto px-4 py-16">
-        <h1 className="text-3xl font-bold text-white mb-8 font-[family-name:var(--font-orbitron)]">
-          Conditions Générales d&apos;Utilisation
-        </h1>
-        <p className="text-white/50 mb-8">Dernière mise à jour : 29 mars 2026</p>
-
-        <section className="space-y-6 text-sm leading-relaxed">
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">1. Objet</h2>
-            <p>Les presentes Conditions Generales d&apos;Utilisation (CGU) regissent l&apos;utilisation de la plateforme MIDAS, editee par PURAMA SASU (Societe par Actions Simplifiee Unipersonnelle), capital 1 euro, siege social 8 Rue de la Chapelle, 25560 Frasne, France. MIDAS est un logiciel d&apos;aide a la decision pour le trading de cryptomonnaies. En utilisant MIDAS, vous acceptez ces CGU dans leur integralite.</p>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">2. Description du service</h2>
-            <p>MIDAS est un outil logiciel qui analyse les marchés de cryptomonnaies à l&apos;aide de l&apos;intelligence artificielle. Il propose des signaux de trading, des analyses techniques et fondamentales, et peut exécuter des ordres sur les exchanges des utilisateurs via leurs clés API. MIDAS ne constitue en aucun cas un service de conseil en investissement, un service de gestion de portefeuille, ou un intermédiaire financier.</p>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">3. Inscription et compte</h2>
-            <p>L&apos;inscription est ouverte à toute personne majeure. Vous devez fournir des informations exactes et maintenir la confidentialité de vos identifiants. Vous êtes responsable de toute activité sur votre compte. Un seul compte par personne est autorisé.</p>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">4. Abonnements et paiements</h2>
-            <p>MIDAS propose trois formules : Free (gratuit), Pro (39€/mois ou 313€/an) et Ultra (79€/mois ou 635€/an). Les prix sont exprimes en euros TTC (TVA non applicable, art. 293 B du CGI). Les paiements sont geres par Stripe. Les abonnements sont reconduits automatiquement. Vous pouvez annuler a tout moment depuis votre espace client ; l&apos;acces est maintenu jusqu&apos;a la fin de la periode payee. Aucun remboursement n&apos;est effectue pour la periode en cours. Les conditions de vente detaillees sont disponibles dans nos <a href="/legal/cgv" className="text-[#FFD700] hover:underline">Conditions Generales de Vente</a>.</p>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">4 bis. Prime de bienvenue et droit de rétractation</h2>
-            <p>En choisissant un accès immédiat à son abonnement MIDAS, l&apos;utilisateur reconnaît et accepte expressément, conformément à l&apos;<strong className="text-white">article L221-28 3° du Code de la consommation</strong>, que l&apos;exécution immédiate du service numérique entraîne la renonciation à son droit de rétractation de 14 jours.</p>
-            <p className="mt-2">La prime de bienvenue est versée sous forme de crédits sur le wallet Purama de l&apos;utilisateur, en trois tranches mensuelles à compter de la date de souscription (J+0, M+1, M+2). Ces crédits ne sont disponibles au retrait qu&apos;après <strong className="text-white">30 jours calendaires consécutifs</strong> d&apos;abonnement actif.</p>
-            <p className="mt-2">En cas d&apos;annulation de l&apos;abonnement dans les 30 premiers jours, PURAMA se réserve le droit de déduire le montant des tranches de prime déjà versées de tout remboursement éventuellement accordé à titre commercial.</p>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">5. Clés API et sécurité</h2>
-            <p>Pour utiliser les fonctionnalités de trading automatique, vous devez fournir vos clés API d&apos;exchange. Ces clés sont chiffrées avec AES-256-GCM et ne sont jamais stockées en clair. Vous devez impérativement ne PAS activer la permission de retrait sur vos clés API. MIDAS ne peut en aucun cas retirer des fonds de votre exchange. Vous êtes seul responsable de la sécurité de vos clés API.</p>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">6. Limitation de responsabilité</h2>
-            <p className="font-semibold text-[#FFD700]">Le trading de cryptomonnaies comporte des risques significatifs de perte en capital, pouvant aller jusqu&apos;à la perte totale des fonds investis.</p>
-            <p className="mt-2">MIDAS est un outil d&apos;aide à la décision. L&apos;utilisateur est seul responsable de ses décisions de trading et de leurs conséquences financières. Purama ne saurait être tenue responsable des pertes financières subies lors de l&apos;utilisation de MIDAS. Les performances passées affichées ne préjugent pas des performances futures.</p>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">7. Données personnelles</h2>
-            <p>Le traitement de vos données personnelles est détaillé dans notre <a href="/legal/privacy" className="text-[#FFD700] hover:underline">Politique de Confidentialité</a>. En utilisant MIDAS, vous consentez à ce traitement conformément au RGPD.</p>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">8. Propriété intellectuelle</h2>
-            <p>L&apos;ensemble des éléments de MIDAS (code, design, algorithmes, marque, contenu) sont la propriété exclusive de Purama. Toute reproduction, modification ou utilisation non autorisée est interdite.</p>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">9. Résiliation</h2>
-            <p>Vous pouvez supprimer votre compte à tout moment depuis les paramètres. La suppression entraîne la destruction de vos données sous 30 jours. Purama se réserve le droit de suspendre ou supprimer un compte en cas de violation des CGU ou d&apos;utilisation frauduleuse.</p>
-          </div>
-
-          <div>
-            <h2 className="text-xl font-semibold text-white mb-3">10. Droit applicable</h2>
-            <p>Les présentes CGU sont soumises au droit français. Tout litige sera soumis aux tribunaux compétents de Paris, France.</p>
-          </div>
-
-          <div className="pt-6 border-t border-white/10">
-            <p className="text-white/40">PURAMA SASU — 8 Rue de la Chapelle, 25560 Frasne</p>
-            <p className="text-white/40">Contact : contact@purama.dev</p>
-          </div>
-        </section>
-      </div>
-    </div>
+    <main className="min-h-screen bg-[#06080F] px-4 py-16 text-white/80">
+      <article className="mx-auto max-w-3xl space-y-7 text-sm leading-relaxed">
+        <h1 className="text-3xl font-bold text-white">Conditions Générales d&apos;Utilisation</h1>
+        <p className="text-white/50">Dernière mise à jour : 5 septembre 2026</p>
+        <section><h2 className="mb-2 text-xl font-semibold text-white">1. Objet</h2><p>MIDAS est un service d&apos;information générale et d&apos;éducation sur les marchés crypto édité par PURAMA SASU. Il ne fournit aucun conseil personnalisé, aucune recommandation d&apos;achat ou de vente et aucune exécution d&apos;ordre.</p></section>
+        <section><h2 className="mb-2 text-xl font-semibold text-white">2. Fonctionnalités</h2><p>Les contenus, données publiques, exercices et backtests sont pédagogiques. Les simulations utilisent des unités fictives. MIDAS ne se connecte à aucun exchange, ne demande aucune clé API et ne détient aucun fonds.</p></section>
+        <section><h2 className="mb-2 text-xl font-semibold text-white">3. Compte</h2><p>L&apos;accès est réservé aux personnes majeures. Les informations de compte doivent être exactes et les identifiants conservés confidentiellement.</p></section>
+        <section><h2 className="mb-2 text-xl font-semibold text-white">4. Accès PURAMA</h2><p>Les droits d&apos;accès relèvent de l&apos;abonnement unique PURAMA et de sa configuration centrale. MIDAS ne commercialise aucun abonnement propre. L&apos;application mobile permet uniquement de se connecter à un compte existant et ne comporte aucun achat ni lien d&apos;achat.</p></section>
+        <section><h2 className="mb-2 text-xl font-semibold text-white">5. Points</h2><p>La Phase 1 fonctionne uniquement en points. Aucun retrait monétaire ni IBAN n&apos;est proposé tant qu&apos;un montage Swan écrit et validé n&apos;existe pas.</p></section>
+        <section><h2 className="mb-2 text-xl font-semibold text-white">6. Risques et IA</h2><p>Les crypto-actifs exposent à une perte totale. Les contenus générés avec l&apos;aide d&apos;une IA peuvent être inexacts et doivent pouvoir faire l&apos;objet d&apos;un réexamen humain. Pour une décision personnelle, adressez-vous à un professionnel habilité.</p></section>
+        <section><h2 className="mb-2 text-xl font-semibold text-white">7. Données</h2><p>Le traitement des données est décrit dans la <Link className="text-[#FFD700]" href="/legal/privacy">politique de confidentialité</Link>.</p></section>
+        <section><h2 className="mb-2 text-xl font-semibold text-white">8. Contact</h2><p>Droit français. Contact : contact@purama.dev. PURAMA SASU — 8 Rue de la Chapelle, 25560 Frasne.</p></section>
+      </article>
+    </main>
   );
 }

@@ -2,13 +2,6 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
-import { z } from 'zod';
-
-const RISK_MAP = ['prudent', 'modere', 'agressif'] as const;
-
-const bodySchema = z.object({
-  riskLevel: z.number().min(0).max(2),
-});
 
 async function getAuthUser() {
   const cookieStore = await cookies();
@@ -21,21 +14,12 @@ async function getAuthUser() {
   return user;
 }
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
     const user = await getAuthUser();
     if (!user) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
-
-    const body = await request.json();
-    const parsed = bodySchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: 'Données invalides' }, { status: 400 });
-    }
-
-    const riskText = RISK_MAP[parsed.data.riskLevel];
-    const maxPositionPct = [2, 5, 10][parsed.data.riskLevel];
 
     // IMPORTANT: on écrit dans public.profiles — c'est le schéma que lit
     // useAuth côté client. Écrire dans midas.profiles créait une boucle
@@ -75,21 +59,6 @@ export async function POST(request: Request) {
         { error: `Erreur profil: ${profileError.message}` },
         { status: 500 },
       );
-    }
-
-    // Upsert bot_config with risk settings
-    const { error: configError } = await serviceClient
-      .from('bot_config')
-      .upsert({
-        user_id: user.id,
-        risk_level: riskText,
-        max_position_pct: maxPositionPct,
-        paper_trading: true,
-        is_active: false,
-      }, { onConflict: 'user_id' });
-
-    if (configError) {
-      // Non-blocking: profile is already updated, bot_config can be retried
     }
 
     return NextResponse.json({ ok: true });

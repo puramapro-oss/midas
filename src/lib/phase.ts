@@ -17,6 +17,8 @@ export interface PhaseConfig {
   treezorActive: boolean;
   binanceActive: boolean;
   tradeRepublicActive: boolean;
+  cryptoPromotionFrance: boolean;
+  personalizedCryptoAdvice: boolean;
   inAppPurchase: boolean;
   primeMode: 'phase1' | 'phase2';
 }
@@ -34,6 +36,9 @@ export function getPhase(): PhaseConfig {
     treezorActive: false,
     binanceActive: false,
     tradeRepublicActive: false,
+    // Décision Tissma D2=A (2026-09-05) : information/éducation uniquement.
+    cryptoPromotionFrance: false,
+    personalizedCryptoAdvice: false,
     inAppPurchase: false,
     primeMode: 'phase1',
   };
