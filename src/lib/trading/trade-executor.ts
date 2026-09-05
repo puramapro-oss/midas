@@ -1,6 +1,6 @@
 // =============================================================================
 // MIDAS — Trade Executor
-// Execute trades via ccxt or paper trading, with full audit trail
+// Execute educational paper trades with a full audit trail
 // =============================================================================
 
 import type { CoordinatorDecision } from '@/lib/agents/types';
@@ -8,8 +8,6 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { RiskManager, type UserProfile, type OpenPosition, type TradeHistory } from './risk-manager';
 import { simulate } from './pre-trade-simulation';
 import { executePaperTrade } from './paper-trading-engine';
-import { decrypt } from '@/lib/exchange/encryption';
-import { createExchangeClient, isSupportedExchange } from '@/lib/exchange/ccxt-client';
 
 export interface TradeResult {
   success: boolean;
@@ -22,18 +20,6 @@ export interface TradeResult {
   is_paper: boolean;
   error: string | null;
   timestamp: number;
-}
-
-interface ExchangeConnection {
-  id: string;
-  exchange: string;
-  api_key_encrypted: string;
-  api_key_iv: string;
-  api_secret_encrypted: string;
-  api_secret_iv: string;
-  is_paper: boolean;
-  is_testnet: boolean;
-  is_active: boolean;
 }
 
 export async function executeTrade(
@@ -57,8 +43,6 @@ export async function executeTrade(
     if (connError || !connection) {
       return failResult('Exchange connection not found or inactive', timestamp);
     }
-
-    const exchangeConn = connection as ExchangeConnection;
 
     // 2. Fetch user profile for risk checks
     const { data: profileData } = await supabase
@@ -141,95 +125,16 @@ export async function executeTrade(
       return failResult(`Pre-trade simulation failed: ${simResult.reasons.join('; ')}`, timestamp);
     }
 
-    // 7. Paper or live execution
-    if (exchangeConn.is_paper) {
-      const paperResult = await executePaperTrade(decision, userId);
-      await logAudit(supabase, userId, decision, 'paper_executed', []);
-      return paperResult;
-    }
-
-    // 8. Live execution via ccxt
-    const liveResult = await executeLiveOrder(exchangeConn, decision);
-
-    // 9. Save trade to DB
-    const { data: savedTrade } = await supabase.from('trades').insert({
-      user_id: userId,
-      exchange_connection_id: exchangeConnectionId,
-      symbol: decision.pair,
-      side: decision.action === 'buy' ? 'buy' : 'sell',
-      type: 'market',
-      entry_price: liveResult.executed_price,
-      quantity: liveResult.executed_quantity,
-      leverage: 1,
-      stop_loss: decision.stop_loss,
-      take_profit: decision.take_profit,
-      status: 'open',
-      fees: liveResult.fees,
-      slippage_pct: liveResult.slippage_pct,
-      order_id: liveResult.order_id,
-      strategy: decision.strategy,
-      confidence: decision.confidence,
-      reasoning: decision.reasoning,
-      is_paper: false,
-    }).select('id').single();
-
-    liveResult.trade_id = savedTrade?.id ?? null;
-
-    // 10. Audit log
-    await logAudit(supabase, userId, decision, 'live_executed', []);
-
-    return liveResult;
+    // Décision Tissma D2=A (2026-09-05) : simulation éducative uniquement,
+    // même si une ancienne connexion est marquée réelle en base. Cette garde
+    // interne empêche tout contournement de la route HTTP.
+    const paperResult = await executePaperTrade(decision, userId);
+    await logAudit(supabase, userId, decision, 'paper_executed', []);
+    return paperResult;
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown execution error';
     return failResult(message, timestamp);
   }
-}
-
-async function executeLiveOrder(
-  connection: ExchangeConnection,
-  decision: CoordinatorDecision
-): Promise<TradeResult> {
-  const exchangeName = connection.exchange;
-  if (!isSupportedExchange(exchangeName)) {
-    throw new Error(`Unsupported exchange: ${exchangeName}`);
-  }
-
-  // Decrypt API keys before passing to ccxt
-  const apiKey = decrypt(connection.api_key_encrypted, connection.api_key_iv);
-  const apiSecret = decrypt(connection.api_secret_encrypted, connection.api_secret_iv);
-
-  const client = createExchangeClient(exchangeName, {
-    apiKey,
-    secret: apiSecret,
-    testnet: connection.is_testnet,
-  });
-
-  const side = decision.action === 'buy' ? 'buy' : 'sell';
-  const quantity = decision.position_size_pct;
-
-  const order = await client.createMarketOrder(decision.pair, side, quantity);
-
-  const executedPrice = (order.average ?? order.price ?? decision.entry_price) as number;
-  const executedQty = (order.filled ?? quantity) as number;
-  const feeObj = order.fee;
-  const fees = (feeObj?.cost ?? 0) as number;
-  const slippage =
-    decision.entry_price > 0
-      ? ((executedPrice - decision.entry_price) / decision.entry_price) * 100
-      : 0;
-
-  return {
-    success: true,
-    trade_id: null,
-    order_id: (order.id as string) ?? null,
-    executed_price: executedPrice,
-    executed_quantity: executedQty,
-    fees,
-    slippage_pct: Math.abs(slippage),
-    is_paper: false,
-    error: null,
-    timestamp: Date.now(),
-  };
 }
 
 function failResult(error: string, timestamp: number): TradeResult {
@@ -241,7 +146,7 @@ function failResult(error: string, timestamp: number): TradeResult {
     executed_quantity: 0,
     fees: 0,
     slippage_pct: 0,
-    is_paper: false,
+    is_paper: true,
     error,
     timestamp,
   };

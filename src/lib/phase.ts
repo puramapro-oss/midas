@@ -21,25 +21,21 @@ export interface PhaseConfig {
   primeMode: 'phase1' | 'phase2';
 }
 
-function bool(v: string | undefined): boolean {
-  return v === 'true' || v === '1';
-}
-
 export function getPhase(): PhaseConfig {
-  const phase = (process.env.PURAMA_PHASE === '2' ? 2 : 1) as PuramaPhase;
-  const walletMode = (process.env.WALLET_MODE === 'euros' ? 'euros' : 'points') as WalletMode;
   return {
-    phase,
-    walletMode,
-    cardAvailable: bool(process.env.CARD_AVAILABLE),
-    ibanAvailable: bool(process.env.IBAN_AVAILABLE),
-    withdrawalAvailable: bool(process.env.WITHDRAWAL_AVAILABLE),
-    primeCardActive: bool(process.env.PRIME_CARD_ACTIVE),
-    treezorActive: bool(process.env.TREEZOR_ACTIVE),
-    binanceActive: bool(process.env.BINANCE_ACTIVE),
-    tradeRepublicActive: bool(process.env.TRADE_REPUBLIC_ACTIVE),
-    inAppPurchase: bool(process.env.IN_APP_PURCHASE),
-    primeMode: (process.env.PRIME_MODE === 'phase2' ? 'phase2' : 'phase1'),
+    // Décision Tissma D1=C (2026-09-05) : aucune variable d'environnement ne
+    // peut activer du cash tant que le montage Swan écrit n'est pas validé.
+    phase: 1,
+    walletMode: 'points',
+    cardAvailable: false,
+    ibanAvailable: false,
+    withdrawalAvailable: false,
+    primeCardActive: false,
+    treezorActive: false,
+    binanceActive: false,
+    tradeRepublicActive: false,
+    inAppPurchase: false,
+    primeMode: 'phase1',
   };
 }
 
@@ -79,13 +75,9 @@ export function daysUntilWithdrawal(subscriptionStartedAt: Date | string | null)
 }
 
 /**
- * Montant de la tranche de prime pour un palier donné.
- * PRIME_MODE=phase1 → 3 paliers (J+0 25€ | M+1 25€ | M+2 50€)
- * PRIME_MODE=phase2 → 100€ J+0 (après 1K users)
+ * Aucun montant cash n'est calculé tant que D1=C reste active.
+ * La future valeur en points devra venir du core/config après validation écrite.
  */
-export function getPrimeTranche(palier: 1 | 2 | 3): number {
-  if (getPhase().primeMode === 'phase2') {
-    return palier === 1 ? 100 : 0;
-  }
-  return palier === 1 ? 25 : palier === 2 ? 25 : 50;
+export function getPrimeTranche(_palier: 1 | 2 | 3): number {
+  return 0;
 }

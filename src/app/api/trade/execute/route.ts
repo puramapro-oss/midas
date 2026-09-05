@@ -48,7 +48,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Donnees invalides', details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { pair, side, strategy, amount, stopLoss, takeProfit, isPaperTrade, botId, exchangeConnectionId } = parsed.data;
+    const { pair, side, strategy, amount, stopLoss, takeProfit, isPaperTrade, exchangeConnectionId } = parsed.data;
+
+    // Décision Tissma D2=A (2026-09-05) : MIDAS reste un outil
+    // d'information/éducation. Une demande d'ordre réel est refusée avant
+    // toute lecture de clé exchange ou construction de décision actionnable.
+    if (!isPaperTrade) {
+      return NextResponse.json(
+        { error: 'MIDAS autorise uniquement les simulations éducatives.' },
+        { status: 403 },
+      );
+    }
 
     // Fetch profile
     const { data: profile, error: profileError } = await supabase
@@ -64,7 +74,6 @@ export async function POST(request: Request) {
     // === BRIEF MIDAS-BRIEF-ULTIMATE.md : paper trading obligatoire 7 jours ===
     // Tant que profile.paper_trading_until > now(), on FORCE isPaperTrade=true.
     // Le super_admin n'est pas concerné (il peut tester en réel).
-    let effectiveIsPaperTrade = isPaperTrade;
     if (profile.role !== 'super_admin' && profile.paper_trading_until) {
       const until = new Date(profile.paper_trading_until as string);
       if (until.getTime() > Date.now()) {
@@ -79,7 +88,6 @@ export async function POST(request: Request) {
             { status: 403 },
           );
         }
-        effectiveIsPaperTrade = true;
       }
     }
 
