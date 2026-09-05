@@ -3,6 +3,17 @@
 ## Goal
 Compléter MIDAS avec TOUTES les features du CLAUDE.md V3 ULTIMATE.
 
+## NIYAMA — décisions Tissma (2026-09-05) ✅ local
+- [x] D1=C : wallet Phase 1 exclusivement en points ; retraits, KYC de versement et connexion Swan/Stripe Connect inaccessibles.
+- [x] D2=A : information générale et simulation éducative uniquement ; aucune promotion crypto en France, aucun conseil personnalisé, signal ou ordre réel.
+- [x] D4=A : expérience stores limitée à la connexion ; aucun achat ni lien d'achat mobile par défaut.
+- [x] Pages publiques, dashboard, onboarding, aide, IA et pages légales alignés.
+- [x] Routes historiques incompatibles neutralisées par le middleware et contrôlées sur web + mobile par `scripts/check-niyama-decisions.mjs`.
+- [x] Mobile réduit à connexion, marchés éducatifs, portefeuille fictif, alertes et aide ; métadonnées stores FR/EN alignées.
+- [x] Gate ciblé : contrôle NIYAMA, TypeScript web/mobile, ESLint, build, JSON stores, diff-check et audit high/critical verts.
+- [x] Dépendance inutilisée `javascript-opentimestamps` retirée ; 0 high/critical, 1 modérée SDK Anthropic sans correctif disponible.
+- [ ] Suppression physique du code historique dormant : différée à un chantier dédié après audit d'impact ; il reste inaccessible à l'exécution.
+
 ## Phases Précédentes (toutes ✅)
 - [x] P1-P8: Structure, Auth, DB, Pages, CRONs, Wallet, Contests, Tutorial, etc.
 
