@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getCircuitBreaker, getServiceStatus } from '@/lib/circuit-breaker';
 import { redis } from '@/lib/cache/upstash';
 import { getRequiredEnvironmentErrors } from '@/lib/integrations/registry';
+import { assertCronAuth } from '@/lib/cron-auth';
 
 type ServiceStatus = 'up' | 'down' | 'degraded';
 
@@ -153,10 +154,8 @@ async function checkConfiguration(): Promise<void> {
 }
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
-  }
+  const unauthorized = assertCronAuth(request);
+  if (unauthorized) return unauthorized;
 
   try {
     const [configuration, binance, claude, stripe, supabase, redisCheck] = await Promise.all([

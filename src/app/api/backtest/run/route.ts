@@ -15,6 +15,7 @@ import type { MidasPlan } from '@/types/stripe';
 import type { Candle, BacktestConfig } from '@/types/trading';
 import type { BaseStrategy } from '@/lib/trading/strategies/base-strategy';
 import { fetchKlinesWithSource } from '@/lib/exchange/binance-public';
+import { checkRateLimit } from '@/lib/utils/rate-limiter';
 
 const bodySchema = z.object({
   pair: z.string().min(1).max(30),
@@ -77,6 +78,11 @@ export async function POST(request: Request) {
     const { user, supabase } = await getAuthUser();
     if (!user) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+    }
+
+    const rl = await checkRateLimit(user.id, 'free' as MidasPlan);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Trop de requêtes, réessaie dans un instant.' }, { status: 429 });
     }
 
     const body = await request.json();

@@ -56,11 +56,6 @@ export default function SpiritualLayer({
     const key = 'midas_awakening_tracked';
     if (!sessionStorage.getItem(key)) {
       sessionStorage.setItem(key, '1');
-      fetch('/api/points', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'session_start', points: 10 }),
-      }).catch(() => {});
     }
   }, []);
 

@@ -42,6 +42,7 @@ const EDUCATION_ONLY_API_PREFIXES = [
   '/api/signals',
   '/api/trade/',
   '/api/agents/run',
+  '/api/agents/status',
   '/api/analysis/',
   '/api/cron/generate-signals',
   '/api/cron/deep-analysis',

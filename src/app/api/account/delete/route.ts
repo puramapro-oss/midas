@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
   );
 
   if (error) {
-    return NextResponse.json({ error: 'Demande impossible.', debug: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Demande impossible. Reessaie ou contacte le support.' }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, scheduled_for: scheduledFor.toISOString(), grace_period_days: GRACE_PERIOD_DAYS });
@@ -72,7 +72,7 @@ export async function DELETE(req: NextRequest) {
     .eq('status', 'scheduled');
 
   if (error) {
-    return NextResponse.json({ error: 'Annulation impossible.', debug: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Annulation impossible. Reessaie ou contacte le support.' }, { status: 500 });
   }
   return NextResponse.json({ ok: true });
 }

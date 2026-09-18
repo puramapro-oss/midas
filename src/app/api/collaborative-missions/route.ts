@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { z } from 'zod';
 
 // GET: active collaborative missions
 export async function GET() {
@@ -43,8 +44,9 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
 
-    const { mission_id } = await req.json();
-    if (!mission_id) return NextResponse.json({ error: 'Mission requise' }, { status: 400 });
+    const parsed = z.object({ mission_id: z.string().uuid() }).safeParse(await req.json());
+    if (!parsed.success) return NextResponse.json({ error: 'Mission requise (UUID invalide)' }, { status: 400 });
+    const { mission_id } = parsed.data;
 
     // Check not already joined
     const { count } = await supabase.schema('midas').from('collaborative_members')

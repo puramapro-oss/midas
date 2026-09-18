@@ -5,11 +5,16 @@ function getSupabase() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 }
 
-const SETUP_SECRET = process.env.CRON_SECRET || 'midas-setup';
-
 export async function POST(request: NextRequest) {
+  // Fail-closed : aucun secret de repli hardcodé — sans CRON_SECRET configuré,
+  // la route DDL service-role refuse tout (sinon « Bearer midas-setup » = clé
+  // d'exécution de CREATE TABLE publique).
+  const setupSecret = process.env.CRON_SECRET;
+  if (!setupSecret) {
+    return NextResponse.json({ error: 'CRON_SECRET non configuré — setup indisponible' }, { status: 503 });
+  }
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${SETUP_SECRET}`) {
+  if (authHeader !== `Bearer ${setupSecret}`) {
     return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
   }
 

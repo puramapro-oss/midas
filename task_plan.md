@@ -808,3 +808,12 @@ production. Migration appliquée VPS + smoke-testée via PostgREST réel.
 - [x] Gates : tsc 0 | eslint 0 err (279 warnings baseline) | unit 10/10 | E2E local 446/446 | audit 0 vuln | build 0 | NIYAMA PASS
 - [ ] Migrations 005+006+007 → VPS (BLOQUÉ : SSH fail2ban, cf ERRORS.md 2026-09-18)
 - [ ] Push + deploy (INTERDITS sur instruction Tissma — paper/testnet only)
+
+## Phase 20 — Audit final exhaustif (2026-09-18) ✅ local
+- [x] 4 agents parallèles : inventaire API (18 providers), audit 154 routes, sweep mocks/fictif, audit sécurité OWASP/RLS
+- [x] P0 fixés : setup fail-closed, email-sequence authé+fake-témoignage purgé, 22 crons assertCronAuth, agents/status neutralisé, points earn fermé, webhook Stripe idempotent (prime+payments)
+- [x] P1 : RL faq/contact/AI×2/backtest, rate-limiter fail-open, open-redirect login, debug leaks, collaborative-missions Zod, X-XSS-Protection retiré, Resend timeout+res.ok, vercel.json 4 crons morts retirés, .env.backup supprimé
+- [x] Migration 008_security_hardening.sql (H1 trigger billing + H4 RLS + L2 revoke + C1 drop exec_sql) — à appliquer
+- [x] Vérifié : 0 createOrder/createMarketOrder dans src/, BINANCE_API_KEY jamais lu, RiskManager limites complètes, bots=CRUD, crons sans exécution
+- [x] Gates : tsc 0 | lint 0 err | unit 10/10 | E2E 445/446 (1 flake prouvé 9/9 isolé) | audit 0 | build 0 | NIYAMA PASS
+- [ ] Migrations 005-008 → VPS (SSH bloqué), push+deploy (interdits), GoTrue rate limits à confirmer côté VPS, CSP nonce (refonte), DDL réel tables midas à importer (drift schéma)

@@ -6,7 +6,8 @@
 // Schedule recommandé : 1× / jour (vercel.json)
 // =============================================================================
 
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
+import { assertCronAuth } from '@/lib/cron-auth';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 
@@ -60,7 +61,9 @@ interface UserRow {
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const unauthorized = assertCronAuth(request);
+  if (unauthorized) return unauthorized;
   try {
     const supa = getServiceClient();
     if (!supa) {

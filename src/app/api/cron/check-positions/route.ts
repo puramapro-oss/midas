@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getPrice } from '@/lib/data/coingecko';
+import { assertCronAuth } from '@/lib/cron-auth';
 
 const SYMBOL_TO_COINGECKO: Record<string, string> = {
   BTC: 'bitcoin',
@@ -9,10 +10,8 @@ const SYMBOL_TO_COINGECKO: Record<string, string> = {
 };
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-  }
+  const unauthorized = assertCronAuth(request);
+  if (unauthorized) return unauthorized;
 
   try {
     const supabase = createClient(

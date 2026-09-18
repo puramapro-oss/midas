@@ -109,7 +109,15 @@ export async function checkRateLimit(
 ): Promise<RateLimitResult> {
   const config = PLAN_RATE_LIMITS[plan];
   const limiter = getLimiter(`midas:rl:global:${plan}`, config);
-  const result = await limiter.limit(userId);
+  let result;
+  try {
+    result = await limiter.limit(userId);
+  } catch (error) {
+    // Fail-open : une indisponibilité Upstash (URL/token absents, Redis down)
+    // ne doit pas transformer chaque requête en 500. Log + laisser passer.
+    console.error('[rate-limit] Upstash indisponible, requête autorisée —', error instanceof Error ? error.message : error);
+    return { allowed: true, limit: config.requests, remaining: config.requests, reset: 0 };
+  }
 
   return {
     allowed: result.success,
@@ -147,7 +155,14 @@ export async function checkRouteRateLimit(
   }
 
   const limiter = getLimiter(routeConfig.prefix, planConfig);
-  const result = await limiter.limit(userId);
+  let result;
+  try {
+    result = await limiter.limit(userId);
+  } catch (error) {
+    // Fail-open — cf. checkRateLimit : indispo Upstash loggée, jamais 500.
+    console.error('[rate-limit] Upstash indisponible, requête autorisée —', error instanceof Error ? error.message : error);
+    return { allowed: true, limit: planConfig.requests, remaining: planConfig.requests, reset: 0 };
+  }
 
   return {
     allowed: result.success,

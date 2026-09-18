@@ -25,10 +25,6 @@
   },
   "crons": [
     {
-      "path": "/api/cron/generate-signals",
-      "schedule": "*/5 * * * *"
-    },
-    {
       "path": "/api/cron/check-positions",
       "schedule": "*/5 * * * *"
     },
@@ -41,16 +37,8 @@
       "schedule": "*/15 * * * *"
     },
     {
-      "path": "/api/cron/sync-balances",
-      "schedule": "*/15 * * * *"
-    },
-    {
       "path": "/api/cron/check-whales",
       "schedule": "*/10 * * * *"
-    },
-    {
-      "path": "/api/cron/deep-analysis",
-      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/events-sync",
@@ -107,10 +95,6 @@
     {
       "path": "/api/cron/email-sequence",
       "schedule": "0 10 * * *"
-    },
-    {
-      "path": "/api/cron/prime-tranches",
-      "schedule": "0 9 * * *"
     },
     {
       "path": "/api/cron/fiscal-paliers",

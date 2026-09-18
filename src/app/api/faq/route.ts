@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createServiceClient } from '@/lib/supabase/server';
+import { checkRateLimit } from '@/lib/utils/rate-limiter';
+import type { MidasPlan } from '@/types/stripe';
 
 export async function GET() {
   try {
@@ -35,6 +37,14 @@ const patchSchema = z.object({
 
 export async function PATCH(request: Request) {
   try {
+    // Throttle IP anti-spam : les compteurs publics via service client ne
+    // doivent pas être scriptables en rafale.
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+    const rl = await checkRateLimit(`faq:${ip}`, 'free' as MidasPlan);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Trop de requêtes, réessaie dans un instant.' }, { status: 429 });
+    }
+
     const body = await request.json();
     const parsed = patchSchema.safeParse(body);
 

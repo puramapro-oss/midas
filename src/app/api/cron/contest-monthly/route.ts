@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { type NextRequest } from 'next/server';
+import { assertCronAuth } from '@/lib/cron-auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,10 +12,8 @@ const supabase = createClient(
 const SPLITS = [0.60, 0.25, 0.15]; // 3 winners
 
 export async function GET(request: Request) {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV === 'production') {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = assertCronAuth(request as unknown as NextRequest);
+  if (unauthorized) return unauthorized;
 
   try {
     // 1. Close active monthly contest

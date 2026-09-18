@@ -9,6 +9,8 @@ import {
   TTS_MODEL_ID,
   TTS_VOICE_SETTINGS,
 } from '@/lib/voice/constants';
+import { checkRateLimit } from '@/lib/utils/rate-limiter';
+import type { MidasPlan } from '@/types/stripe';
 
 const bodySchema = z.object({
   text: z.string().min(1).max(5000),
@@ -75,6 +77,10 @@ export async function POST(request: Request) {
     const { user, isSuperAdmin } = await getAuthUser();
     if (!user) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+    }
+    const rl = await checkRateLimit(user.id, 'free' as MidasPlan);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Trop de requêtes, réessaie dans un instant.' }, { status: 429 });
     }
 
     const body = await request.json();

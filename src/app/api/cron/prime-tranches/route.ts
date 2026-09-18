@@ -3,8 +3,9 @@
 // Exécute chaque jour — crédit tranches 2 (M+1) et 3 (M+2) dues aujourd'hui.
 // =============================================================================
 
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { assertCronAuth } from '@/lib/cron-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,10 +19,8 @@ function adminSupabase() {
 
 export async function GET(request: Request) {
   // Vercel Cron — secret header
-  const authHeader = request.headers.get('authorization');
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = assertCronAuth(request as unknown as NextRequest);
+  if (unauthorized) return unauthorized;
 
   const supabase = adminSupabase();
   const now = new Date().toISOString();

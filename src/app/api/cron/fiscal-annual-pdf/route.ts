@@ -7,9 +7,10 @@
 // Schedule : "0 9 1 1 *" (1er janvier à 9h UTC)
 // =============================================================================
 
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { getServiceClient, getResend, classifySource, type WalletTx, type ProfileRow, type Totals } from './fiscal-helpers'
 import { buildAnnualPdfBase64 } from './fiscal-pdf-generator'
+import { assertCronAuth } from '@/lib/cron-auth';
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -19,10 +20,8 @@ export const maxDuration = 300
 // ---------------------------------------------------------------------------
 export async function GET(request: Request) {
   // Auth Vercel Cron
-  const authHeader = request.headers.get('authorization');
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const unauthorized = assertCronAuth(request as unknown as NextRequest);
+  if (unauthorized) return unauthorized;
 
   try {
     const supa = getServiceClient();

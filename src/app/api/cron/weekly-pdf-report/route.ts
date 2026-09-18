@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { generateWeeklyReportPdf, type WeeklyReportData } from '@/lib/reports/weekly-pdf';
+import { assertCronAuth } from '@/lib/cron-auth';
 
 export const maxDuration = 120;
 
@@ -28,10 +29,8 @@ interface TradeRow {
 }
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-  }
+  const unauthorized = assertCronAuth(request);
+  if (unauthorized) return unauthorized;
 
   try {
     const supabase = createClient(

@@ -27,7 +27,10 @@ function LoginContent() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [rememberMe, setRememberMe] = useState(false)
 
-  const nextUrl = searchParams.get('next') ?? '/dashboard'
+  // Anti open-redirect : n'accepter qu'un chemin relatif interne (« /x », pas
+  // « //evil.com » ni URL absolue).
+  const rawNext = searchParams.get('next') ?? '/dashboard'
+  const nextUrl = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard'
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

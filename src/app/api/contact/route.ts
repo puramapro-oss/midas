@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createServiceClient } from '@/lib/supabase/server';
+import { checkRateLimit } from '@/lib/utils/rate-limiter';
+import type { MidasPlan } from '@/types/stripe';
 
 const contactSchema = z.object({
   name: z.string().min(1, 'Le nom est requis').max(100),
@@ -11,6 +13,13 @@ const contactSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    // Throttle IP anti-spam du formulaire public
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+    const rl = await checkRateLimit(`contact:${ip}`, 'free' as MidasPlan);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: 'Trop de messages envoyés, réessaie plus tard.' }, { status: 429 });
+    }
+
     const body = await request.json();
     const parsed = contactSchema.safeParse(body);
 

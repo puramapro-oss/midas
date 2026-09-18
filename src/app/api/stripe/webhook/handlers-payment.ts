@@ -52,29 +52,52 @@ export async function handleCheckoutCompleted(
         const m1 = new Date(now); m1.setMonth(m1.getMonth() + 1);
         const m2 = new Date(now); m2.setMonth(m2.getMonth() + 2);
 
-        await adminSupabase.from('prime_tranches').insert([
-          { user_id: userId, app_id: 'midas', palier: 1, amount: t1, scheduled_for: now.toISOString(), credited_at: now.toISOString(), status: 'credited' },
-          { user_id: userId, app_id: 'midas', palier: 2, amount: PRIME_TRANCHE_2, scheduled_for: m1.toISOString(), status: 'scheduled' },
-          { user_id: userId, app_id: 'midas', palier: 3, amount: PRIME_TRANCHE_3, scheduled_for: m2.toISOString(), status: 'scheduled' },
-        ]);
+        // Idempotence Stripe : un retry webhook du même checkout ne doit JAMAIS
+        // re-créditer la prime ni dupliquer les tranches.
+        const { data: existingTranche } = await adminSupabase
+          .from('prime_tranches')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('app_id', 'midas')
+          .eq('palier', 1)
+          .maybeSingle();
 
-        await adminSupabase.rpc('increment_wallet_balance', { uid: userId, delta: t1 });
+        if (!existingTranche) {
+          await adminSupabase.from('prime_tranches').insert([
+            { user_id: userId, app_id: 'midas', palier: 1, amount: t1, scheduled_for: now.toISOString(), credited_at: now.toISOString(), status: 'credited' },
+            { user_id: userId, app_id: 'midas', palier: 2, amount: PRIME_TRANCHE_2, scheduled_for: m1.toISOString(), status: 'scheduled' },
+            { user_id: userId, app_id: 'midas', palier: 3, amount: PRIME_TRANCHE_3, scheduled_for: m2.toISOString(), status: 'scheduled' },
+          ]);
+
+          await adminSupabase.rpc('increment_wallet_balance', { uid: userId, delta: t1 });
+        }
       }
     }
   }
 
   if (session.amount_total) {
-    await adminSupabase.from('payments').insert({
-      user_id: userId,
-      stripe_payment_id: session.payment_intent as string,
-      amount: session.amount_total,
-      amount_after_discount: session.amount_total - (session.total_details?.amount_discount ?? 0),
-      discount_applied: session.total_details?.amount_discount ?? 0,
-      currency: session.currency ?? 'eur',
-      status: 'completed',
-      plan: session.metadata?.plan ?? 'pro',
-      billing_period: session.metadata?.period ?? 'monthly',
-    });
+    // Idempotence : clé payment_intent (fallback session.id) — un payment
+    // déjà enregistré n'est pas réinséré.
+    const paymentKey = String(session.payment_intent ?? session.id);
+    const { data: existingPayment } = await adminSupabase
+      .from('payments')
+      .select('id')
+      .eq('stripe_payment_id', paymentKey)
+      .maybeSingle();
+
+    if (!existingPayment) {
+      await adminSupabase.from('payments').insert({
+        user_id: userId,
+        stripe_payment_id: paymentKey,
+        amount: session.amount_total,
+        amount_after_discount: session.amount_total - (session.total_details?.amount_discount ?? 0),
+        discount_applied: session.total_details?.amount_discount ?? 0,
+        currency: session.currency ?? 'eur',
+        status: 'completed',
+        plan: session.metadata?.plan ?? 'pro',
+        billing_period: session.metadata?.period ?? 'monthly',
+      });
+    }
   }
 }
 

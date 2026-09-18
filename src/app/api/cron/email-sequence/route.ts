@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
+import { assertCronAuth } from '@/lib/cron-auth';
 import { createClient } from '@/lib/supabase/server';
 
 // 10 email sequences: J0 Bienvenue, J1 Astuce, J3 Relance, J7 Tips, J14 Upgrade,
@@ -10,11 +11,13 @@ const SEQUENCES = [
   { type: 'reminder', day: 3, subject: 'Tes signaux IA t\'attendent sur MIDAS', delay_days: 3 },
   { type: 'tips', day: 7, subject: '3 stratégies gagnantes que nos meilleurs traders utilisent', delay_days: 7 },
   { type: 'upgrade', day: 14, subject: 'Passe Pro : -20% avec le code EMAIL20 (48h)', delay_days: 14 },
-  { type: 'testimonial', day: 21, subject: 'Comment Marc a gagné 2400€ en 3 mois avec MIDAS', delay_days: 21 },
+  { type: 'testimonial', day: 21, subject: 'MIDAS : 3 fonctionnalités que tu n’as pas encore essayées', delay_days: 21 },
   { type: 'winback', day: 30, subject: 'Tu nous manques ! Reviens avec -30% sur MIDAS Pro', delay_days: 30 },
 ] as const;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const unauthorized = assertCronAuth(request);
+  if (unauthorized) return unauthorized;
   try {
     const supabase = await createClient();
     const now = new Date();
@@ -51,8 +54,9 @@ export async function GET() {
         try {
           const resendKey = process.env.RESEND_API_KEY;
           if (resendKey) {
-            await fetch('https://api.resend.com/emails', {
+            const res = await fetch('https://api.resend.com/emails', {
               method: 'POST',
+              signal: AbortSignal.timeout(15_000),
               headers: {
                 'Authorization': `Bearer ${resendKey}`,
                 'Content-Type': 'application/json',
@@ -64,6 +68,9 @@ export async function GET() {
                 html: generateEmailHtml(seq.type, user.full_name ?? 'Trader'),
               }),
             });
+            if (!res.ok) {
+              console.error(`[email-sequence] Resend ${res.status} pour ${seq.type}/${user.email} — envoi non confirmé`);
+            }
           }
 
           // Record sent
@@ -78,8 +85,9 @@ export async function GET() {
     }
 
     return NextResponse.json({ ok: true, processed: SEQUENCES.length });
-  } catch (err) {
-    return NextResponse.json({ error: 'Erreur CRON email', details: String(err) }, { status: 500 });
+  } catch {
+    console.error('[email-sequence] échec CRON — détail serveur uniquement');
+    return NextResponse.json({ error: 'Erreur CRON email' }, { status: 500 });
   }
 }
 

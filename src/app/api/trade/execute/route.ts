@@ -139,7 +139,9 @@ export async function POST(request: Request) {
       risk_reward_ratio: takeProfit && stopLoss && entryPrice !== stopLoss
         ? Math.abs((takeProfit - entryPrice) / (entryPrice - stopLoss))
         : 0,
-      approved_by_shield: true,
+      // Honnête : décision manuelle, pas validée par le Shield coordinateur.
+      // Le gate réel est exécuté par simulate() côté exécuteur.
+      approved_by_shield: false,
     };
 
     // Execute trade (paper only, D2=A) through the full Shield pipeline

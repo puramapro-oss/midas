@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import OpenAI from 'openai';
+import { checkRateLimit } from '@/lib/utils/rate-limiter';
+import type { MidasPlan } from '@/types/stripe';
 
 async function getAuthUser() {
   const cookieStore = await cookies();
@@ -24,6 +26,11 @@ export async function POST(request: Request) {
     const { user } = await getAuthUser();
     if (!user) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+    }
+
+    const rl = await checkRateLimit(user.id, 'free' as MidasPlan);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Trop de requêtes, réessaie dans un instant." }, { status: 429 });
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
