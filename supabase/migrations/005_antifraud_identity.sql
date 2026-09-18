@@ -1,25 +1,29 @@
 -- =============================================================================
--- Migration 005: Anti-fraud identity layer (phone, device, IP tracking)
+-- Migration 005 : Anti-fraud identity layer (phone, device, IP tracking)
 -- Pour @purama/antifraud — MOULE-ANTIFRAUDE.md layer 1+3
+--
+-- IMPORTANT (découverte prod 2026-09-18) : public.identity_fingerprints
+-- existe DÉJÀ sur le VPS avec un design partagé cross-apps :
+--   (fingerprint_type, fingerprint_hash, account_id, first_app_slug,
+--    last_app_slug, created_at, updated_at)
+-- Cette migration est ADDITIVE et ADAPTATIVE :
+--   - base fraîche sans table → création complète (design ci-dessous) ;
+--   - base avec la table partagée → AUCUNE mutation de ses colonnes ;
+--     seul l'index d'unicité global + RLS sont ajoutés (idempotents).
 -- =============================================================================
+SET search_path TO public;
 
 -- Ajout colonnes identité sur profiles
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS phone_number TEXT,
   ADD COLUMN IF NOT EXISTS phone_verified_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS last_device_fingerprint TEXT,
+  ADD COLUMN IF NOT EXISTS signup_device_fingerprint TEXT,
   ADD COLUMN IF NOT EXISTS last_ip_address INET,
-  ADD COLUMN IF NOT EXISTS signup_ip_address INET,
-  ADD COLUMN IF NOT EXISTS signup_device_fingerprint TEXT;
+  ADD COLUMN IF NOT EXISTS signup_ip_address INET;
 
--- Index pour recherche anti-collusion (même device/IP/phone)
-CREATE INDEX IF NOT EXISTS idx_profiles_phone_number ON public.profiles(phone_number) WHERE phone_number IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_profiles_last_device ON public.profiles(last_device_fingerprint) WHERE last_device_fingerprint IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_profiles_last_ip ON public.profiles(last_ip_address) WHERE last_ip_address IS NOT NULL;
-
--- Table cross-écosystème pour empreintes IBAN partagées (unicité globale)
--- Note: idéalement dans schéma `public` du VPS partagé pour vraie unicité cross-apps,
--- mais pour l'instant on track dans le schéma midas local (anti-collusion intra-app).
+-- Table empreintes : créée seulement sur base fraîche (jamais mutée si
+-- la table partagée cross-apps existe déjà).
 CREATE TABLE IF NOT EXISTS public.identity_fingerprints (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   fingerprint_type TEXT NOT NULL CHECK (fingerprint_type IN ('iban', 'phone', 'document', 'card')),
@@ -30,11 +34,29 @@ CREATE TABLE IF NOT EXISTS public.identity_fingerprints (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Index unicité : 1 empreinte = 1 compte par app (permet plusieurs apps partageant même IBAN si légitime)
-CREATE UNIQUE INDEX IF NOT EXISTS idx_identity_fingerprints_unique
-  ON public.identity_fingerprints(fingerprint_type, fingerprint_hash, app_slug);
+DO $$
+DECLARE
+  has_app_slug boolean;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'identity_fingerprints'
+      AND column_name = 'app_slug'
+  ) INTO has_app_slug;
 
--- Index lookup par compte
+  IF has_app_slug THEN
+    -- Design midas (base fraîche) : unicité par (type, hash, app)
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_identity_fingerprints_unique
+      ON public.identity_fingerprints(fingerprint_type, fingerprint_hash, app_slug);
+  ELSE
+    -- Design partagé cross-apps (prod VPS) : unicité GLOBALE par (type, hash)
+    -- — 1 empreinte = 1 compte, toutes apps confondues (anti-collusion
+    -- écosystème). Table vide au moment de l'application (vérifié 2026-09-18).
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_identity_fingerprints_unique
+      ON public.identity_fingerprints(fingerprint_type, fingerprint_hash);
+  END IF;
+END $$;
+
 CREATE INDEX IF NOT EXISTS idx_identity_fingerprints_account
   ON public.identity_fingerprints(account_id);
 
@@ -62,5 +84,3 @@ ALTER TABLE public.profiles
 
 COMMENT ON COLUMN public.profiles.phone_number IS 'Téléphone pour OTP (layer 1). NULL = non fourni.';
 COMMENT ON COLUMN public.profiles.phone_verified_at IS 'Horodatage vérification OTP. NULL = non vérifié.';
-COMMENT ON COLUMN public.profiles.liveness_face_embedding IS 'Vecteur face (provider-dependent) pour unicité visage layer 4.';
-COMMENT ON TABLE public.identity_fingerprints IS 'Empreintes SHA-256 IBAN/phone/document pour unicité cross-comptes (layer 1+3).';

@@ -60,7 +60,9 @@ export async function getConnectIbanFingerprint(
 
 /**
  * Vérifie unicité d'une empreinte (IBAN, phone, etc) dans la table partagée
- * identity_fingerprints. Retourne {unique, conflictCount}.
+ * identity_fingerprints (contrat cross-apps VPS : fingerprint_type/hash/
+ * account_id + first/last_app_slug — unicité GLOBALE par type+hash).
+ * Retourne {unique, conflictCount}.
  */
 export async function checkIdentityFingerprintUnique(
   supabase: SupabaseClient,
@@ -73,7 +75,6 @@ export async function checkIdentityFingerprintUnique(
     .select('fingerprint_hash')
     .eq('fingerprint_type', fingerprintType)
     .eq('fingerprint_hash', fingerprintHash)
-    .eq('app_slug', 'midas')
     .neq('account_id', currentUserId);
 
   const existingFingerprints = (existingRows ?? []).map((r) => r.fingerprint_hash);
@@ -82,6 +83,8 @@ export async function checkIdentityFingerprintUnique(
 
 /**
  * Enregistre une empreinte dans identity_fingerprints (idempotent upsert).
+ * Conforme au design partagé : unicité (fingerprint_type, fingerprint_hash)
+ * + journalisation last_app_slug='midas'.
  */
 export async function registerIdentityFingerprint(
   supabase: SupabaseClient,
@@ -95,12 +98,12 @@ export async function registerIdentityFingerprint(
       {
         fingerprint_type: fingerprintType,
         fingerprint_hash: fingerprintHash,
-        app_slug: 'midas',
+        last_app_slug: 'midas',
         account_id: userId,
         updated_at: new Date().toISOString(),
       },
       {
-        onConflict: 'fingerprint_type,fingerprint_hash,app_slug',
+        onConflict: 'fingerprint_type,fingerprint_hash',
         ignoreDuplicates: false,
       },
     );
