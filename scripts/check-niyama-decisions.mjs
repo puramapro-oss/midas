@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 
 const phase = await readFile(new URL('../src/lib/phase.ts', import.meta.url), 'utf8');
 const route = await readFile(new URL('../src/app/api/trade/execute/route.ts', import.meta.url), 'utf8');
+const closeRoute = await readFile(new URL('../src/app/api/trade/close/route.ts', import.meta.url), 'utf8');
 const executor = await readFile(new URL('../src/lib/trading/trade-executor.ts', import.meta.url), 'utf8');
 const prompts = await readFile(new URL('../src/lib/ai/system-prompts.ts', import.meta.url), 'utf8');
 const help = await readFile(new URL('../src/app/dashboard/help/data.ts', import.meta.url), 'utf8');
@@ -28,7 +29,12 @@ assert.match(phase, /walletMode: 'points'/);
 assert.match(phase, /withdrawalAvailable: false/);
 assert.doesNotMatch(phase, /process\.env\.(?:PURAMA_PHASE|WALLET_MODE|WITHDRAWAL_AVAILABLE)/);
 assert.match(route, /uniquement les simulations éducatives/);
+// D2=A : aucun chemin d'ordre exchange — ni ouverture (executor) ni fermeture
+// (close route). L'invariant est asserté sur les DEUX fichiers : un grep
+// mono-fichier laisserait la prochaine route s'échapper.
 assert.doesNotMatch(executor, /createMarketOrder|live_executed|is_paper:\s*false/);
+assert.doesNotMatch(closeRoute, /createMarketOrder|live_executed|executeLiveOrder/);
+assert.match(closeRoute, /PAPER_FEE_RATE/);
 assert.match(executor, /executePaperTrade/);
 assert.match(phase, /cryptoPromotionFrance: false/);
 assert.match(phase, /personalizedCryptoAdvice: false/);

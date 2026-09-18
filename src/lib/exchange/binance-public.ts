@@ -18,6 +18,12 @@ export function pairToSymbol(pair: string): string {
   return pair.replace('/', '').toUpperCase();
 }
 
+/**
+ * Seuil minimal de bougies pour générer une analyse (source unique —
+ * utilisé par les routes analysis/* et la génération de signaux vérifiés).
+ */
+export const MIN_CANDLES = 200;
+
 interface KlineFetchResult {
   candles: Candle[];
   source: 'binance' | 'vps_proxy' | 'coingecko' | 'none';

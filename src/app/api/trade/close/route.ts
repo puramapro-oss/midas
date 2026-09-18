@@ -5,10 +5,7 @@ import { z } from 'zod';
 import { fetchTicker24h } from '@/lib/data/binance';
 import { pairToSymbol } from '@/lib/exchange/binance-public';
 import { createServiceClient } from '@/lib/supabase/server';
-import { decrypt } from '@/lib/exchange/encryption';
-import { createExchangeClient, isSupportedExchange } from '@/lib/exchange/ccxt-client';
-import { confirmedExecution, normalizeQuantity } from '@/lib/trading/execution-safety';
-import { randomUUID } from 'crypto';
+import { PAPER_FEE_RATE } from '@/lib/trading/paper-trading-engine';
 
 const bodySchema = z.object({
   tradeId: z.string().uuid(),
@@ -68,91 +65,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Position invalide: prix ou quantite manquant' }, { status: 409 });
     }
 
-    let exitPrice = entryPrice;
-    let exitQuantity = quantity;
-    let exitFees = 0;
-    let exitOrderId: string | null = null;
-    let executionIntentId: string | null = null;
-
-    if (trade.is_paper_trade) {
-      const ticker = await fetchTicker24h(pairToSymbol(trade.pair));
-      if (!ticker || ticker.lastPrice <= 0) {
-        return NextResponse.json({ error: 'Prix de marche indisponible; position non modifiee' }, { status: 503 });
-      }
-      exitPrice = ticker.lastPrice;
-      exitFees = quantity * exitPrice * 0.001;
-    } else {
-      if (!trade.exchange_connection_id) {
-        return NextResponse.json({ error: 'Connexion exchange absente; fermeture reelle bloquee' }, { status: 409 });
-      }
-      const { data: connection, error: connectionError } = await supabase
-        .from('exchange_connections')
-        .select('*')
-        .eq('id', trade.exchange_connection_id)
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .single();
-      if (connectionError || !connection || !isSupportedExchange(connection.exchange)) {
-        return NextResponse.json({ error: 'Connexion exchange introuvable ou non supportee' }, { status: 409 });
-      }
-
-      const intentKey = randomUUID();
-      const closeSide = trade.side === 'buy' ? 'sell' : 'buy';
-      const { data: intent, error: intentError } = await supabase.from('trade_execution_intents').insert({
-        user_id: user.id,
-        trade_id: trade.id,
-        exchange_connection_id: connection.id,
-        idempotency_key: intentKey,
-        purpose: 'close',
-        symbol: trade.pair,
-        side: closeSide,
-        requested_quantity: quantity,
-        status: 'prepared',
-      }).select('id').single();
-      if (intentError || !intent) {
-        return NextResponse.json({ error: 'Fermeture deja en cours ou registre indisponible; aucun ordre envoye' }, { status: 409 });
-      }
-      executionIntentId = intent.id;
-
-      try {
-        const client = createExchangeClient(connection.exchange, {
-          apiKey: decrypt(connection.api_key_encrypted, connection.api_key_iv),
-          secret: decrypt(connection.api_secret_encrypted, connection.api_secret_iv),
-          testnet: connection.is_testnet,
-        });
-        await client.loadMarkets();
-        const market = client.market(trade.pair);
-        const ticker = await client.fetchTicker(trade.pair);
-        const referencePrice = Number(ticker.last ?? ticker.bid ?? ticker.ask);
-        const closeQuantity = normalizeQuantity(client, market, quantity, referencePrice);
-        await supabase.from('trade_execution_intents').update({ status: 'submitted' }).eq('id', intent.id);
-        let order = await client.createMarketOrder(trade.pair, closeSide, closeQuantity);
-        if ((!order.filled || !order.average) && order.id && client.has.fetchOrder) {
-          order = await client.fetchOrder(order.id, trade.pair);
-        }
-        const execution = confirmedExecution(order);
-        exitPrice = execution.price;
-        exitQuantity = execution.quantity;
-        exitFees = execution.fees;
-        exitOrderId = order.id ?? null;
-        if (exitQuantity < quantity * 0.999999) {
-          throw new Error(`Partial close confirmed (${exitQuantity}/${quantity}); reconciliation required`);
-        }
-        await supabase.from('trade_execution_intents').update({
-          status: 'confirmed',
-          exchange_order_id: exitOrderId,
-          exchange_response: order,
-          updated_at: new Date().toISOString(),
-        }).eq('id', intent.id);
-      } catch (error) {
-        await supabase.from('trade_execution_intents').update({
-          status: 'unknown',
-          error: error instanceof Error ? error.message : 'Unknown close execution error',
-          updated_at: new Date().toISOString(),
-        }).eq('id', intent.id);
-        return NextResponse.json({ error: 'Resultat de fermeture incertain; verification courtier requise, aucun nouvel essai automatique' }, { status: 502 });
-      }
+    // Décision Tissma D2=A (2026-09-05), contrat check-niyama-decisions.mjs :
+    // fermeture en simulation uniquement. Un trade marqué non-paper (données
+    // historiques antérieures) ne peut PAS déclencher d'ordre exchange —
+    // aucun chemin ccxt n'existe ici.
+    if (!trade.is_paper_trade) {
+      return NextResponse.json(
+        { error: 'Les positions réelles ne peuvent plus être fermées via MIDAS (éducation uniquement). Contacte ton exchange directement.' },
+        { status: 403 },
+      );
     }
+
+    const ticker = await fetchTicker24h(pairToSymbol(trade.pair));
+    if (!ticker || ticker.lastPrice <= 0) {
+      return NextResponse.json({ error: 'Prix de marche indisponible; position non modifiee' }, { status: 503 });
+    }
+    const exitPrice = ticker.lastPrice;
+    const exitQuantity = quantity;
+    const exitFees = quantity * exitPrice * PAPER_FEE_RATE;
 
     // Calculate P&L
     let pnl = 0;
@@ -174,7 +104,7 @@ export async function POST(request: Request) {
         fees: parseFloat(totalFees.toFixed(8)),
         pnl_pct: entryPrice * exitQuantity > 0 ? (pnl / (entryPrice * exitQuantity)) * 100 : 0,
         close_reason: 'manual',
-        exchange_response: exitOrderId ? { close_order_id: exitOrderId } : trade.exchange_response,
+        exchange_response: trade.exchange_response,
         closed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -185,13 +115,6 @@ export async function POST(request: Request) {
       .single();
 
     if (updateError || !updatedTrade) {
-      if (executionIntentId) {
-        await supabase.from('trade_execution_intents').update({
-          status: 'unknown',
-          error: `Close order confirmed but trade persistence failed: ${updateError?.message ?? 'unknown error'}`,
-          updated_at: new Date().toISOString(),
-        }).eq('id', executionIntentId);
-      }
       return NextResponse.json({ error: 'Erreur fermeture trade', details: updateError?.message }, { status: 500 });
     }
 

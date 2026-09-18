@@ -11,7 +11,6 @@
 // =============================================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import Stripe from 'stripe';
 import {
   fingerprintValue,
   checkFingerprintUniqueness,
@@ -21,20 +20,12 @@ import {
   type AccountSignal,
   type TrustTierInput,
 } from '@purama/antifraud';
+import { getStripe } from '@/lib/stripe/helpers';
 
 // ---------------------------------------------------------------------------
 // Helpers IBAN from Stripe Connect
 // ---------------------------------------------------------------------------
 
-let stripeSingleton: Stripe | null = null;
-function getStripe(): Stripe {
-  if (!stripeSingleton) {
-    const key = process.env.STRIPE_SECRET_KEY;
-    if (!key) throw new Error('STRIPE_SECRET_KEY manquant');
-    stripeSingleton = new Stripe(key, { typescript: true });
-  }
-  return stripeSingleton;
-}
 
 /**
  * Récupère le premier IBAN (external_account type=bank_account) depuis
@@ -120,7 +111,6 @@ export async function registerIdentityFingerprint(
 // ---------------------------------------------------------------------------
 
 export interface MidasTrustTierInput {
-  userId: string;
   kycVerifiedAt: string | null;
   phoneVerifiedAt: string | null;
   hasActiveCollusionFlag: boolean;
@@ -150,84 +140,81 @@ export async function computeMidasTrustTier(
 // ---------------------------------------------------------------------------
 
 /**
- * Construit la liste AccountSignal[] pour un user à partir des données DB.
- * Fenêtre glissante 90j (signaux anciens ignorés).
+ * Construit les AccountSignal[] pour un lot de users à partir des données DB
+ * en 2 requêtes batchées (fingerprints iban+phone en une, profiles en une),
+ * fenêtre glissante 90j. Regroupement client-side par compte.
  */
-export async function buildMidasAccountSignals(
+const FINGERPRINT_SIGNAL_TYPE: Record<string, AccountSignal['type']> = {
+  iban: 'iban_fingerprint',
+  phone: 'phone_number',
+};
+
+export async function buildMidasAccountSignalsBatch(
   supabase: SupabaseClient,
-  userId: string,
-): Promise<AccountSignal[]> {
-  const signals: AccountSignal[] = [];
+  userIds: string[],
+): Promise<Map<string, AccountSignal[]>> {
+  const byAccount = new Map<string, AccountSignal[]>(userIds.map((id) => [id, []]));
+  const push = (accountId: string, signal: AccountSignal) => {
+    byAccount.get(accountId)?.push(signal);
+  };
+  const since = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
 
-  // 1. IBAN fingerprint depuis identity_fingerprints
-  const { data: ibanFingerprints } = await supabase
+  // 1+2. Empreintes IBAN + phone (même table, une seule requête .in)
+  const fingerprintsPromise = supabase
     .from('identity_fingerprints')
-    .select('fingerprint_hash, created_at')
-    .eq('account_id', userId)
-    .eq('fingerprint_type', 'iban')
-    .gte('created_at', new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString());
+    .select('account_id, fingerprint_type, fingerprint_hash')
+    .in('account_id', userIds)
+    .in('fingerprint_type', ['iban', 'phone'])
+    .gte('created_at', since);
 
-  for (const fp of ibanFingerprints ?? []) {
-    signals.push({
-      accountId: userId,
-      type: 'iban_fingerprint',
-      fingerprint: fp.fingerprint_hash,
-    });
-  }
-
-  // 2. Phone fingerprint
-  const { data: phoneFingerprints } = await supabase
-    .from('identity_fingerprints')
-    .select('fingerprint_hash, created_at')
-    .eq('account_id', userId)
-    .eq('fingerprint_type', 'phone')
-    .gte('created_at', new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString());
-
-  for (const fp of phoneFingerprints ?? []) {
-    signals.push({
-      accountId: userId,
-      type: 'phone_number',
-      fingerprint: fp.fingerprint_hash,
-    });
-  }
-
-  // 3. Device fingerprint (last_device_fingerprint sur profiles)
-  const { data: profile } = await supabase
+  // 3. Device + IP (profiles)
+  const profilesPromise = supabase
     .from('profiles')
-    .select('last_device_fingerprint, signup_device_fingerprint, last_ip_address')
-    .eq('id', userId)
-    .maybeSingle();
+    .select('id, last_device_fingerprint, signup_device_fingerprint, last_ip_address')
+    .in('id', userIds);
 
-  if (profile?.last_device_fingerprint) {
-    signals.push({
-      accountId: userId,
-      type: 'device_fingerprint',
-      fingerprint: profile.last_device_fingerprint,
-    });
-  }
-  if (
-    profile?.signup_device_fingerprint &&
-    profile.signup_device_fingerprint !== profile.last_device_fingerprint
-  ) {
-    signals.push({
-      accountId: userId,
-      type: 'device_fingerprint',
-      fingerprint: profile.signup_device_fingerprint,
-    });
+  const [fingerprintsRes, profilesRes] = await Promise.all([fingerprintsPromise, profilesPromise]);
+
+  for (const fp of fingerprintsRes.data ?? []) {
+    const type = FINGERPRINT_SIGNAL_TYPE[fp.fingerprint_type];
+    if (type) {
+      push(fp.account_id, { accountId: fp.account_id, type, fingerprint: fp.fingerprint_hash });
+    }
   }
 
-  // 4. IP (last_ip_address)
-  if (profile?.last_ip_address) {
-    // Subnet /24 pour IPv4, /64 pour IPv6 (anti-collusion par quartier IP)
-    const subnet = profile.last_ip_address.toString().split('.').slice(0, 3).join('.');
-    signals.push({
-      accountId: userId,
-      type: 'ip_subnet',
-      fingerprint: subnet,
-    });
+  for (const profile of profilesRes.data ?? []) {
+    const userId = profile.id as string;
+
+    if (profile.last_device_fingerprint) {
+      push(userId, {
+        accountId: userId,
+        type: 'device_fingerprint',
+        fingerprint: profile.last_device_fingerprint,
+      });
+    }
+    if (
+      profile.signup_device_fingerprint &&
+      profile.signup_device_fingerprint !== profile.last_device_fingerprint
+    ) {
+      push(userId, {
+        accountId: userId,
+        type: 'device_fingerprint',
+        fingerprint: profile.signup_device_fingerprint,
+      });
+    }
+
+    // 4. IP (last_ip_address) — subnet /24 IPv4, /64 IPv6 (collusion par quartier)
+    if (profile.last_ip_address) {
+      const subnet = profile.last_ip_address.toString().split('.').slice(0, 3).join('.');
+      push(userId, {
+        accountId: userId,
+        type: 'ip_subnet',
+        fingerprint: subnet,
+      });
+    }
   }
 
-  return signals;
+  return byAccount;
 }
 
 /**
@@ -244,12 +231,14 @@ export async function detectCollusionClusters(
   supabase: SupabaseClient,
   userIds: string[],
 ): Promise<Array<{ cluster: string[]; shouldFreeze: boolean; score: number }>> {
+  // buildCollusionClusters ignore les groupes < 2 comptes : un appel mono-user
+  // ne peut jamais produire de cluster (les empreintes partagées avec d'autres
+  // comptes ne sont PAS encore explorées graphiquement — cf ANTIFRAUD-INTEGRATION).
+  if (userIds.length < 2) return [];
+
   try {
-    const allSignals: AccountSignal[] = [];
-    for (const uid of userIds) {
-      const signals = await buildMidasAccountSignals(supabase, uid);
-      allSignals.push(...signals);
-    }
+    const byAccount = await buildMidasAccountSignalsBatch(supabase, userIds);
+    const allSignals: AccountSignal[] = [...byAccount.values()].flat();
 
     const clusters = buildCollusionClusters(allSignals);
     const results: Array<{ cluster: string[]; shouldFreeze: boolean; score: number }> = [];

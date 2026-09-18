@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { z } from 'zod';
 import { analyzeTechnical } from '@/lib/agents/technical-agent';
-import { fetchKlinesWithSource } from '@/lib/exchange/binance-public';
+import { fetchKlinesWithSource, MIN_CANDLES } from '@/lib/exchange/binance-public';
 
 const bodySchema = z.object({
   pair: z.string().min(1).max(30),
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     const { pair, timeframe } = parsed.data;
 
     const marketData = await fetchKlinesWithSource(pair, timeframe, 300);
-    if (marketData.candles.length < 200) {
+    if (marketData.candles.length < MIN_CANDLES) {
       return NextResponse.json({ error: 'Donnees marche insuffisantes; aucune analyse artificielle generee' }, { status: 503 });
     }
 

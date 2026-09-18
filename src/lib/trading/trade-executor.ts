@@ -5,10 +5,8 @@
 
 import type { CoordinatorDecision } from '@/lib/agents/types';
 import { createServiceClient } from '@/lib/supabase/server';
-import { RiskManager, type UserProfile, type OpenPosition, type TradeHistory } from './risk-manager';
 import { simulate } from './pre-trade-simulation';
 import { executePaperTrade } from './paper-trading-engine';
-import { fetchKlines } from '@/lib/exchange/binance-public';
 
 export interface TradeResult {
   success: boolean;
@@ -23,111 +21,23 @@ export interface TradeResult {
   timestamp: number;
 }
 
+// Décision Tissma D2=A (2026-09-05), contrat check-niyama-decisions.mjs :
+// MIDAS reste en simulation éducative — aucun ordre vers un exchange, même
+// testnet, n'est envoyé depuis cet exécuteur. La route HTTP (/api/trade/*)
+// est 403 D2=A par le middleware ; cette garde interne empêche tout
+// contournement par un appel direct à la fonction.
 export async function executeTrade(
   decision: CoordinatorDecision,
   userId: string,
-  exchangeConnectionId: string,
-  options: { forcePaper?: boolean; quoteAmount?: number } = {},
+  options: { quoteAmount?: number } = {},
 ): Promise<TradeResult> {
   const timestamp = Date.now();
   const supabase = createServiceClient();
 
   try {
-    // 1. Fetch exchange connection
-    const { data: connection, error: connError } = await supabase
-      .from('exchange_connections')
-      .select('*')
-      .eq('id', exchangeConnectionId)
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .single();
-
-    if (connError || !connection) {
-      return failResult('Exchange connection not found or inactive', timestamp);
-    }
-
-    // 2. Fetch user profile for risk checks
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (!profileData) {
-      return failResult('User profile not found', timestamp);
-    }
-
-    const { data: tradingSettings } = await supabase
-      .from('trading_settings')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    const userProfile: UserProfile = {
-      id: userId,
-      plan: profileData.plan ?? 'free',
-      daily_loss_limit_usd: tradingSettings?.daily_loss_limit_usd ?? 100,
-      weekly_loss_limit_usd: tradingSettings?.weekly_loss_limit_usd ?? 500,
-      monthly_loss_limit_usd: tradingSettings?.monthly_loss_limit_usd ?? 2000,
-      max_position_size_pct: tradingSettings?.max_position_size_pct ?? 2,
-      max_concurrent_positions: tradingSettings?.max_concurrent_positions ?? 5,
-      capital_usd: tradingSettings?.capital_usd ?? 1000,
-    };
-
-    // 3. Fetch open positions
-    const { data: positionsData } = await supabase
-      .from('trades')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('status', 'open');
-
-    const openPositions: OpenPosition[] = (positionsData ?? []).map((p) => ({
-      id: p.id as string,
-      symbol: (p.pair ?? p.symbol) as string,
-      side: p.side as 'buy' | 'sell',
-      entry_price: Number(p.entry_price),
-      current_price: Number(p.current_price ?? p.entry_price),
-      quantity: Number(p.quantity),
-      unrealized_pnl: Number(p.unrealized_pnl ?? 0),
-      leverage: Number(p.leverage ?? 1),
-      allocation_pct: userProfile.capital_usd > 0
-        ? (Number(p.quote_amount ?? 0) / userProfile.capital_usd) * 100
-        : 0,
-      opened_at: new Date(p.created_at as string).getTime(),
-    }));
-
-    // 4. Fetch recent trade history for circuit breaker
-    const { data: historyData } = await supabase
-      .from('trades')
-      .select('pnl, closed_at')
-      .eq('user_id', userId)
-      .eq('status', 'closed')
-      .order('closed_at', { ascending: false })
-      .gte('closed_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-      .limit(5000);
-
-    const recentTrades: TradeHistory[] = (historyData ?? [])
-      .filter((t) => t.closed_at)
-      .map((t) => ({
-        pnl: Number(t.pnl ?? 0),
-        closed_at: new Date(t.closed_at as string).getTime(),
-      }));
-
-    // 5. Run MIDAS Shield risk checks
-    const btcCandles = await fetchKlines('BTC/USDT', '1m', 61);
-    if (btcCandles.length < 2) {
-      return failResult('BTC crash-protection data unavailable; no live order was sent', timestamp);
-    }
-    const btcPriceHistory = btcCandles.map((candle) => ({ timestamp: candle.timestamp, price: candle.close }));
-    const riskManager = new RiskManager(undefined, recentTrades, btcPriceHistory);
-    const shieldResult = riskManager.checkAllLevels(decision, userProfile, openPositions);
-
-    if (!shieldResult.passed) {
-      await logAudit(supabase, userId, decision, 'blocked_by_shield', shieldResult.failures);
-      return failResult(`Shield blocked: ${shieldResult.failures.join('; ')}`, timestamp);
-    }
-
-    // 6. Run pre-trade simulation
+    // 1. Pre-trade simulation — pipeline Shield complet (profil, limites,
+    //    positions ouvertes, circuit breaker 30j, crash-protection BTC).
+    //    Source unique du gate risque : ne PAS dupliquer les requêtes ici.
     const simResult = await simulate(decision, userId);
 
     if (!simResult.passed) {
@@ -135,12 +45,7 @@ export async function executeTrade(
       return failResult(`Pre-trade simulation failed: ${simResult.reasons.join('; ')}`, timestamp);
     }
 
-    // 7. Exécution paper uniquement
-    // Décision Tissma D2=A (2026-09-05), contrat check-niyama-decisions.mjs :
-    // MIDAS reste en simulation éducative — aucun ordre vers un exchange, même
-    // testnet, n'est envoyé depuis cet exécuteur. La connexion exchange, si
-    // présente en base, ne sert qu'au contexte papier. Garde interne : le
-    // contournement de la route HTTP (403 D2=A) est impossible.
+    // 2. Exécution paper uniquement
     const paperResult = await executePaperTrade(decision, userId, options.quoteAmount);
     await logAudit(supabase, userId, decision, 'paper_executed', []);
     return paperResult;

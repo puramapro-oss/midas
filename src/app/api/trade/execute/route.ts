@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Donnees invalides', details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { pair, side, strategy, entryPrice, positionSizePct, quoteAmount, stopLoss, takeProfit, isPaperTrade, botId: _botId, exchangeConnectionId } = parsed.data;
+    const { pair, side, strategy, entryPrice, positionSizePct, quoteAmount, stopLoss, takeProfit, isPaperTrade, exchangeConnectionId } = parsed.data;
 
     // Décision Tissma D2=A (2026-09-05) : MIDAS reste un outil
     // d'information/éducation. Une demande d'ordre réel est refusée avant
@@ -73,25 +73,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Profil introuvable' }, { status: 404 });
     }
 
-    // === BRIEF MIDAS-BRIEF-ULTIMATE.md : paper trading obligatoire 7 jours ===
-    // Tant que profile.paper_trading_until > now(), on FORCE isPaperTrade=true.
-    // Le super_admin n'est pas concerné (il peut tester en réel).
-    if (profile.role !== 'super_admin' && profile.paper_trading_until) {
-      const until = new Date(profile.paper_trading_until as string);
-      if (until.getTime() > Date.now()) {
-        if (!isPaperTrade) {
-          // Refus explicite si l'utilisateur tente d'exécuter un trade réel
-          return NextResponse.json(
-            {
-              error: 'Paper trading obligatoire pour 7 jours après inscription',
-              paper_trading_until: profile.paper_trading_until,
-              days_remaining: Math.ceil((until.getTime() - Date.now()) / (1000 * 60 * 60 * 24)),
-            },
-            { status: 403 },
-          );
-        }
-      }
-    }
+    // Note D2=A : tout !isPaperTrade est déjà refusé 403 plus haut ; le
+    // bloc historique « paper trading obligatoire 7 jours » est devenu
+    // inatteignable et a été retiré.
 
     // Check trade limits (super_admin bypass)
     if (profile.role !== 'super_admin') {
@@ -158,11 +142,8 @@ export async function POST(request: Request) {
       approved_by_shield: true,
     };
 
-    // Execute trade (paper or live) through the full Shield pipeline
-    const result = await executeTrade(decision, user.id, exchangeConnectionId, {
-      forcePaper: isPaperTrade,
-      quoteAmount,
-    });
+    // Execute trade (paper only, D2=A) through the full Shield pipeline
+    const result = await executeTrade(decision, user.id, { quoteAmount });
 
     if (!result.success) {
       return NextResponse.json(

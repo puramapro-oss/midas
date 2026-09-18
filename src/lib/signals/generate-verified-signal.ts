@@ -1,8 +1,7 @@
 import { coordinate } from '@/lib/ai/coordinator';
-import { fetchKlinesWithSource } from '@/lib/exchange/binance-public';
+import { fetchKlinesWithSource, MIN_CANDLES } from '@/lib/exchange/binance-public';
 import type { CoordinatorDecision } from '@/lib/agents/types';
 
-const MIN_CANDLES = 200;
 
 function signalStrength(decision: CoordinatorDecision): 'weak' | 'moderate' | 'strong' | 'very_strong' {
   const score = Math.abs(decision.composite_score);

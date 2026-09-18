@@ -7,7 +7,9 @@ import type { CoordinatorDecision } from '@/lib/agents/types';
 import { createServiceClient } from '@/lib/supabase/server';
 import type { TradeResult } from './trade-executor';
 
-const PAPER_FEE_RATE = 0.001; // 0.1% maker fee simulation
+// Taux unique de frais simulés — partagé avec /api/trade/close pour que
+// frais d'entrée et de sortie restent cohérents (source unique).
+export const PAPER_FEE_RATE = 0.001; // 0.1% maker fee simulation
 const PAPER_SLIPPAGE_RANGE = { min: 0.01, max: 0.15 }; // 0.01% to 0.15%
 
 export async function executePaperTrade(

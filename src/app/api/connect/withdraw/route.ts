@@ -23,9 +23,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { createClient as createServiceSupabase, type SupabaseClient } from '@supabase/supabase-js';
-import Stripe from 'stripe';
 import { z } from 'zod';
 import { getConnectAccountRow } from '@/lib/stripe/connect';
+import { getStripe } from '@/lib/stripe/helpers';
 import {
   computeMidasTrustTier,
   detectCollusionClusters,
@@ -63,16 +63,6 @@ function getServiceSupabase(): SupabaseClient {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
-}
-
-let stripeSingleton: Stripe | null = null;
-function getStripe(): Stripe {
-  if (!stripeSingleton) {
-    const key = process.env.STRIPE_SECRET_KEY;
-    if (!key) throw new Error('STRIPE_SECRET_KEY manquant');
-    stripeSingleton = new Stripe(key, { typescript: true });
-  }
-  return stripeSingleton;
 }
 
 // ---------------------------------------------------------------------------
@@ -204,7 +194,6 @@ export async function POST(req: NextRequest) {
     const hasActiveCollusionFlag = collusionClusters.some((c) => c.shouldFreeze);
 
     const trustTier = await computeMidasTrustTier({
-      userId: user.id,
       kycVerifiedAt: connectAccount.kyc_verified_at,
       phoneVerifiedAt: profile?.phone_verified_at ?? null,
       hasActiveCollusionFlag,
