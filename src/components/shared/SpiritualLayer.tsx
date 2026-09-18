@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { EMPOWERING_TEXTS, getRandomQuote } from '@/lib/spiritual/affirmations';
+import { getRandomQuote } from '@/lib/spiritual/affirmations';
 
 /**
  * SpiritualLayer — Invisible wrapper for the dashboard.

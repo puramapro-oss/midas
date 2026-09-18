@@ -1,5 +1,5 @@
 // MIDAS — Error Definitions
-import type { ErrorSeverity, MidasErrorConfig } from './errors';
+import type { ErrorSeverity } from './errors';
 
 export const ERRORS = {
   // Exchange

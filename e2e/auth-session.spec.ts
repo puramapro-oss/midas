@@ -44,11 +44,9 @@ test.describe('Auth Session Security', () => {
     await page.locator('[data-testid="login-button"]').click();
 
     // Verify localStorage was set
-    const rememberValue = await page.evaluate(() => localStorage.getItem('midas_remember'));
-    expect(rememberValue).toBe('true');
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('midas_remember'))).toBe('true');
 
-    const sessionValid = await page.evaluate(() => sessionStorage.getItem('midas_session_valid'));
-    expect(sessionValid).toBe('true');
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem('midas_session_valid'))).toBe('true');
 
     // Forced logout should be cleared
     const forcedLogout = await page.evaluate(() => localStorage.getItem('midas_forced_logout'));
@@ -61,8 +59,7 @@ test.describe('Auth Session Security', () => {
     await page.locator('[data-testid="password-input"]').fill('testpassword123');
     await page.locator('[data-testid="login-button"]').click();
 
-    const rememberValue = await page.evaluate(() => localStorage.getItem('midas_remember'));
-    expect(rememberValue).toBe('false');
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('midas_remember'))).toBe('false');
   });
 
   test('signout button sets forced logout flag and redirects to /login', async ({ page }) => {
@@ -81,8 +78,7 @@ test.describe('Auth Session Security', () => {
     });
 
     // Verify the flag persists
-    const flag = await page.evaluate(() => localStorage.getItem('midas_forced_logout'));
-    expect(flag).toBe('true');
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('midas_forced_logout'))).toBe('true');
 
     // Verify we're on login page
     await expect(page).toHaveURL(/\/login/);

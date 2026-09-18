@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users,
-  MessageCircle,
   Flame,
   Send,
   Loader2,

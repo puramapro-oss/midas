@@ -72,7 +72,8 @@ export default function GuidePage() {
       .from('profiles')
       .update({ tutorial_completed: false })
       .eq('id', user.id);
-    // Redirect to dashboard — tutorial will trigger
+    // Redirect to dashboard — tutorial will trigger (purge état onboarding)
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = '/dashboard';
   }, [user]);
 

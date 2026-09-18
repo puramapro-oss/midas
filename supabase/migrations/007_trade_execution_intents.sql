@@ -42,6 +42,8 @@ CREATE INDEX IF NOT EXISTS idx_trade_execution_reconcile
   WHERE status IN ('submitted', 'unknown');
 
 ALTER TABLE public.trade_execution_intents ENABLE ROW LEVEL SECURITY;
+-- Idempotence (CREATE POLICY n'a pas de IF NOT EXISTS)
+DROP POLICY IF EXISTS "trade_execution_intents_user_select" ON public.trade_execution_intents;
 CREATE POLICY "trade_execution_intents_user_select" ON public.trade_execution_intents
   FOR SELECT USING (auth.uid() = user_id);
 
@@ -61,6 +63,8 @@ CREATE TABLE IF NOT EXISTS public.trading_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE public.trading_settings ENABLE ROW LEVEL SECURITY;
+-- Idempotence (CREATE POLICY n'a pas de IF NOT EXISTS)
+DROP POLICY IF EXISTS "trading_settings_user_all" ON public.trading_settings;
 CREATE POLICY "trading_settings_user_all" ON public.trading_settings
   FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
@@ -82,5 +86,7 @@ CREATE TABLE IF NOT EXISTS public.trade_audit_logs (
 CREATE INDEX IF NOT EXISTS idx_trade_audit_user_created
   ON public.trade_audit_logs(user_id, created_at DESC);
 ALTER TABLE public.trade_audit_logs ENABLE ROW LEVEL SECURITY;
+-- Idempotence (CREATE POLICY n'a pas de IF NOT EXISTS)
+DROP POLICY IF EXISTS "trade_audit_logs_user_select" ON public.trade_audit_logs;
 CREATE POLICY "trade_audit_logs_user_select" ON public.trade_audit_logs
   FOR SELECT USING (auth.uid() = user_id);

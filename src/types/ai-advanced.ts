@@ -1,6 +1,5 @@
 // MIDAS — AI Advanced Analysis Types
 import type { TradeSide } from '@/types/database';
-import type { Timeframe } from '@/types/trading';
 
 // --- Smart Money ---
 

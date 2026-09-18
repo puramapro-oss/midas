@@ -8,7 +8,6 @@ import {
   Shield,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { cn } from '@/lib/utils/formatters';
 import { ExchangeConnector, type Exchange } from '@/components/trading/ExchangeConnector';
 
 const EXCHANGES: Exchange[] = [
@@ -25,7 +24,7 @@ export default function ExchangesSettingsPage() {
 
   const connectedCount = exchanges.filter((e) => e.connected).length;
 
-  const handleSave = (name: string, data: { apiKey: string; secret: string }) => {
+  const handleSave = (name: string, _data: { apiKey: string; secret: string }) => {
     setExchanges((prev) =>
       prev.map((e) =>
         e.name === name ? { ...e, connected: true, status: 'connected' } : e

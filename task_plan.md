@@ -817,3 +817,10 @@ production. Migration appliquée VPS + smoke-testée via PostgREST réel.
 - [x] Vérifié : 0 createOrder/createMarketOrder dans src/, BINANCE_API_KEY jamais lu, RiskManager limites complètes, bots=CRUD, crons sans exécution
 - [x] Gates : tsc 0 | lint 0 err | unit 10/10 | E2E 445/446 (1 flake prouvé 9/9 isolé) | audit 0 | build 0 | NIYAMA PASS
 - [ ] Migrations 005-008 → VPS (SSH bloqué), push+deploy (interdits), GoTrue rate limits à confirmer côté VPS, CSP nonce (refonte), DDL réel tables midas à importer (drift schéma)
+
+## Phase 21 — Écarts restants audit (2026-09-18) ✅ local
+- [x] E2E localStorage déterministe (expect.poll) + CSP dev permissive → 446/446, 0 flake
+- [x] 280→0 warnings lint (imports morts, locals, disables justifiés, no-console scoped e2e/scripts)
+- [x] CSP durcie prod (unsafe-eval retiré, object-src/base-uri/frame-ancestors/form-action, upgrade-insecure-requests, IP:8000 supprimée) sans casser (build+E2E verts)
+- [x] Migrations 005-008 prouvées sur base jetable PG 18.4 : 2 passes idempotentes, RLS×4, trigger billing actif (bloque plan upgrade user), revoke anon, exec_sql droppé, CHECK pending_review
+- [x] Gates finaux : tsc 0 | lint 0/0 | unit 10/10 | E2E 446/446 | audit 0 | build 0 | NIYAMA PASS

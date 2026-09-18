@@ -1,6 +1,6 @@
 'use client';
 
-import { TrendingUp, TrendingDown, X, BarChart3 } from 'lucide-react';
+import { X, BarChart3 } from 'lucide-react';
 import { useTrades } from '@/hooks/useTrades';
 
 export default function OpenPositions() {

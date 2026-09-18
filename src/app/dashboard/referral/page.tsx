@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Gift, Copy, Check, Users, DollarSign, TrendingUp,
+  Gift, Copy, Check, Users, DollarSign,
   Share2, Award, Crown, Star, Zap, Shield, Trophy,
 } from 'lucide-react';
 import { toast } from 'sonner';

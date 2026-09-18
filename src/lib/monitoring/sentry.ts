@@ -14,7 +14,9 @@ export function captureError(error: unknown, context?: Record<string, unknown>):
 }
 
 export function captureMessage(message: string, level: string = 'info'): void {
-  console.info(`[MIDAS ${level}]`, message);
+  // Sentry stub — en attendant l'intégration @sentry/nextjs, tout niveau
+  // remonte en console.error (visible logs Vercel) sans perdre le niveau.
+  console.error(`[MIDAS ${level}]`, message);
 }
 
 export function setUser(id: string, email?: string): void {

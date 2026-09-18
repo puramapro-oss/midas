@@ -16,7 +16,6 @@ import {
 import type {
   IndicatorScore,
   TechnicalData,
-  TimeframeSignal,
   MultiTimeframeTechnical,
 } from './types/technical-types';
 import {

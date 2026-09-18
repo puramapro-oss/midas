@@ -77,6 +77,8 @@ export default function TaxPage() {
 
   const downloadPdf = () => {
     if (!report) return;
+    // Téléchargement de fichier API — window.location est l'outil correct (pas une page Next)
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = `/api/tax/${report.year}/pdf`;
   };
 

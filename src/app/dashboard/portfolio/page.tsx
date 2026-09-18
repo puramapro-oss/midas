@@ -19,7 +19,7 @@ import { useExchange } from '@/hooks/useExchange'
 
 export default function PortfolioPage() {
   const perf = usePerformance()
-  const { openPositions, recentTrades } = useTrades()
+  const { recentTrades } = useTrades()
   const { connected, balance } = useExchange()
   const [period, setPeriod] = useState<'day' | 'week' | 'month'>('week')
 

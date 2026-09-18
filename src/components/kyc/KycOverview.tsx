@@ -3,7 +3,6 @@
 import { motion } from 'framer-motion';
 import { ChevronRight, CreditCard, MapPin, User } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/Card';
-import type { Step } from '@/lib/kyc/constants';
 
 interface KycOverviewProps {
   onStart: () => void;

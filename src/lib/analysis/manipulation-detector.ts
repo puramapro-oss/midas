@@ -34,11 +34,6 @@ function average(arr: number[]): number {
   return arr.reduce((s, v) => s + v, 0) / arr.length;
 }
 
-function stdDev(arr: number[]): number {
-  const avg = average(arr);
-  const variance = arr.reduce((s, v) => s + (v - avg) ** 2, 0) / arr.length;
-  return Math.sqrt(variance);
-}
 
 // --- Wash Trading Detection ---
 

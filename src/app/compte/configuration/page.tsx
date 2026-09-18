@@ -21,6 +21,8 @@ export default function ComptConfigurationPage() {
       <ConnectRoot allowAutoOnboard>
         <ConnectAccountOnboarding
           onExit={() => {
+            // Navigation dure volontaire : changement de section compte avec purge d'état
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             window.location.href = '/compte/gestion';
           }}
         />

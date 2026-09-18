@@ -41,11 +41,15 @@ CREATE INDEX IF NOT EXISTS idx_identity_fingerprints_account
 -- RLS : les users ne peuvent voir que leurs propres empreintes
 ALTER TABLE public.identity_fingerprints ENABLE ROW LEVEL SECURITY;
 
+-- Idempotence : DROP IF EXISTS avant chaque CREATE (CREATE POLICY n'a pas de
+-- clause IF NOT EXISTS — rejouer la migration ne doit jamais échouer).
+DROP POLICY IF EXISTS "Users can read own fingerprints" ON public.identity_fingerprints;
 CREATE POLICY "Users can read own fingerprints" ON public.identity_fingerprints
   FOR SELECT
   USING (auth.uid() = account_id);
 
 -- Admin/service_role peuvent tout voir (anti-fraude backend)
+DROP POLICY IF EXISTS "Service role full access" ON public.identity_fingerprints;
 CREATE POLICY "Service role full access" ON public.identity_fingerprints
   FOR ALL
   USING (auth.jwt()->>'role' = 'service_role');

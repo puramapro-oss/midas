@@ -54,6 +54,8 @@ function handleLogout() {
   }
 
   // 5. Hard redirect — this is the only thing that matters
+  // Purge totale de l'état client après signOut (CLAUDE.md erreur 13) — router.push garderait le state
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
   window.location.href = '/login';
 }
 
@@ -82,6 +84,8 @@ export default function UserMenu({ profile }: UserMenuProps) {
         data-testid="user-menu-trigger"
       >
         {profile?.avatar_url ? (
+          // Avatar utilisateur (URL arbitraire storage) — pas d'optimisation next/image applicable
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={profile.avatar_url}
             alt={profile.full_name ?? 'Avatar'}

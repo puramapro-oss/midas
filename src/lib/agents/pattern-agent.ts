@@ -5,7 +5,7 @@
 // =============================================================================
 
 import type { AgentResult, Candle } from '@/lib/agents/types';
-import { detectAdvancedPatterns, type AdvancedPattern } from '@/lib/analysis/patterns-advanced';
+import { detectAdvancedPatterns } from '@/lib/analysis/patterns-advanced';
 import type { DetectedPattern, SwingPoint, SupportResistance, PatternData } from '@/lib/types/patterns';
 import { SWING_LOOKBACK, PRICE_TOLERANCE_PCT, MIN_PATTERN_STRENGTH, LEVEL_CLUSTER_PCT } from '@/lib/constants/patterns';
 

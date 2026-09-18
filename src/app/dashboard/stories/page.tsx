@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import {
-  Image,
+  Image as ImageIcon,
   Share2,
   Trophy,
   Flame,
@@ -133,6 +132,8 @@ export default function StoriesPage() {
         {/* Preview area */}
         <div className="aspect-[9/16] max-w-[280px] mx-auto rounded-2xl overflow-hidden bg-gradient-to-br from-[#0A0A0F] to-[#1a1a2e] relative">
           {generatedUrl ? (
+            // Aperçu généré côté client (blob URL) — next/image inapplicable
+            // eslint-disable-next-line @next/next/no-img-element
             <img src={generatedUrl} alt="Story preview" className="w-full h-full object-cover" />
           ) : (
             <div className="flex flex-col items-center justify-center h-full p-6 text-center">
@@ -153,7 +154,7 @@ export default function StoriesPage() {
             className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[var(--gold-primary)] to-amber-600 text-black font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
             data-testid="generate-story"
           >
-            {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Image className="w-4 h-4" />}
+            {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
             Generer
           </button>
           {generatedUrl && (

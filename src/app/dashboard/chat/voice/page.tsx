@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils/formatters'
 import { useVoice } from '@/hooks/useVoice'
 import { useChat } from '@/hooks/useChat'
-import { DEFAULT_VOICE_ID, ELEVENLABS_VOICES } from '@/lib/voice/constants'
+import { DEFAULT_VOICE_ID } from '@/lib/voice/constants'
 import AIDisclosure from '@/lib/legal/components/AIDisclosure'
 import type { ConversationState } from './voice-config'
 import { VoiceSelector } from './VoiceSelector'
@@ -42,7 +42,6 @@ export default function VoiceConversationPage() {
   const loopActiveRef = useRef(true)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  const selectedVoice = ELEVENLABS_VOICES.find((v) => v.id === selectedVoiceId) ?? ELEVENLABS_VOICES[0]
 
   // Close dropdown on outside click
   useEffect(() => {

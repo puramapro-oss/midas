@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Users, QrCode, TrendingUp, Wallet, ArrowRight, BarChart3, MessageSquare, Wrench, Loader2 } from 'lucide-react';
+import { Users, QrCode, TrendingUp, Wallet, ArrowRight, MessageSquare, Wrench, Loader2 } from 'lucide-react';
 import { usePartnership } from '@/hooks/usePartnership';
 import MilestoneTracker from '@/components/partnership/MilestoneTracker';
 import { TIER_LABELS, TIER_COLORS } from '@/types/partnership';

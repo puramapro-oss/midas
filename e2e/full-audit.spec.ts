@@ -221,8 +221,7 @@ test.describe('FULL MIDAS AUDIT — Every button, every page', () => {
       await page.waitForTimeout(1000)
 
       const bodyText = await page.textContent('body') ?? ''
-      const hasEscape = bodyText.includes('\\u') || bodyText.includes('\u2019') === false && bodyText.includes("'") === false
-      const badChars = (bodyText.match(/\\u[0-9a-fA-F]{4}/g) || [])
+            const badChars = (bodyText.match(/\\u[0-9a-fA-F]{4}/g) || [])
 
       if (badChars.length > 0) {
         console.log(`${p}: ENCODING ISSUE — found ${badChars.join(', ')}`)

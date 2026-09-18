@@ -10,7 +10,6 @@ import {
   Lock,
   Heart,
   Target,
-  Flame,
   TrendingUp,
   ChevronRight,
   Loader2,

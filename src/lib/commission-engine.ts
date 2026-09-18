@@ -14,14 +14,8 @@
 // =============================================================================
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type Stripe from 'stripe';
 import { COMMISSION_RATES_V2, COMMISSION_RATES_V3 } from '@/types/partnership';
-import {
-  getAdminClient,
-  round2,
-  extractInvoiceMetadata,
-  writeLog,
-} from './commission-engine-helpers';
+import { getAdminClient, round2 } from './commission-engine-helpers';
 import { detectCollusionClusters } from './antifraud-helpers';
 import type {
   PartnerMinimal,
@@ -30,9 +24,6 @@ import type {
   ResolvedChain,
   DispatchSuccess,
   DispatchFailure,
-  StripeDispatchResult,
-  StripeDispatchSkipReason,
-  PartnerReferralRow,
 } from './commission-engine-types';
 
 export type {

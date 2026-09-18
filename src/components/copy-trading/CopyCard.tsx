@@ -1,6 +1,6 @@
 'use client';
 
-import { Users, Pause, Play, StopCircle, Loader2 } from 'lucide-react';
+import { Users, Pause, Play, StopCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import type { TraderProfile, CopyRelationship } from '@/types/database';

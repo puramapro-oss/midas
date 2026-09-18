@@ -57,7 +57,7 @@ export default function BotsPage() {
   const router = useRouter();
   const [bots, setBots] = useState<SampleBot[]>(SAMPLE_BOTS);
   const [search, setSearch] = useState('');
-  const [showEmpty, setShowEmpty] = useState(false);
+  const [showEmpty] = useState(false);
 
   const filteredBots = bots.filter(
     (bot) =>

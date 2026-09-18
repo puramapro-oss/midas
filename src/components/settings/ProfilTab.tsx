@@ -31,6 +31,8 @@ function handleLogout() {
     sessionStorage.removeItem('midas_session_valid');
   } catch { /* ignore */ }
   try { createClient().auth.signOut({ scope: 'local' }); } catch { /* ignore */ }
+  // Purge état après signOut — navigation dure volontaire
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
   window.location.href = '/login';
 }
 

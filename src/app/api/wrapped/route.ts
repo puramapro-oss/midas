@@ -31,7 +31,6 @@ export async function GET() {
 
     const supabase = getServiceClient();
     const now = new Date();
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const firstOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
 
     // Trades this month

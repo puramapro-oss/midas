@@ -6,7 +6,7 @@ import { CheckCircle2, Sparkles, ArrowRight } from 'lucide-react';
 import Confetti from '@/components/shared/Confetti';
 
 export default function ConfirmationClient({ plan }: { plan: string }) {
-  const [showConfetti, setShowConfetti] = useState(true);
+  const [showConfetti] = useState(true);
 
   useEffect(() => {
     // Tentative deep link mobile purama://activate

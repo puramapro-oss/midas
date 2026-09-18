@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Volume2, Check } from 'lucide-react'
 import { cn } from '@/lib/utils/formatters'

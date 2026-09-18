@@ -36,6 +36,14 @@ const eslintConfig = [
       "no-console": ["warn", { allow: ["warn", "error"] }],
     },
   },
+  {
+    // Tests E2E et scripts Node : console.log = sortie de diagnostic des tests
+    // eux-mêmes, pas du code applicatif (src/ reste strict : warn/error only).
+    files: ["e2e/**", "scripts/**"],
+    rules: {
+      "no-console": "off",
+    },
+  },
 ];
 
 export default eslintConfig;

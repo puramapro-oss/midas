@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, scheduled_for: scheduledFor.toISOString(), grace_period_days: GRACE_PERIOD_DAYS });
 }
 
-export async function DELETE(req: NextRequest) {
+export async function DELETE(_req: NextRequest) {
   const supabase = await createClient();
   const {
     data: { user },

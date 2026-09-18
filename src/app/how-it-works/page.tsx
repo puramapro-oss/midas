@@ -7,7 +7,6 @@ import {
   Brain,
   CandlestickChart,
   Shield,
-  Wallet,
   Bot,
   TrendingUp,
   Zap,

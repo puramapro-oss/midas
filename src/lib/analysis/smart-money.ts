@@ -43,7 +43,6 @@ function detectOrderBlocks(candles: Candle[]): OrderBlock[] {
   const avgVolume = candles.reduce((s, c) => s + c.volume, 0) / candles.length;
 
   for (let i = 2; i < candles.length - 2; i++) {
-    const prev = candles[i - 1];
     const current = candles[i];
     const next = candles[i + 1];
     const afterNext = candles[i + 2];

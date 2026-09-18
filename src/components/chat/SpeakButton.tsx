@@ -2,7 +2,7 @@
 
 import { useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Volume2, VolumeX } from 'lucide-react'
+import { Volume2 } from 'lucide-react'
 import { cn } from '@/lib/utils/formatters'
 import { useVoice } from '@/hooks/useVoice'
 

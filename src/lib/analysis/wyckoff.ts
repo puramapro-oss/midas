@@ -107,7 +107,6 @@ function detectEvents(candles: Candle[]): WyckoffEvent[] {
     }
 
     // Selling climax: very high volume + long lower wick + closes near high
-    const bodySize = Math.abs(current.close - current.open);
     const lowerWick = Math.min(current.open, current.close) - current.low;
     const totalRange = current.high - current.low;
 
