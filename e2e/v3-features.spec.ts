@@ -4,7 +4,8 @@ test.describe('V3 Features — Public Pages', () => {
   test('Landing page loads and displays hero', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('h1')).toBeVisible();
-    await expect(page.locator('h1')).toContainText('MIDAS');
+    // NIYAMA D2=A : landing éducation, H1 sans branding ni promesse trading
+    await expect(page.locator('h1')).toContainText('sans ordre réel');
   });
 
   test('/pricing loads with plan cards', async ({ page }) => {

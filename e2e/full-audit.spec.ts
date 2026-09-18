@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+test.skip(true, 'PROD gelée (deployment paused) — specs pré-NIYAMA obsolètes')
 
 const BASE = 'https://midas.purama.dev'
 

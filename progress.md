@@ -417,3 +417,12 @@
 - Stripe Connect Withdrawals : /compte/connect hub complet, MIN 20€, reversal auto
 - 7 pages /compte/* auth-gatées
 - prêt /graphify
+
+## 2026-09-18 — Patch Harden trading + antifraud, QA complète (local)
+- git am 8c14c54 «Harden trading execution and API integrations» : conflits résolus en préservant antifraud + NIYAMA
+- trade-executor : paper-only (gate NIYAMA), patch conservé ailleurs (execution-safety.ts + 10 tests unit, registry intégrations, binance-public fetchKlinesWithSource, migration 007 intents)
+- detectCollusionClusters fail-safe ; commission-engine specs 43/43
+- E2E : 446/446 local (2 viewports), 492 skipped (19 specs prod gelées — «This deployment is temporarily paused»)
+- État serveurs : prod midas.purama.dev = paused (402), AUCUN deploy effectué
+- Migrations VPS 005/006/007 : BLOQUÉES (SSH root@72.62.191.111 fail2ban après échecs password ; .env.secrets = valeur LEARNINGS 2026-08-23 mais refusée → password vraisemblablement roté). Clé ~/.ssh/purama_vps_ed25519 à tester après expiration du ban.
+- Paper trading/testnet only : BINANCE_ACTIVE=false, exécuteur paper-only, routes réelles 403 NIYAMA

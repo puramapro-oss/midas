@@ -2,7 +2,14 @@
 // NOTE: ces tests tournent contre l'URL de prod (midas.purama.dev). Les routes
 // créées pour V7 doivent être déployées AVANT d'exécuter ce spec.
 
+// GEL PROD : ces tests ciblent https://midas.purama.dev, actuellement en
+// «This deployment is temporarily paused» (gel déploy Vercel, Tissma).
+// Le contrat NIYAMA D1=C/D2=A est verrouillé localement par
+// scripts/check-niyama-decisions.mjs + les specs locales. Réactiver après
+// un nouveau déploy et mise à jour des attendus (403/307 NIYAMA).
 import { test, expect } from '@playwright/test';
+
+test.skip(true, 'PROD gelée (deployment paused) — specs pré-NIYAMA obsolètes');
 
 const BASE = 'https://midas.purama.dev';
 

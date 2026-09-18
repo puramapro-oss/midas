@@ -233,28 +233,42 @@ export async function buildMidasAccountSignals(
 /**
  * Détecte les clusters de collusion pour un ensemble de comptes (ex. batch
  * d'inserts de commissions). Retourne les clusters à risque (shouldFreeze=true).
+ *
+ * Fail-safe : une erreur de lecture des signaux (table absente, DB lue en
+ * erreur) ne bloque PAS le flux appelant — on retourne zéro cluster et on
+ * logge. La détection est une couche de risque, pas une dépendance dure du
+ * crédit de commission. Le withdraw, lui, reste fail-closed via les paliers
+ * (computeMidasTrustTier).
  */
 export async function detectCollusionClusters(
   supabase: SupabaseClient,
   userIds: string[],
 ): Promise<Array<{ cluster: string[]; shouldFreeze: boolean; score: number }>> {
-  const allSignals: AccountSignal[] = [];
-  for (const uid of userIds) {
-    const signals = await buildMidasAccountSignals(supabase, uid);
-    allSignals.push(...signals);
+  try {
+    const allSignals: AccountSignal[] = [];
+    for (const uid of userIds) {
+      const signals = await buildMidasAccountSignals(supabase, uid);
+      allSignals.push(...signals);
+    }
+
+    const clusters = buildCollusionClusters(allSignals);
+    const results: Array<{ cluster: string[]; shouldFreeze: boolean; score: number }> = [];
+
+    for (const cluster of clusters) {
+      const riskResult = scoreCluster(cluster);
+      results.push({
+        cluster: cluster.accountIds,
+        shouldFreeze: riskResult.shouldFreeze,
+        score: riskResult.score,
+      });
+    }
+
+    return results;
+  } catch (error) {
+    console.warn(
+      '[antifraud] detectCollusionClusters: lecture des signaux impossible, détection ignorée —',
+      error instanceof Error ? error.message : error,
+    );
+    return [];
   }
-
-  const clusters = buildCollusionClusters(allSignals);
-  const results: Array<{ cluster: string[]; shouldFreeze: boolean; score: number }> = [];
-
-  for (const cluster of clusters) {
-    const riskResult = scoreCluster(cluster);
-    results.push({
-      cluster: cluster.accountIds,
-      shouldFreeze: riskResult.shouldFreeze,
-      score: riskResult.score,
-    });
-  }
-
-  return results;
 }

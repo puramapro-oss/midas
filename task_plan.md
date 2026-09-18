@@ -795,3 +795,16 @@ production. Migration appliquée VPS + smoke-testée via PostgREST réel.
 - Emails J+7/J+30 (`src/lib/notifications/email.ts` étendu) + cron `retention-followup`
 - tsc 0 erreur + next build vert x2 passes réelles
 - Gaps assumés : pas de Playwright (D-MI06), pas de KYC (D-MI07)
+
+## Phase 19 — Patch Harden trading + antifraud QA (2026-09-18) ✅ local
+- [x] Patch 0001-Harden-trading-execution appliqué via `git am` (conflits résolus : package.json union deps + 5 fichiers src, commit 8c14c54)
+- [x] Conflit NIYAMA résolu : trade-executor paper-only (D2=A), améliorations conservées (execution-safety+tests, intents 007, binance-public, registry)
+- [x] Migration patch 004_trade_execution_intents renommée 007 (004 déjà pris par retention_ladder)
+- [x] `detectCollusionClusters` fail-safe (mock/unit + prod résilient)
+- [x] ESLint `.worktrees/**` ignoré (1895 faux positifs repos embarqués)
+- [x] Playwright webkit-2336 installé (bump 1.58→1.62)
+- [x] Specs NIYAMA mises au contrat : landing minimal D2=A, /api/connect/* 403, /compte/* neutralisé, checkout 403, keys/save 404, pricing sans CTA
+- [x] 19 specs prod gelées (`test.skip` documenté — prod «deployment paused»)
+- [x] Gates : tsc 0 | eslint 0 err (279 warnings baseline) | unit 10/10 | E2E local 446/446 | audit 0 vuln | build 0 | NIYAMA PASS
+- [ ] Migrations 005+006+007 → VPS (BLOQUÉ : SSH fail2ban, cf ERRORS.md 2026-09-18)
+- [ ] Push + deploy (INTERDITS sur instruction Tissma — paper/testnet only)

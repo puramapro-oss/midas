@@ -149,14 +149,15 @@ test.describe('Pricing page', () => {
     expect(hasPlans).toBeTruthy();
   });
 
-  test('CTA buttons exist on pricing cards', async ({ page }) => {
+  test('Pricing NIYAMA : aucun CTA d’achat, lien retour accueil présent', async ({ page }) => {
     await page.goto('/pricing');
     await dismissCookies(page);
 
-    // Each plan should have a button
-    const buttons = page.locator('button, a[href*="checkout"], a[href*="stripe"], [data-testid*="plan"]');
-    const count = await buttons.count();
-    expect(count).toBeGreaterThan(0);
+    // D2=A : aucun checkout/stripe/plan CTA ne doit exister sur /pricing
+    const purchaseCtas = page.locator('a[href*="checkout"], a[href*="stripe"], [data-testid*="plan"]');
+    await expect(purchaseCtas).toHaveCount(0);
+    // La page reste fonctionnelle : au moins un lien de navigation
+    await expect(page.locator('a[href="/"]').first()).toBeVisible();
   });
 });
 
@@ -262,18 +263,18 @@ test.describe('API routes', () => {
     expect(response.status()).toBe(401);
   });
 
-  test('/api/stripe/checkout requires auth (401)', async ({ request }) => {
+  test('/api/stripe/checkout bloqué NIYAMA D2=A (403 éducation-only)', async ({ request }) => {
     const response = await request.post('/api/stripe/checkout', {
       data: { plan: 'pro', interval: 'month' },
     });
-    expect(response.status()).toBe(401);
+    expect(response.status()).toBe(403);
   });
 
-  test('/api/keys/save requires auth (401)', async ({ request }) => {
+  test('/api/keys/save n’existe plus (404 — suppression NIYAMA, aucune clé exchange collectée)', async ({ request }) => {
     const response = await request.post('/api/keys/save', {
       data: { apiKey: 'test', apiSecret: 'test' },
     });
-    expect(response.status()).toBe(401);
+    expect(response.status()).toBe(404);
   });
 
   test('/api/market/prices returns data', async ({ request }) => {

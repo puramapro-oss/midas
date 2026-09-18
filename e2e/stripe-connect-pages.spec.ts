@@ -1,9 +1,10 @@
 // =============================================================================
-// MIDAS — E2E pages /compte/* (V4.1)
-// Vérifie que les 7 pages Stripe Connect Embedded redirigent vers /login
-// quand l'user n'est pas authentifié. Le contenu des pages (composants Stripe
-// embarqués) nécessite un compte réel et sera couvert par tests manuels en
-// staging.
+// MIDAS — E2E pages /compte/* (NIYAMA D1=C)
+// Tissma D1=C (2026-09-05) : retraits/KYC/Stripe Connect inaccessibles.
+// Le middleware (EDUCATION_ONLY_PAGE_PREFIXES '/compte/') redirige TOUTE page
+// /compte/* vers /dashboard/help ; anonyme, la cascade continue vers
+// /login?next=%2Fdashboard%2Fhelp. Point clé verrouillé : le `next` ne pointe
+// PLUS vers /compte/* — retourner au hub Connect après login est impossible.
 // =============================================================================
 
 import { test, expect } from '@playwright/test';
@@ -19,13 +20,10 @@ const CONNECT_PAGES = [
 ] as const;
 
 for (const slug of CONNECT_PAGES) {
-  test(`GET /compte/${slug} sans auth → redirect /login?next=/compte/${slug}`, async ({
-    page,
-  }) => {
-    const response = await page.goto(`/compte/${slug}`);
-    // Suit la redirection : l'URL finale doit contenir /login avec ?next=
-    await expect(page).toHaveURL(new RegExp(`/login\\?next=%2Fcompte%2F${slug}$`));
-    // Le status final du document après redirection est 200 (page login)
-    expect(response?.status()).toBe(200);
+  test(`GET /compte/${slug} anonyme → neutralisé, atterrit sur /login (next=/dashboard/help)`, async ({ page }) => {
+    await page.goto(`/compte/${slug}`);
+    await expect(page).toHaveURL(/\/login/);
+    // Le hub Connect n'est jamais la destination de retour
+    await expect(page).not.toHaveURL(/compte/);
   });
 }

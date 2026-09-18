@@ -1,50 +1,49 @@
 // =============================================================================
-// MIDAS — E2E /api/connect/withdraw + /api/wallet/balance (V4.1 Axe 3)
-// Tests sur serveur dev live. Couvre auth guards, Zod validation, 405.
-// Le path happy (retrait réussi) nécessite un compte Stripe Connect + balance
-// réels et sera couvert en staging manuel / tests intégration dédiés.
+// MIDAS — E2E /api/connect/withdraw + /api/wallet/balance
+// NIYAMA D1=C (Tissma 2026-09-05) : retraits et Stripe Connect inaccessibles.
+// - /api/connect/* → 403 éducation-only par le middleware, toute méthode.
+// - /compte/* → 307 vers /dashboard/help (page d'aide), authentifié ou non.
+// Le path happy (retrait réussi) restera bloqué tant que D1=C s'applique ;
+// les gardes internes (paliers anti-fraude, phone gate) restent testées en
+// unitaire côté src/lib (voir ANTIFRAUD-INTEGRATION.md).
 // =============================================================================
 
 import { test, expect } from '@playwright/test';
 
-test.describe('/api/connect/withdraw — auth + validation', () => {
-  test('POST sans auth → 401 + message FR', async ({ request }) => {
+test.describe('/api/connect/withdraw — bloqué NIYAMA D1=C (403 avant route)', () => {
+  test('POST sans auth → 403 éducation-only', async ({ request }) => {
     const response = await request.post('/api/connect/withdraw', {
       data: {},
       headers: { 'Content-Type': 'application/json' },
     });
-    expect(response.status()).toBe(401);
+    expect(response.status()).toBe(403);
     const body = await response.json();
-    expect(body.error).toBe('Non autorisé');
+    expect(body.error).toContain("limité à l’information générale");
   });
 
-  test('GET → 405 (méthode non supportée)', async ({ request }) => {
+  test('GET → 403 éducation-only (garde avant route)', async ({ request }) => {
     const response = await request.get('/api/connect/withdraw');
-    expect(response.status()).toBe(405);
+    expect(response.status()).toBe(403);
   });
 
-  test('PUT → 405 (méthode non supportée)', async ({ request }) => {
+  test('PUT → 403 éducation-only (garde avant route)', async ({ request }) => {
     const response = await request.put('/api/connect/withdraw', { data: {} });
-    expect(response.status()).toBe(405);
+    expect(response.status()).toBe(403);
   });
 
-  test('DELETE → 405 (méthode non supportée)', async ({ request }) => {
+  test('DELETE → 403 éducation-only (garde avant route)', async ({ request }) => {
     const response = await request.delete('/api/connect/withdraw');
-    expect(response.status()).toBe(405);
+    expect(response.status()).toBe(403);
   });
 
-  // Zod validation : le body est parsé AVANT l'auth check dans ce handler ?
-  // Non — auth check en premier. Donc ces cas restent en 401 sans auth.
-  // Pour tester Zod il faudrait un user auth ; cas couvert en staging.
-  test('POST body avec amount_eur négatif sans auth → 401 (auth first)', async ({
+  test('POST amount_eur négatif sans auth → 403 (garde NIYAMA avant Zod)', async ({
     request,
   }) => {
     const response = await request.post('/api/connect/withdraw', {
       data: { amount_eur: -10 },
       headers: { 'Content-Type': 'application/json' },
     });
-    // Le auth guard passe avant Zod → 401 attendu sans session
-    expect(response.status()).toBe(401);
+    expect(response.status()).toBe(403);
   });
 });
 
@@ -62,12 +61,10 @@ test.describe('/api/wallet/balance — auth + méthodes', () => {
   });
 });
 
-test.describe('/compte/connect — hub page redirect quand non-auth', () => {
-  test('GET /compte/connect sans auth → redirect /login?next=/compte/connect', async ({
-    page,
-  }) => {
-    const response = await page.goto('/compte/connect');
-    await expect(page).toHaveURL(/\/login\?next=%2Fcompte%2Fconnect$/);
-    expect(response?.status()).toBe(200);
+test.describe('/compte/connect — hub neutralisé NIYAMA D1=C', () => {
+  test('GET /compte/connect anonyme → neutralisé, atterrit sur /login (next=/dashboard/help)', async ({ page }) => {
+    await page.goto('/compte/connect');
+    await expect(page).toHaveURL(/\/login/);
+    await expect(page).not.toHaveURL(/compte/);
   });
 });

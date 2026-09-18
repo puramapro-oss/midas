@@ -114,8 +114,8 @@ test.describe('P5 — Design & Animations', () => {
 
   test('Landing page all sections render', async ({ page }) => {
     await page.goto('/');
-    // Check hero
-    await expect(page.locator('h1')).toContainText('MIDAS');
+    // Landing NIYAMA D2=A : H1 éducation, sans branding ni sections trading
+    await expect(page.locator('h1')).toContainText('crypto');
     // Scroll down to trigger reveals
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await page.waitForTimeout(1000);

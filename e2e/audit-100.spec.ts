@@ -1,4 +1,9 @@
-import { test, expect, type Page } from '@playwright/test'
+// GEL PROD : cible https://midas.purama.dev, actuellement en
+// «This deployment is temporarily paused» (gel déploy Vercel, Tissma).
+// NIYAMA D1=C/D2=A verrouillé localement par scripts/check-niyama-decisions.mjs.
+import { test, expect } from '@playwright/test'
+
+test.skip(true, 'PROD gelée (deployment paused) — specs pré-NIYAMA obsolètes')
 
 // Comprehensive 100% audit against live URL
 // Run: PLAYWRIGHT_BASE_URL=https://midas.purama.dev npx playwright test e2e/audit-100.spec.ts --project="Desktop Chrome" --reporter=list

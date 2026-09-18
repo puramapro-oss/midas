@@ -11,8 +11,8 @@ test.describe('Security', () => {
     const dialog = await dialogPromise;
     expect(dialog).toBeNull();
 
-    // The page should still render normally
-    await expect(page.locator('[data-testid="hero-section"]')).toBeVisible();
+    // The page should still render normally (landing NIYAMA : h1 éducation)
+    await expect(page.locator('h1')).toBeVisible();
   });
 
   test('SQL injection in query params does not cause 500', async ({ page }) => {
