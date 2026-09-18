@@ -426,3 +426,11 @@
 - État serveurs : prod midas.purama.dev = paused (402), AUCUN deploy effectué
 - Migrations VPS 005/006/007 : BLOQUÉES (SSH root@72.62.191.111 fail2ban après échecs password ; .env.secrets = valeur LEARNINGS 2026-08-23 mais refusée → password vraisemblablement roté). Clé ~/.ssh/purama_vps_ed25519 à tester après expiration du ban.
 - Paper trading/testnet only : BINANCE_ACTIVE=false, exécuteur paper-only, routes réelles 403 NIYAMA
+
+## 2026-09-18 — Push + migrations prod + blocage facturation
+- 6 commits poussés origin/main → 56a5480
+- Backup VÉRIFIÉ avant migration : /root/backups/midas_pre_migrations_20260918_204059.dump (155 Mo, md5 f23a33f4a9e6dc159028480a20c13809, copie locale /tmp) + restore-test complet PG18 (165 tables, 20684/9 profils identiques)
+- Cible contrôlée : docker supabase-db, schémas auth/public/kaia/vida_sante/midas, user témoin f66bff9b… retrouvé ✓
+- Migrations appliquées UNE fois, dans l'ordre, ON_ERROR_STOP : 005 (adaptatif après échec design partagé) → 006 → 007 → 008 toutes OK ; 12 vérifications post-migration vertes ; trigger billing BLOQUE l'auto-upgrade plan par JWT user en prod (plan intact) ; counts profils intacts
+- Deploy : IMPOSSIBLE — team Vercel solde impayé (402 DEPLOYMENT_DISABLED sur midas.purama.dev, resource_creation_blocked sur env preview). Preview/prod/E2E distants reportés à régularisation facturation.
+- Aucun trading réel : rien déployé, exécuteur paper-only, routes ordres 403 NIYAMA
