@@ -5,11 +5,9 @@ import { Signal } from 'lucide-react';
 import { useSignals } from '@/hooks/useSignals';
 
 const directionConfig = {
-  strong_buy: { label: 'BUY', bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' },
   buy: { label: 'BUY', bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20' },
-  neutral: { label: 'HOLD', bg: 'bg-white/[0.06]', text: 'text-white/50', border: 'border-white/[0.08]' },
+  hold: { label: 'HOLD', bg: 'bg-white/[0.06]', text: 'text-white/50', border: 'border-white/[0.08]' },
   sell: { label: 'SELL', bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20' },
-  strong_sell: { label: 'SELL', bg: 'bg-red-500/10', text: 'text-red-400', border: 'border-red-500/20' },
 } as const;
 
 const rowVariant = {
@@ -59,8 +57,7 @@ export default function SignalsList() {
       ) : (
         <div className="space-y-2.5">
           {signals.slice(0, 5).map((signal, i) => {
-            const strength = signal.strength as keyof typeof directionConfig;
-            const config = directionConfig[strength] ?? directionConfig.neutral;
+            const config = directionConfig[signal.direction] ?? directionConfig.hold;
             return (
               <motion.div
                 key={signal.id}

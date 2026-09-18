@@ -108,111 +108,8 @@ async function fetchCoinMarketCal<T>(
 }
 
 /**
- * Evenements crypto majeurs hardcodes en fallback si l'API est indisponible.
- */
-function getFallbackEvents(): CryptoEvent[] {
-  const now = new Date();
-  const year = now.getFullYear();
-
-  return [
-    {
-      id: 'fallback-btc-halving',
-      title: 'Bitcoin Halving',
-      coins: [{ id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' }],
-      date_event: `${year + 2}-04-15`,
-      categories: ['Halving'],
-      source: 'Bitcoin protocol',
-      is_hot: true,
-      vote_count: 10000,
-      positive_vote_count: 9500,
-      confidence_pct: 100,
-      description: 'Bitcoin block reward reduction from 3.125 to 1.5625 BTC',
-    },
-    {
-      id: 'fallback-eth-upgrade',
-      title: 'Ethereum Pectra Upgrade',
-      coins: [{ id: 'ethereum', symbol: 'ETH', name: 'Ethereum' }],
-      date_event: `${year}-05-07`,
-      categories: ['Hard Fork', 'Upgrade'],
-      source: 'Ethereum Foundation',
-      is_hot: true,
-      vote_count: 5000,
-      positive_vote_count: 4200,
-      confidence_pct: 90,
-      description: 'Major Ethereum protocol upgrade with EIP-7702 account abstraction',
-    },
-    {
-      id: 'fallback-sol-firedancer',
-      title: 'Solana Firedancer Mainnet',
-      coins: [{ id: 'solana', symbol: 'SOL', name: 'Solana' }],
-      date_event: `${year}-06-01`,
-      categories: ['Upgrade', 'Release'],
-      source: 'Jump Crypto',
-      is_hot: true,
-      vote_count: 3000,
-      positive_vote_count: 2700,
-      confidence_pct: 75,
-      description: 'New validator client by Jump Crypto for improved Solana performance',
-    },
-    {
-      id: 'fallback-btc-etf-options',
-      title: 'BTC ETF Options Expiry',
-      coins: [{ id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' }],
-      date_event: getNextMonthlyExpiry(now),
-      categories: ['Options Expiry'],
-      source: 'CBOE/CME',
-      is_hot: false,
-      vote_count: 2000,
-      positive_vote_count: 1000,
-      confidence_pct: 100,
-      description: 'Monthly Bitcoin ETF options expiration date',
-    },
-    {
-      id: 'fallback-fomc-meeting',
-      title: 'FOMC Meeting (Fed Rate Decision)',
-      coins: [
-        { id: 'bitcoin', symbol: 'BTC', name: 'Bitcoin' },
-        { id: 'ethereum', symbol: 'ETH', name: 'Ethereum' },
-      ],
-      date_event: getNextFOMC(now),
-      categories: ['Macro', 'Regulation'],
-      source: 'Federal Reserve',
-      is_hot: true,
-      vote_count: 8000,
-      positive_vote_count: 4000,
-      confidence_pct: 100,
-      description: 'Federal Reserve interest rate decision — major market impact',
-    },
-  ];
-}
-
-function getNextMonthlyExpiry(fromDate: Date): string {
-  const d = new Date(fromDate);
-  d.setMonth(d.getMonth() + 1);
-  // Third Friday of the month
-  d.setDate(1);
-  let fridayCount = 0;
-  while (fridayCount < 3) {
-    if (d.getDay() === 5) fridayCount++;
-    if (fridayCount < 3) d.setDate(d.getDate() + 1);
-  }
-  return d.toISOString().split('T')[0];
-}
-
-function getNextFOMC(fromDate: Date): string {
-  // Approximate FOMC meeting dates (roughly every 6 weeks)
-  const fomcDates2026 = [
-    '2026-01-28', '2026-03-18', '2026-05-06', '2026-06-17',
-    '2026-07-29', '2026-09-16', '2026-11-04', '2026-12-16',
-  ];
-  const now = fromDate.toISOString().split('T')[0];
-  const nextFomc = fomcDates2026.find((d) => d > now);
-  return nextFomc ?? '2027-01-27';
-}
-
-/**
  * Recupere les evenements crypto a venir.
- * Fallback sur des evenements majeurs hardcodes si l'API est indisponible.
+ * Retourne une liste vide si l'API est indisponible: aucune donnee inventee.
  * @param coins - Filtrer par symboles (ex: ['BTC', 'ETH'])
  */
 export async function getUpcomingEvents(coins?: string[]): Promise<CryptoEvent[]> {
@@ -233,25 +130,13 @@ export async function getUpcomingEvents(coins?: string[]): Promise<CryptoEvent[]
     const data = await fetchCoinMarketCal<CoinMarketCalResponse>('/events', params);
 
     if (!data.body || data.body.length === 0) {
-      return filterFallbackByCoins(getFallbackEvents(), coins);
+      return [];
     }
 
     return data.body.map(mapEvent);
   } catch {
-    return filterFallbackByCoins(getFallbackEvents(), coins);
+    return [];
   }
-}
-
-function filterFallbackByCoins(
-  events: CryptoEvent[],
-  coins?: string[]
-): CryptoEvent[] {
-  if (!coins || coins.length === 0) return events;
-
-  const upperCoins = coins.map((c) => c.toUpperCase());
-  return events.filter((e) =>
-    e.coins.some((c) => upperCoins.includes(c.symbol.toUpperCase()))
-  );
 }
 
 /**

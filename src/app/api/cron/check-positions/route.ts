@@ -24,7 +24,10 @@ export async function GET(request: NextRequest) {
     const { data: openTrades, error: fetchError } = await supabase
       .from('trades')
       .select('*')
-      .eq('status', 'open');
+      .eq('status', 'open')
+      // Live positions must be closed through the authenticated exchange path.
+      // Never mark a live position closed from a public-price-only cron.
+      .eq('is_paper_trade', true);
 
     if (fetchError) {
       return NextResponse.json({ error: 'Erreur récupération trades', details: fetchError.message }, { status: 500 });
@@ -65,18 +68,18 @@ export async function GET(request: NextRequest) {
       if (side === 'buy') {
         if (stopLoss && currentPrice <= stopLoss) {
           shouldClose = true;
-          closeReason = 'stop_loss_hit';
+          closeReason = 'stop_loss';
         } else if (takeProfit && currentPrice >= takeProfit) {
           shouldClose = true;
-          closeReason = 'take_profit_hit';
+          closeReason = 'take_profit';
         }
       } else if (side === 'sell') {
         if (stopLoss && currentPrice >= stopLoss) {
           shouldClose = true;
-          closeReason = 'stop_loss_hit';
+          closeReason = 'stop_loss';
         } else if (takeProfit && currentPrice <= takeProfit) {
           shouldClose = true;
-          closeReason = 'take_profit_hit';
+          closeReason = 'take_profit';
         }
       }
 

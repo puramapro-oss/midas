@@ -16,6 +16,7 @@ const eslintConfig = [
       "coverage/**",
       "public/sw.js",
       "mobile/**",
+      ".worktrees/**",
       "next-env.d.ts",
     ],
   },

@@ -6,6 +6,7 @@
 import type { CoordinatorDecision } from '@/lib/agents/types';
 import { createServiceClient } from '@/lib/supabase/server';
 import { RiskManager, type UserProfile, type OpenPosition, type TradeHistory } from './risk-manager';
+import { fetchKlines } from '@/lib/exchange/binance-public';
 
 export interface SimulationResult {
   passed: boolean;
@@ -79,14 +80,16 @@ export async function simulate(
 
     const openPositions: OpenPosition[] = (positionsData ?? []).map((p) => ({
       id: p.id as string,
-      symbol: p.symbol as string,
+      symbol: (p.pair ?? p.symbol) as string,
       side: p.side as 'buy' | 'sell',
       entry_price: Number(p.entry_price),
       current_price: Number(p.current_price ?? p.entry_price),
       quantity: Number(p.quantity),
       unrealized_pnl: Number(p.unrealized_pnl ?? 0),
       leverage: Number(p.leverage ?? 1),
-      allocation_pct: Number(p.allocation_pct ?? 0),
+      allocation_pct: userProfile.capital_usd > 0
+        ? (Number(p.quote_amount ?? 0) / userProfile.capital_usd) * 100
+        : 0,
       opened_at: new Date(p.created_at as string).getTime(),
     }));
 
@@ -96,7 +99,8 @@ export async function simulate(
       .eq('user_id', userId)
       .eq('status', 'closed')
       .order('closed_at', { ascending: false })
-      .limit(20);
+      .gte('closed_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+      .limit(5000);
 
     const recentTrades: TradeHistory[] = (historyData ?? [])
       .filter((t) => t.closed_at)
@@ -105,7 +109,13 @@ export async function simulate(
         closed_at: new Date(t.closed_at as string).getTime(),
       }));
 
-    const riskManager = new RiskManager(undefined, recentTrades);
+    const btcCandles = await fetchKlines('BTC/USDT', '1m', 61);
+    if (btcCandles.length < 2) {
+      shieldPassed = false;
+      reasons.push('BTC crash-protection data unavailable');
+    }
+    const btcPriceHistory = btcCandles.map((candle) => ({ timestamp: candle.timestamp, price: candle.close }));
+    const riskManager = new RiskManager(undefined, recentTrades, btcPriceHistory);
     const shieldResult = riskManager.checkAllLevels(decision, userProfile, openPositions);
 
     if (!shieldResult.passed) {

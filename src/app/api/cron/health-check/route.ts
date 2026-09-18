@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getCircuitBreaker, getServiceStatus } from '@/lib/circuit-breaker';
 import { redis } from '@/lib/cache/upstash';
+import { getRequiredEnvironmentErrors } from '@/lib/integrations/registry';
 
 type ServiceStatus = 'up' | 'down' | 'degraded';
 
@@ -146,6 +147,11 @@ async function checkRedis(): Promise<void> {
   }
 }
 
+async function checkConfiguration(): Promise<void> {
+  const errors = getRequiredEnvironmentErrors();
+  if (errors.length > 0) throw new Error(`Variables manquantes: ${errors.join(', ')}`);
+}
+
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -153,7 +159,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const [binance, claude, stripe, supabase, redisCheck] = await Promise.all([
+    const [configuration, binance, claude, stripe, supabase, redisCheck] = await Promise.all([
+      checkService('configuration', checkConfiguration),
       checkService('binance', checkBinance),
       checkService('claude', checkClaude),
       checkService('stripe', checkStripe),
@@ -162,6 +169,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     const services: Record<string, ServiceCheck> = {
+      configuration,
       binance,
       claude,
       stripe,

@@ -5,7 +5,7 @@
 
 export type PartnerChannel = 'influencer' | 'website' | 'media' | 'physical';
 export type PartnerStatus = 'pending' | 'active' | 'suspended' | 'banned';
-export type CommissionStatus = 'pending' | 'approved' | 'paid' | 'rejected';
+export type CommissionStatus = 'pending' | 'pending_review' | 'approved' | 'paid' | 'rejected';
 export type PayoutStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type CommissionType = 'first_month' | 'recurring' | 'level2' | 'level3';
 export type PartnershipVersion = 'v2' | 'v3';

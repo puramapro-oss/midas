@@ -33,7 +33,7 @@ export interface CommissionRow {
   type: CommissionType;
   amount: number;
   currency: 'EUR';
-  status: 'pending' | 'approved' | 'paid' | 'rejected';
+  status: 'pending' | 'pending_review' | 'approved' | 'paid' | 'rejected';
   stripe_payment_id: string | null;
   description: string;
   level: number;

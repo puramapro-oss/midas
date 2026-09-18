@@ -4,8 +4,8 @@ import createNextIntlPlugin from 'next-intl/plugin';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
-// @purama/retention est un package local (file:../packages/purama-retention), hors du
-// dossier de l'app — piège SMARANA (PIEGES.md 2026-08-23) : transpilePackages +
+// @purama/retention + @purama/antifraud sont des packages locaux (file:../packages/*),
+// hors du dossier de l'app — piège SMARANA (PIEGES.md 2026-08-23) : transpilePackages +
 // externalDir + outputFileTracingRoot + turbopack.root + resolveAlias, sinon
 // `Module not found` malgré un tsc propre (rencontré 9x sur les pilotes précédents).
 
@@ -21,7 +21,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@purama/smarana", "@purama/retention", "@purama/entraide"],
+  transpilePackages: ["@purama/smarana", "@purama/retention", "@purama/antifraud", "@purama/entraide"],
   experimental: {
     externalDir: true,
   },
@@ -30,6 +30,7 @@ const nextConfig: NextConfig = {
     root: path.join(__dirname, ".."),
     resolveAlias: {
       "@purama/retention": "../packages/purama-retention/src/index.ts",
+      "@purama/antifraud": "../packages/purama-antifraud/src/index.ts",
       "@purama/entraide": "../packages/purama-entraide/src/index.ts",
     },
   },

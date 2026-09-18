@@ -26,6 +26,10 @@ import { createClient as createServiceSupabase, type SupabaseClient } from '@sup
 import Stripe from 'stripe';
 import { z } from 'zod';
 import { getConnectAccountRow } from '@/lib/stripe/connect';
+import {
+  computeMidasTrustTier,
+  detectCollusionClusters,
+} from '@/lib/antifraud-helpers';
 
 // ---------------------------------------------------------------------------
 // Helpers auth / clients
@@ -183,6 +187,64 @@ export async function POST(req: NextRequest) {
             'Ton compte n\'est pas encore prêt pour les retraits. Termine la vérification sur /compte/connect.',
           code: 'payouts_disabled',
           stripe_account_id: connectAccount.stripe_account_id,
+        },
+        { status: 403 },
+      );
+    }
+
+    // 5b. Anti-fraude : palier de confiance + plafond retrait (@purama/antifraud layer 2)
+    const { data: profile } = await service
+      .from('profiles')
+      .select('phone_verified_at')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    // Détection collusion (cluster risque élevé → gel préventif)
+    const collusionClusters = await detectCollusionClusters(service, [user.id]);
+    const hasActiveCollusionFlag = collusionClusters.some((c) => c.shouldFreeze);
+
+    const trustTier = await computeMidasTrustTier({
+      userId: user.id,
+      kycVerifiedAt: connectAccount.kyc_verified_at,
+      phoneVerifiedAt: profile?.phone_verified_at ?? null,
+      hasActiveCollusionFlag,
+    });
+
+    // Plafond retrait/jour serveur-side (jamais uniquement UI)
+    const capEuros = trustTier.withdrawalCapEuros ?? 999999; // null = illimité (palier 3)
+    if (amountEur > capEuros) {
+      return NextResponse.json(
+        {
+          error: `Retrait refusé : ton palier actuel (${trustTier.label}) autorise max ${capEuros}€/retrait. ${trustTier.nextTierRequirements.join(', ')}.`,
+          code: 'withdrawal_cap_exceeded',
+          tier: trustTier.tier,
+          cap_eur: capEuros,
+          requested_eur: amountEur,
+        },
+        { status: 403 },
+      );
+    }
+
+    // Porte liveness au 1er retrait (layer 4) : checkFirstWithdrawalGate exige un
+    // faceEmbedding réel qu'aucun provider (Onfido/Veriff) ne fournit encore côté midas.
+    // Proxy honnête en attendant : KYC Stripe Connect (kyc_verified_at) fait office de
+    // contrôle d'identité au 1er retrait.
+    const { data: withdrawalHistory } = await service
+      .from('connect_withdrawals')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('status', 'completed')
+      .limit(1)
+      .maybeSingle();
+
+    const isFirstWithdrawal = !withdrawalHistory;
+    if (isFirstWithdrawal && !connectAccount.kyc_verified_at) {
+      // Premier retrait sans KYC = refus (proxy liveness tant que provider pas intégré)
+      return NextResponse.json(
+        {
+          error:
+            'Premier retrait bloqué : termine la vérification d\'identité Stripe Connect (KYC) avant ton premier retrait.',
+          code: 'first_withdrawal_kyc_required',
         },
         { status: 403 },
       );

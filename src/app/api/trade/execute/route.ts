@@ -11,7 +11,9 @@ const bodySchema = z.object({
   pair: z.string().min(1).max(30),
   side: z.enum(['buy', 'sell']),
   strategy: z.string().min(1).max(50),
-  amount: z.number().positive().max(1000000),
+  entryPrice: z.number().positive(),
+  positionSizePct: z.number().positive().max(100),
+  quoteAmount: z.number().positive().max(1000000).optional(),
   stopLoss: z.number().positive().optional(),
   takeProfit: z.number().positive().optional(),
   isPaperTrade: z.boolean().default(false),
@@ -48,7 +50,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Donnees invalides', details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { pair, side, strategy, amount, stopLoss, takeProfit, isPaperTrade, exchangeConnectionId } = parsed.data;
+    const { pair, side, strategy, entryPrice, positionSizePct, quoteAmount, stopLoss, takeProfit, isPaperTrade, botId: _botId, exchangeConnectionId } = parsed.data;
 
     // Décision Tissma D2=A (2026-09-05) : MIDAS reste un outil
     // d'information/éducation. Une demande d'ordre réel est refusée avant
@@ -141,21 +143,26 @@ export async function POST(request: Request) {
     const decision: CoordinatorDecision = {
       action: side as 'buy' | 'sell',
       pair,
-      entry_price: amount,
+      entry_price: entryPrice,
       stop_loss: stopLoss ?? 0,
       take_profit: takeProfit ?? 0,
       confidence: 0.8,
       composite_score: 75,
-      position_size_pct: amount,
+      position_size_pct: positionSizePct,
       strategy,
       reasoning: `Manual ${side} ${pair} via dashboard`,
       agent_results: [],
-      risk_reward_ratio: takeProfit && stopLoss ? (takeProfit - amount) / (amount - stopLoss) : 2,
+      risk_reward_ratio: takeProfit && stopLoss && entryPrice !== stopLoss
+        ? Math.abs((takeProfit - entryPrice) / (entryPrice - stopLoss))
+        : 0,
       approved_by_shield: true,
     };
 
     // Execute trade (paper or live) through the full Shield pipeline
-    const result = await executeTrade(decision, user.id, exchangeConnectionId);
+    const result = await executeTrade(decision, user.id, exchangeConnectionId, {
+      forcePaper: isPaperTrade,
+      quoteAmount,
+    });
 
     if (!result.success) {
       return NextResponse.json(

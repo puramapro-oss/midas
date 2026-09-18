@@ -14,6 +14,7 @@ import { PLAN_LIMITS } from '@/lib/utils/constants';
 import type { MidasPlan } from '@/types/stripe';
 import type { Candle, BacktestConfig } from '@/types/trading';
 import type { BaseStrategy } from '@/lib/trading/strategies/base-strategy';
+import { fetchKlinesWithSource } from '@/lib/exchange/binance-public';
 
 const bodySchema = z.object({
   pair: z.string().min(1).max(30),
@@ -23,7 +24,7 @@ const bodySchema = z.object({
   capital: z.number().positive().max(10000000).default(10000),
   stopLossPct: z.number().min(0.1).max(50).default(3),
   takeProfitPct: z.number().min(0.1).max(100).default(6),
-  timeframe: z.string().default('4h'),
+  timeframe: z.enum(['1m', '5m', '15m', '1h', '4h', '1d']).default('4h'),
   leverage: z.number().min(1).max(125).default(1),
 });
 
@@ -69,53 +70,6 @@ function createStrategy(strategyName: string, pair: string, timeframe: string, c
     default:
       return new MomentumStrategy(config);
   }
-}
-
-function generateHistoricalCandles(pair: string, startDate: string, endDate: string, timeframe: string): Candle[] {
-  const start = new Date(startDate).getTime();
-  const end = new Date(endDate).getTime();
-
-  const timeframeMs: Record<string, number> = {
-    '1m': 60 * 1000,
-    '5m': 5 * 60 * 1000,
-    '15m': 15 * 60 * 1000,
-    '30m': 30 * 60 * 1000,
-    '1h': 60 * 60 * 1000,
-    '4h': 4 * 60 * 60 * 1000,
-    '1d': 24 * 60 * 60 * 1000,
-    '1w': 7 * 24 * 60 * 60 * 1000,
-  };
-
-  const interval = timeframeMs[timeframe] ?? 4 * 60 * 60 * 1000;
-  const basePrice = pair.includes('BTC') ? 62000 : pair.includes('ETH') ? 3200 : pair.includes('SOL') ? 130 : 1;
-  const candles: Candle[] = [];
-  let price = basePrice;
-
-  for (let ts = start; ts <= end; ts += interval) {
-    const volatility = basePrice * 0.012;
-    const trend = Math.sin(ts / (30 * 24 * 60 * 60 * 1000)) * volatility * 0.3;
-    const noise = (Math.random() - 0.5) * volatility;
-    const change = trend + noise;
-
-    const open = price;
-    const close = price + change;
-    const high = Math.max(open, close) + Math.random() * volatility * 0.4;
-    const low = Math.min(open, close) - Math.random() * volatility * 0.4;
-    const volume = basePrice * (200 + Math.random() * 2000);
-
-    candles.push({
-      timestamp: ts,
-      open: parseFloat(open.toFixed(2)),
-      high: parseFloat(high.toFixed(2)),
-      low: parseFloat(low.toFixed(2)),
-      close: parseFloat(close.toFixed(2)),
-      volume: parseFloat(volume.toFixed(2)),
-    });
-
-    price = Math.max(close, basePrice * 0.3); // prevent negative prices
-  }
-
-  return candles;
 }
 
 export async function POST(request: Request) {
@@ -167,11 +121,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'La plage de dates ne peut pas depasser 1 an' }, { status: 400 });
     }
 
-    // Generate historical candle data (in production, fetch from DB/exchange cache)
-    const candles = generateHistoricalCandles(pair, startDate, endDate, timeframe);
+    const marketData = await fetchKlinesWithSource(pair, timeframe, 1000);
+    const candles = marketData.candles.filter((candle) => candle.timestamp >= startMs && candle.timestamp <= endMs) as Candle[];
 
     if (candles.length < 50) {
-      return NextResponse.json({ error: 'Pas assez de donnees pour cette periode. Essayez un timeframe plus court.' }, { status: 400 });
+      return NextResponse.json({ error: 'Historique reel insuffisant pour cette periode; aucun backtest synthetique genere' }, { status: 503 });
     }
 
     // Build backtest config
@@ -200,7 +154,7 @@ export async function POST(request: Request) {
     // Run backtest
     const result = await runBacktest(config, candles, strategyInstance);
 
-    return NextResponse.json({ result });
+    return NextResponse.json({ result, market_data_source: marketData.source });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur interne';
     return NextResponse.json({ error: message }, { status: 500 });

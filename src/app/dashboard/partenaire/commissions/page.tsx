@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { ArrowLeft, TrendingUp, Loader2, Clock, CheckCircle, XCircle, DollarSign } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Loader2, Clock, CheckCircle, XCircle, DollarSign, AlertTriangle } from 'lucide-react';
 import { usePartnership } from '@/hooks/usePartnership';
 import type { CommissionType, CommissionStatus } from '@/types/partnership';
 
@@ -16,6 +16,7 @@ const TYPE_LABELS: Record<CommissionType, string> = {
 
 const STATUS_CONFIG: Record<CommissionStatus, { label: string; icon: React.ElementType; color: string }> = {
   pending: { label: 'En attente', icon: Clock, color: 'var(--warning)' },
+  pending_review: { label: 'Revue anti-fraude', icon: AlertTriangle, color: 'var(--warning)' },
   approved: { label: 'Approuvee', icon: CheckCircle, color: 'var(--info)' },
   paid: { label: 'Payee', icon: DollarSign, color: 'var(--success)' },
   rejected: { label: 'Rejetee', icon: XCircle, color: 'var(--danger)' },

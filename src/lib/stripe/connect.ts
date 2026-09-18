@@ -39,6 +39,8 @@ export interface EnsureConnectAccountInput {
 /**
  * Crée un compte Stripe Connect Express si l'user n'en a pas encore, sinon
  * retourne l'existant. Upsert DB via RPC idempotent.
+ *
+ * Anti-fraude layer 1 : bloque si téléphone non vérifié (MOULE-ANTIFRAUDE.md).
  */
 export async function ensureConnectAccount(
   supabase: SupabaseClient,
@@ -46,6 +48,21 @@ export async function ensureConnectAccount(
 ): Promise<ConnectAccount> {
   const existing = await getConnectAccountRow(supabase, input.userId);
   if (existing) return existing;
+
+  // Anti-fraude : exiger téléphone vérifié avant création compte Connect
+  // (layer 1 identity — évite comptes jetables sur emails temporaires).
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('phone_verified_at')
+    .eq('id', input.userId)
+    .maybeSingle();
+
+  if (!profile?.phone_verified_at) {
+    throw new Error(
+      'Vérifie ton numéro de téléphone avant de créer un compte de retrait. ' +
+        'Va dans Paramètres > Sécurité pour ajouter et vérifier ton téléphone.',
+    );
+  }
 
   const stripe = getStripe();
   const account = await stripe.accounts.create({

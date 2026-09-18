@@ -22,6 +22,7 @@ import {
   extractInvoiceMetadata,
   writeLog,
 } from './commission-engine-helpers';
+import { detectCollusionClusters } from './antifraud-helpers';
 import type {
   PartnerMinimal,
   CommissionEvent,
@@ -205,6 +206,17 @@ export async function dispatchCommissions(
       return { ok: false, error: 'partner_not_found_or_inactive' };
     }
 
+    // Anti-fraude layer 3 : détection collusion avant crédit commission
+    // (évite auto-crédit si cluster à risque — modération humaine requise).
+    const affectedPartnerIds = [
+      chain.l1.id,
+      chain.l2?.id,
+      chain.l3?.id,
+    ].filter((id): id is string => !!id);
+
+    const collusionClusters = await detectCollusionClusters(db, affectedPartnerIds);
+    const hasCollusionRisk = collusionClusters.some((c) => c.shouldFreeze);
+
     const rows = computeCommissions({
       chain,
       paidAmountEur: event.paidAmountEur,
@@ -215,6 +227,14 @@ export async function dispatchCommissions(
     });
 
     if (rows.length === 0) return { ok: true, rows: [], insertedIds: [] };
+
+    // Si collusion détectée → pending_review au lieu de pending (pas d'auto-crédit)
+    if (hasCollusionRisk) {
+      for (const row of rows) {
+        row.status = 'pending_review';
+        row.description = `[COLLUSION] ${row.description ?? ''}`;
+      }
+    }
 
     const insertRes = await db
       .from('partner_commissions')

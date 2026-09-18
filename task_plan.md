@@ -216,6 +216,16 @@ Pour debloquer :
 - [x] C2: PATTERNS.md cree (6 patterns documentes)
 - [x] tsc PASS + build PASS
 
+## Phase 18 — Entraide (2026-09-04) ✅
+- [x] Migration DB : 5 tables créées (entraide_profils, entraide_blocages, missions_collectives + participants, entraide_contact_requests, entraide_signalements)
+- [x] Package linking : @purama/entraide ajouté à package.json + next.config.ts (transpilePackages + resolveAlias)
+- [x] Adapter src/lib/entraide.ts : implémente MOULE-ENTRAIDE.md §1 contre schéma midas
+- [x] Routes API : /api/entraide/matches, /api/entraide/missions, /api/entraide/missions/[id]/actions, /api/entraide/contacts, /api/entraide/contacts/[id]/respond
+- [x] UI /dashboard/entraide : 3 tabs (Missions/Profil/Contacts), vocabulaire domaine trading, design GOD MODE, VRAIES lectures DB
+- [x] Sidebar : ajout "Cercle de Traders" (Users2 icon)
+- [x] Tests : tsc 0 erreur, build 0 erreur, preuve cycle fonctionnel (auth check 401)
+- [x] Docs : DECISIONS.md (6 décisions D-EN01→D-EN06), rollout-notes/midas.md
+
 ## Restant pour MIDAS 100%
 - [ ] EAS login + init + build iOS/Android (BLOQUE par token Apple)
 - [ ] Store submissions

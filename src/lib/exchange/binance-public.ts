@@ -8,8 +8,8 @@ import type { Candle } from '@/lib/agents/types';
 const BINANCE_BASE = 'https://api.binance.com';
 // VPS proxy (Hostinger 72.62.191.111:9999) — relai des routes publiques Binance
 // pour contourner le géo-block US-East de Vercel.
-const VPS_PROXY_BASE = process.env.MIDAS_BINANCE_PROXY_URL ?? 'http://72.62.191.111:9999';
-const VPS_PROXY_TOKEN = process.env.MIDAS_BINANCE_PROXY_TOKEN ?? 'midas-vps-2026-bunny-jumps-over-walls';
+const VPS_PROXY_BASE = process.env.MIDAS_BINANCE_PROXY_URL;
+const VPS_PROXY_TOKEN = process.env.MIDAS_BINANCE_PROXY_TOKEN;
 
 /**
  * Convertit une paire MIDAS (BTC/USDT) en symbole Binance (BTCUSDT).
@@ -72,20 +72,22 @@ export async function fetchKlinesWithSource(
   }
 
   // 2) VPS proxy (Hostinger relay)
-  try {
-    const res = await fetch(
-      `${VPS_PROXY_BASE}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`,
-      {
-        headers: { 'X-Midas-Token': VPS_PROXY_TOKEN },
-        next: { revalidate: 30 },
-      },
-    );
-    if (res.ok) {
-      const raw = (await res.json()) as unknown[][];
-      return { candles: parseBinanceKlines(raw), source: 'vps_proxy' };
+  if (VPS_PROXY_BASE && VPS_PROXY_TOKEN) {
+    try {
+      const res = await fetch(
+        `${VPS_PROXY_BASE}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`,
+        {
+          headers: { 'X-Midas-Token': VPS_PROXY_TOKEN },
+          next: { revalidate: 30 },
+        },
+      );
+      if (res.ok) {
+        const raw = (await res.json()) as unknown[][];
+        return { candles: parseBinanceKlines(raw), source: 'vps_proxy' };
+      }
+    } catch {
+      // fallthrough
     }
-  } catch {
-    // fallthrough
   }
 
   // 3) CoinGecko OHLC (sans volume, derniers recours)

@@ -58,6 +58,10 @@ export async function monitorPositions(userId: string): Promise<MonitorResult> {
   const openPositions: MonitoredPosition[] = (positions ?? []).map(mapToMonitoredPosition);
 
   for (const position of openPositions) {
+    if (!position.is_paper) {
+      errors.push(`Position ${position.id}: live monitoring cannot mutate local state without exchange execution`);
+      continue;
+    }
     try {
       const positionActions = await checkPosition(position, supabase);
       actions.push(...positionActions);
@@ -289,7 +293,7 @@ async function closePosition(
       exit_price: closePrice,
       pnl,
       pnl_pct: pnlPct,
-      exit_reason: exitReason,
+      close_reason: exitReason,
       closed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
@@ -300,7 +304,7 @@ function mapToMonitoredPosition(row: Record<string, unknown>): MonitoredPosition
   return {
     id: row.id as string,
     user_id: row.user_id as string,
-    symbol: row.symbol as string,
+    symbol: (row.pair ?? row.symbol) as string,
     side: row.side as 'buy' | 'sell',
     entry_price: Number(row.entry_price ?? 0),
     current_price: Number(row.current_price ?? row.entry_price ?? 0),
@@ -312,7 +316,7 @@ function mapToMonitoredPosition(row: Record<string, unknown>): MonitoredPosition
     trailing_stop_lowest: row.trailing_stop_lowest !== null ? Number(row.trailing_stop_lowest) : null,
     breakeven_activated: Boolean(row.breakeven_activated ?? false),
     leverage: Number(row.leverage ?? 1),
-    is_paper: Boolean(row.is_paper ?? false),
+    is_paper: Boolean(row.is_paper_trade ?? row.is_paper ?? false),
     status: row.status as string,
     created_at: row.created_at as string,
   };

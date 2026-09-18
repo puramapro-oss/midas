@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files
 .env*
+!.env.example
 
 # project
 CLAUDE.md
@@ -56,3 +57,4 @@ scripts/
 # Secret-bearing files purged from history
 MIDAS-BRIEF-ULTIMATE.md
 MIDAS-ULTIMATE-BRIEF.md
+.worktrees/

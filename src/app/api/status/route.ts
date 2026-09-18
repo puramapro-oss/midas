@@ -1,95 +1,24 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+
+const BINANCE_PING_URL = 'https://api.binance.com/api/v3/ping'
 
 export async function GET() {
+  const startedAt = Date.now()
+  let marketData: 'operational' | 'degraded' = 'degraded'
   try {
-    const services: Record<string, { status: string; latency_ms?: number }> = {}
-
-    // Supabase
-    const supabaseStart = Date.now()
-    try {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-        { db: { schema: 'public' } }
-      )
-      const { error } = await supabase.from('profiles').select('id').limit(1)
-      services.supabase = {
-        status: error ? 'degraded' : 'operational',
-        latency_ms: Date.now() - supabaseStart,
-      }
-    } catch {
-      services.supabase = { status: 'down', latency_ms: Date.now() - supabaseStart }
-    }
-
-    // Stripe
-    const stripeStart = Date.now()
-    try {
-      const res = await fetch('https://api.stripe.com/v1/balance', {
-        headers: { Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}` },
-        signal: AbortSignal.timeout(5000),
-      })
-      services.stripe = {
-        status: res.ok ? 'operational' : 'degraded',
-        latency_ms: Date.now() - stripeStart,
-      }
-    } catch {
-      services.stripe = { status: 'down', latency_ms: Date.now() - stripeStart }
-    }
-
-    // Binance — ping endpoint (any 2xx/4xx = reachable, only timeout/network = down)
-    const binanceStart = Date.now()
-    try {
-      const res = await fetch('https://api.binance.com/api/v3/ping', {
-        signal: AbortSignal.timeout(5000),
-      })
-      services.binance = {
-        status: res.status < 500 ? 'operational' : 'degraded',
-        latency_ms: Date.now() - binanceStart,
-      }
-    } catch {
-      services.binance = { status: 'down', latency_ms: Date.now() - binanceStart }
-    }
-
-    // Anthropic — test API key validity (any response except 401/403 = key works)
-    const anthropicStart = Date.now()
-    try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'x-api-key': process.env.ANTHROPIC_API_KEY ?? '',
-          'anthropic-version': '2023-06-01',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1,
-          messages: [{ role: 'user', content: 'ping' }],
-        }),
-        signal: AbortSignal.timeout(8000),
-      })
-      services.anthropic = {
-        status: res.status === 401 || res.status === 403 ? 'degraded' : 'operational',
-        latency_ms: Date.now() - anthropicStart,
-      }
-    } catch {
-      services.anthropic = { status: 'down', latency_ms: Date.now() - anthropicStart }
-    }
-
-    const allOperational = Object.values(services).every((s) => s.status === 'operational')
-    const anyDown = Object.values(services).some((s) => s.status === 'down')
-
-    return NextResponse.json({
-      app: 'midas',
-      status: anyDown ? 'partial_outage' : allOperational ? 'ok' : 'degraded',
-      services,
-      timestamp: new Date().toISOString(),
-    })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Erreur interne'
-    return NextResponse.json(
-      { app: 'midas', status: 'error', message, timestamp: new Date().toISOString() },
-      { status: 500 }
-    )
+    const response = await fetch(BINANCE_PING_URL, { signal: AbortSignal.timeout(5000) })
+    marketData = response.ok ? 'operational' : 'degraded'
+  } catch {
+    marketData = 'degraded'
   }
+
+  return NextResponse.json({
+    app: 'midas',
+    status: marketData === 'operational' ? 'ok' : 'degraded',
+    services: { public_market_data: marketData },
+    latency_ms: Date.now() - startedAt,
+    timestamp: new Date().toISOString(),
+  }, {
+    headers: { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=60' },
+  })
 }

@@ -12,7 +12,8 @@ const PAPER_SLIPPAGE_RANGE = { min: 0.01, max: 0.15 }; // 0.01% to 0.15%
 
 export async function executePaperTrade(
   decision: CoordinatorDecision,
-  userId: string
+  userId: string,
+  requestedQuoteAmount?: number,
 ): Promise<TradeResult> {
   const supabase = createServiceClient();
   const timestamp = Date.now();
@@ -48,7 +49,7 @@ export async function executePaperTrade(
 
   // Calculate position size
   const riskPct = decision.position_size_pct;
-  const positionValue = paperCapital * (riskPct / 100);
+  const positionValue = requestedQuoteAmount ?? paperCapital * (riskPct / 100);
   const quantity = executedPrice > 0 ? positionValue / executedPrice : 0;
 
   if (quantity <= 0) {
@@ -77,22 +78,26 @@ export async function executePaperTrade(
     .from('trades')
     .insert({
       user_id: userId,
-      symbol: decision.pair,
+      exchange: 'paper',
+      pair: decision.pair,
       side: decision.action === 'buy' ? 'buy' : 'sell',
       type: 'market',
       entry_price: executedPrice,
       quantity,
-      leverage: 1,
+      quote_amount: positionValue,
       stop_loss: decision.stop_loss,
       take_profit: decision.take_profit,
       status: 'open',
       fees,
       slippage_pct: slippagePct,
-      order_id: orderId,
+      exchange_order_id: orderId,
       strategy: decision.strategy,
       confidence: decision.confidence,
-      reasoning: decision.reasoning,
-      is_paper: true,
+      ai_reasoning: decision.reasoning,
+      composite_score: decision.composite_score,
+      risk_reward_ratio: decision.risk_reward_ratio,
+      agent_results: decision.agent_results,
+      is_paper_trade: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })

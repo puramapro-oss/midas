@@ -5,7 +5,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 interface Signal {
   id: string;
   pair: string;
-  strength: 'strong_buy' | 'buy' | 'neutral' | 'sell' | 'strong_sell';
+  direction: 'buy' | 'sell' | 'hold';
+  strength: 'weak' | 'moderate' | 'strong' | 'very_strong';
   entry_price: number;
   stop_loss: number;
   take_profit: number;

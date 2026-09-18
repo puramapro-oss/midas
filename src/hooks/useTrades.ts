@@ -80,41 +80,19 @@ export function useTrades(): UseTradesReturn {
   }, []);
 
   const closeTrade = useCallback(
-    async (tradeId: string, exitPrice: number) => {
-      const trade = openPositions.find((t) => t.id === tradeId);
-      if (!trade) return;
-
-      const pnl =
-        trade.side === 'buy'
-          ? (exitPrice - trade.entry_price) * trade.quantity
-          : (trade.entry_price - exitPrice) * trade.quantity;
-
-      const now = new Date().toISOString();
-
-      const { error } = await supabase
-        .from('trades')
-        .update({
-          status: 'closed',
-          exit_price: exitPrice,
-          pnl,
-          closed_at: now,
-        })
-        .eq('id', tradeId);
-
-      if (!error) {
-        const closedTrade: Trade = {
-          ...trade,
-          status: 'closed',
-          exit_price: exitPrice,
-          pnl,
-          closed_at: now,
-        };
-
-        setOpenPositions((prev) => prev.filter((t) => t.id !== tradeId));
-        setRecentTrades((prev) => [closedTrade, ...prev]);
+    async (tradeId: string, _exitPrice: number) => {
+      const response = await fetch('/api/trade/close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tradeId }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error ?? 'Impossible de fermer la position');
       }
+      await fetchTrades();
     },
-    [openPositions]
+    [fetchTrades]
   );
 
   useEffect(() => {
