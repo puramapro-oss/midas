@@ -434,3 +434,9 @@
 - Migrations appliquées UNE fois, dans l'ordre, ON_ERROR_STOP : 005 (adaptatif après échec design partagé) → 006 → 007 → 008 toutes OK ; 12 vérifications post-migration vertes ; trigger billing BLOQUE l'auto-upgrade plan par JWT user en prod (plan intact) ; counts profils intacts
 - Deploy : IMPOSSIBLE — team Vercel solde impayé (402 DEPLOYMENT_DISABLED sur midas.purama.dev, resource_creation_blocked sur env preview). Preview/prod/E2E distants reportés à régularisation facturation.
 - Aucun trading réel : rien déployé, exécuteur paper-only, routes ordres 403 NIYAMA
+
+## 2026-09-18 — Reprise deploy post-règlement annoncé : ENCORE BLOQUÉ
+- API team OK (OWNER), dernier deployment = 2026-08-24, prod toujours 402 DEPLOYMENT_DISABLED
+- Toutes créations (deploy + env preview) → «Your team has an overdue balance. Please add a valid payment method» — persistant ~8 min après l'annonce du règlement
+- Diagnostic: facture probablement encore «due» (ajout carte ≠ paiement facture overdue, prélèvement pas toujours automatique)
+- Pipeline prêt: 3 vars preview à ajouter, deploy preview → smoke+E2E → prod (aucune étape exécutée, aucun trading réel)
