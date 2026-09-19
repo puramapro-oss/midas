@@ -10,17 +10,8 @@
     "src/app/api/backtest/run/route.ts": {
       "maxDuration": 120
     },
-    "src/app/api/cron/deep-analysis/route.ts": {
-      "maxDuration": 120
-    },
     "src/app/api/cron/weekly-pdf-report/route.ts": {
       "maxDuration": 300
-    },
-    "src/app/api/cron/fiscal-annual-pdf/route.ts": {
-      "maxDuration": 300
-    },
-    "src/app/api/cron/fiscal-das2/route.ts": {
-      "maxDuration": 120
     }
   },
   "crons": [
@@ -95,18 +86,6 @@
     {
       "path": "/api/cron/email-sequence",
       "schedule": "0 10 * * *"
-    },
-    {
-      "path": "/api/cron/fiscal-paliers",
-      "schedule": "0 11 * * *"
-    },
-    {
-      "path": "/api/cron/fiscal-annual-pdf",
-      "schedule": "0 9 1 1 *"
-    },
-    {
-      "path": "/api/cron/fiscal-das2",
-      "schedule": "0 10 31 1 *"
     },
     {
       "path": "/api/cron/account-deletion",

@@ -137,28 +137,29 @@ export const GUIDE_CARDS: GuideCard[] = [
     description: 'Comprends les mécanismes sans recommandation personnalisée.',
     iconName: 'BarChart3',
     color: 'text-emerald-400',
-    href: '/dashboard/help/strategies',
+    // Page détaillée neutralisée (D2=A) — la FAQ de l'aide couvre le sujet.
+    href: '/dashboard/help',
   },
   {
     title: 'Sécurité & MIDAS Shield',
     description: 'Découvre les principaux risques et réflexes de prudence.',
     iconName: 'Shield',
     color: 'text-cyan-400',
-    href: '/dashboard/help/shield',
+    href: '/dashboard/help',
   },
   {
     title: 'Points PURAMA',
     description: "Comprends la Phase 1 en points, sans retrait monétaire.",
     iconName: 'Wallet',
     color: 'text-orange-400',
-    href: '/dashboard/help/referral-wallet',
+    href: '/dashboard/help',
   },
   {
     title: 'Guide complet MIDAS',
     description: 'Tout comprendre de A à Z dans un cadre strictement éducatif.',
     iconName: 'Zap',
     color: 'text-purple-400',
-    href: '/dashboard/guide',
+    href: '/dashboard/help',
   },
 ];
 

@@ -212,8 +212,10 @@ export default function MarketsPage() {
                         </Badge>
                       </td>
                       <td className="px-6 py-4 text-right">
+                        {/* Page d'analyse détaillée neutralisée (D2=A) — le lien
+                            pointe vers l'aide plutôt que de rebondir silencieusement. */}
                         <Link
-                          href={`/dashboard/analysis/${pair.symbol.replace('/', '-').toLowerCase()}`}
+                          href="/dashboard/help"
                           data-testid={`analyze-${pair.symbol.replace('/', '-').toLowerCase()}`}
                           className="inline-flex items-center gap-1 text-xs text-[#FFD700]/60 hover:text-[#FFD700] transition-colors opacity-0 group-hover:opacity-100"
                         >

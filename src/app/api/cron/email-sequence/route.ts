@@ -2,17 +2,20 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { assertCronAuth } from '@/lib/cron-auth';
 import { createClient } from '@/lib/supabase/server';
 
-// 10 email sequences: J0 Bienvenue, J1 Astuce, J3 Relance, J7 Tips, J14 Upgrade,
-// J21 Témoignage, J30 Win-back, Evt: Parrainage, Evt: Concours, Evt: Palier
+// 7 email sequences: J0 Bienvenue, J1 Astuce, J3 Relance, J7 Tips, J14 Découverte,
+// J21 Fonctionnalités, J30 Win-back — contenus éducatifs uniquement (D2=A).
 
+// D2=A : contenus strictement éducatifs — aucun signalement d'opportunité,
+// aucune promotion d'abonnement, aucun témoignage ou chiffre de gain, et des
+// CTA uniquement vers des pages atteignables (voir src/middleware.ts).
 const SEQUENCES = [
-  { type: 'welcome', day: 0, subject: 'Bienvenue sur MIDAS — Ton edge trading IA', delay_days: 0 },
-  { type: 'tip', day: 1, subject: 'Astuce MIDAS : ta première analyse IA en 30 secondes', delay_days: 1 },
-  { type: 'reminder', day: 3, subject: 'Tes signaux IA t\'attendent sur MIDAS', delay_days: 3 },
-  { type: 'tips', day: 7, subject: '3 stratégies gagnantes que nos meilleurs traders utilisent', delay_days: 7 },
-  { type: 'upgrade', day: 14, subject: 'Passe Pro : -20% avec le code EMAIL20 (48h)', delay_days: 14 },
+  { type: 'welcome', day: 0, subject: 'Bienvenue sur MIDAS — apprends les marchés pas à pas', delay_days: 0 },
+  { type: 'tip', day: 1, subject: 'Astuce MIDAS : ta première analyse éducative en 30 secondes', delay_days: 1 },
+  { type: 'reminder', day: 3, subject: 'Des questions sur les marchés ? L’aide MIDAS est là', delay_days: 3 },
+  { type: 'tips', day: 7, subject: '3 notions de marché que tout le monde devrait connaître', delay_days: 7 },
+  { type: 'upgrade', day: 14, subject: 'MIDAS : explore tout ce que ton compte te permet déjà', delay_days: 14 },
   { type: 'testimonial', day: 21, subject: 'MIDAS : 3 fonctionnalités que tu n’as pas encore essayées', delay_days: 21 },
-  { type: 'winback', day: 30, subject: 'Tu nous manques ! Reviens avec -30% sur MIDAS Pro', delay_days: 30 },
+  { type: 'winback', day: 30, subject: 'Tu nous manques ! Les marchés n’attendent pas', delay_days: 30 },
 ] as const;
 
 export async function GET(request: NextRequest) {
@@ -111,13 +114,13 @@ function generateEmailHtml(type: string, name: string): string {
   `;
 
   const templates: Record<string, string> = {
-    welcome: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>Bienvenue ${name} !</h2><p>Ton compte MIDAS est prêt. Notre IA analyse déjà les marchés pour toi 24/7.</p><p>Connecte ton exchange pour commencer à trader avec un edge IA.</p><a href="https://midas.purama.dev/dashboard" class="cta">Accéder à MIDAS</a>${footer}</div>`,
-    tip: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>Astuce du jour</h2><p>Salut ${name} ! Savais-tu que tu peux demander une analyse complète de n'importe quelle crypto à notre chat IA ?</p><p>Essaie : "Analyse BTC/USDT sur 4h avec sentiment et on-chain"</p><a href="https://midas.purama.dev/dashboard/chat" class="cta">Essayer maintenant</a>${footer}</div>`,
-    reminder: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>Tes signaux t'attendent</h2><p>${name}, nos agents IA ont détecté de nouvelles opportunités sur les marchés.</p><p>Ne manque pas les prochains mouvements !</p><a href="https://midas.purama.dev/dashboard/signals" class="cta">Voir les signaux</a>${footer}</div>`,
-    tips: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>3 stratégies gagnantes</h2><p>${name}, voici ce que nos meilleurs traders utilisent :</p><ol style="color:#ccc"><li>Trend Following sur BTC/ETH (4h)</li><li>Mean Reversion sur les altcoins (1h)</li><li>DCA intelligent avec le bot MIDAS</li></ol><a href="https://midas.purama.dev/dashboard/bots" class="cta">Créer un bot</a>${footer}</div>`,
-    upgrade: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>-20% sur Pro — 48h seulement</h2><p>${name}, passe à MIDAS Pro avec le code <strong>EMAIL20</strong> pour débloquer :</p><ul style="color:#ccc"><li>200 questions IA / jour</li><li>Backtesting complet</li><li>Smart Money Analysis</li><li>5 bots actifs</li></ul><a href="https://midas.purama.dev/pricing" class="cta">Passer Pro -20%</a>${footer}</div>`,
-    testimonial: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>L'histoire de Marc</h2><p>${name}, Marc utilise MIDAS depuis 3 mois. Résultat : +2400€ de profit avec le bot DCA intelligent et les signaux IA.</p><p>"MIDAS m'a appris à trader avec discipline. L'IA détecte des patterns que je ne voyais pas."</p><a href="https://midas.purama.dev/dashboard" class="cta">Commencer comme Marc</a>${footer}</div>`,
-    winback: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>Tu nous manques ${name} !</h2><p>Les marchés bougent et notre IA a évolué. Nouveautés :</p><ul style="color:#ccc"><li>10 agents IA spécialisés</li><li>Détection de manipulation</li><li>Paper trading amélioré</li></ul><p>Reviens avec <strong>-30%</strong> sur Pro !</p><a href="https://midas.purama.dev/pricing" class="cta">Revenir sur MIDAS</a>${footer}</div>`,
+    welcome: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>Bienvenue ${name} !</h2><p>Ton compte MIDAS est prêt. MIDAS est un outil d'information générale et de simulation éducative : aucune clé d'exchange, aucun ordre réel, uniquement de l'apprentissage.</p><p>Commence par découvrir les marchés et l'aide intégrée.</p><a href="https://midas.purama.dev/dashboard" class="cta">Accéder à MIDAS</a>${footer}</div>`,
+    tip: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>Astuce du jour</h2><p>Salut ${name} ! Savais-tu que tu peux poser toutes tes questions de compréhension des marchés au chat IA de MIDAS ?</p><p>Essaie : "Explique-moi le RSI et ses limites sur BTC/USDT en 4h"</p><a href="https://midas.purama.dev/dashboard/chat" class="cta">Essayer maintenant</a>${footer}</div>`,
+    reminder: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>Une question sur les marchés ?</h2><p>${name}, le centre d'aide MIDAS rassemble FAQ, glossaire et réflexes de prudence.</p><p>Aucune recommandation personnalisée — juste de la pédagogie claire.</p><a href="https://midas.purama.dev/dashboard/help" class="cta">Ouvrir l'aide</a>${footer}</div>`,
+    tips: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>3 notions de marché</h2><p>${name}, voici trois concepts que MIDAS t'aide à comprendre :</p><ol style="color:#ccc"><li>Tendance et moyennes mobiles (EMA)</li><li>Volatilité et ATR</li><li>Psychologie de marché et biais cognitifs</li></ol><a href="https://midas.purama.dev/dashboard/help" class="cta">Approfondir</a>${footer}</div>`,
+    upgrade: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>Tu n'as pas tout vu</h2><p>${name}, ton compte donne déjà accès à :</p><ul style="color:#ccc"><li>Analyses de marché générales</li><li>Backtesting pédagogique</li><li>Simulation éducative</li><li>Chat IA illimité en questions</li></ul><a href="https://midas.purama.dev/dashboard" class="cta">Explorer MIDAS</a>${footer}</div>`,
+    testimonial: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>3 fonctionnalités à essayer</h2><p>${name}, si tu n'as pas encore exploré ces outils éducatifs, c'est le moment :</p><ul style="color:#ccc"><li>Le suivi des marchés en temps réel</li><li>Le backtesting pour tester une idée de stratégie</li><li>Le chat IA pour poser tes questions de compréhension</li></ul><a href="https://midas.purama.dev/dashboard" class="cta">Découvrir</a>${footer}</div>`,
+    winback: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>Tu nous manques ${name} !</h2><p>Les marchés évoluent et MIDAS aussi. Reprends où tu t'étais arrêté :</p><ul style="color:#ccc"><li>Suivi pédagogique des marchés</li><li>Simulation éducative</li><li>Aide et glossaire complets</li></ul><a href="https://midas.purama.dev/dashboard" class="cta">Revenir sur MIDAS</a>${footer}</div>`,
   };
 
   return templates[type] ?? templates.welcome;

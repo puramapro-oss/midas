@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 export default function LeaderboardRedirect() {
   const router = useRouter();
   useEffect(() => {
-    router.replace('/dashboard/copy-trading');
+    router.replace('/dashboard/classement');
   }, [router]);
   return null;
 }

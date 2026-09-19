@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { createServerClient } from '@supabase/ssr';
 import { z } from 'zod';
 import { analyzeMacro } from '@/lib/agents/macro-agent';
 import { analyzeDefi } from '@/lib/agents/defi-agent';
@@ -39,8 +41,31 @@ const bodySchema = z.object({
  * Lance les agents Phase 2 (8 agents directionnels) sur une paire.
  * Publie heartbeats + signaux dans Redis. Retourne les résultats agrégés.
  */
+// Le middleware bloque déjà cette route (D2=A) ; cette garde est une
+// défense en profondeur si la liste EDUCATION_ONLY_API_PREFIXES évolue.
+async function getAuthUser() {
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return cookieStore.getAll(); },
+        setAll() {},
+      },
+    }
+  );
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
+}
+
 export async function POST(req: NextRequest) {
   try {
+    const user = await getAuthUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    }
+
     const json = await req.json().catch(() => ({}));
     const { pair, agents, interval } = bodySchema.parse(json);
     const requested: AgentName[] = (agents ?? [...ALL_AGENTS]) as AgentName[];

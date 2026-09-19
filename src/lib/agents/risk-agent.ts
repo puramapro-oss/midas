@@ -1,6 +1,6 @@
 // =============================================================================
 // MIDAS — Risk Agent (MIDAS SHIELD)
-// 7 niveaux de verification de risque avant approbation d'un trade
+// 9 niveaux de verification de risque avant approbation d'un trade
 // =============================================================================
 
 import type { AgentResult, MarketRegime } from '@/lib/agents/types';
@@ -234,7 +234,7 @@ function checkLevel7_SignalQuality(params: RiskParams): ShieldCheck {
 // --- Main Agent Function ---
 
 /**
- * Execute les 7 niveaux de verification du MIDAS SHIELD.
+ * Execute les 9 niveaux de verification du MIDAS SHIELD.
  * Retourne un AgentResult avec l'approbation ou le refus du trade.
  */
 export async function analyzeRisk(params: RiskParams): Promise<AgentResult> {

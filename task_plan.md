@@ -824,3 +824,47 @@ production. Migration appliquée VPS + smoke-testée via PostgREST réel.
 - [x] CSP durcie prod (unsafe-eval retiré, object-src/base-uri/frame-ancestors/form-action, upgrade-insecure-requests, IP:8000 supprimée) sans casser (build+E2E verts)
 - [x] Migrations 005-008 prouvées sur base jetable PG 18.4 : 2 passes idempotentes, RLS×4, trigger billing actif (bloque plan upgrade user), revoke anon, exec_sql droppé, CHECK pending_review
 - [x] Gates finaux : tsc 0 | lint 0/0 | unit 10/10 | E2E 446/446 | audit 0 | build 0 | NIYAMA PASS
+
+## Session 2026-09-19 — Audit ultime complétude + tests manquants (local, prod gelée)
+
+### Constatats (matrice exigence→preuve)
+- [x] Baseline rejouée : check-niyama PASS, tsc 0, lint 0/0, build 0 err, npm audit 0 vuln (prod+dev), mobile tsc 0
+- [x] 6 agents coordinateur (technical/sentiment/onchain/calendar/pattern/risk) + orchestration coordinate() audités : 5 agents parallèles → poids dynamiques → composite → confluences ≥4 → Shield veto → Claude JSON (fallback règles) → 8 règles brief forcées → retour TOUJOURS hold/education_only (D2=A)
+- [x] /api/agents/run : 10 agents Phase 2 (macro/defi/memory/sentiment/onchain/calendar/technical/pattern/risk/execution) + heartbeats Redis + consensus — bloqués middleware, dormants
+- [x] **Agent DÉCOUVERTE / nouveaux tokens / anti-scam / plafonds spéciaux : ABSENT du code** — aucune source locale (MIDAS-BRIEF-ULTIMATE.md introuvable dans le dépôt, référencé seulement dans progress.md/qa-agent.md). Exigence sans source vérifiable → signalée, non inventée
+- [x] Fournisseurs réels : Binance public (cascade direct→proxy VPS→CoinGecko), Binance fapi (OI/funding/L-S/depth/whales), CoinGecko, alternative.me F&G, DefiLlama, Etherscan, Reddit, free-crypto-news, Google Trends, Yahoo, FRED, CoinMarketCal, NewsAPI, YouTube — 4 providers codés jamais câblés (coinpaprika/cmc/dune/whale-alert) + signal-cache.ts 0 consommateur (dormant documenté)
+- [x] MetaApi / FundedNext : AUCUN fichier — uniquement listés `unavailable_in_code` dans /api/admin/integrations (honnête)
+- [x] Aucun ordre réel : 0 createOrder ccxt dans src/, exécuteur paper-only, /api/trade/* 403 middleware + garde in-route
+- [x] idempotency.ts (garde Redis 5min double-ordre) : 0 call site — dormant (suppression différée au chantier dédié)
+
+### Corrections (9)
+- [x] F1 email-sequence : faux témoignage «Marc +2400€» + promos + CTAs morts → 7 templates éducatifs D2=A (FAUX DONE corrigé)
+- [x] F2 leaderboard → /dashboard/classement (fin double rebond)
+- [x] F3 Sidebar : entrée «Guide» retirée (rebondissait sur Aide)
+- [x] F4 GUIDE_CARDS ×4 → /dashboard/help
+- [x] F5 markets «Analyser» → /dashboard/help (commenté D2=A)
+- [x] F6 market-regime : import dynamique fear-greed (module pur testable)
+- [x] F7 /api/agents/run+status : garde auth 401 (défense en profondeur)
+- [x] F8 risk-agent : header 7→9 niveaux (doc alignée sur code)
+- [x] F9 vercel.json : 3 crons fiscaux 403-permanents + 2 maxDuration orphelins retirés
+
+### Tests créés (72 nouveaux, 82/82 PASS)
+- [x] risk-levels.test.ts — 7 niveaux Shield (perte journalière/hebdo/mensuelle, circuit breaker, crash -5%/h, 20%/token, blacklist, RRR, invariants)
+- [x] kelly-sizing.test.ts — formule, caps 5%, property LCG 5000 tirages
+- [x] position-sizer.test.ts — fixed-fractional, clamp volatilité, fallback conservateur
+- [x] slippage-estimator.test.ts — tiers liquidité, impact volume, cap 5%, frais aller-retour
+- [x] scoring.test.ts — composite (risk exclu, clamp, seuils ±0.15), property 2000 tirages
+- [x] confluence-scoring.test.ts — quorum 4 agents distincts, plancher confiance, direction dominante
+- [x] dynamic-weighting.test.ts — somme=1 sur les 8 régimes, blend performance
+- [x] market-regime.test.ts — crash (F&G<10 + -15%, -10%/5), arbre régimes, stratégies autorisées
+
+### Preuves
+- [x] test:unit 82/82 | tsc 0 | lint 0 err 0 warn | build 0 err | check-niyama PASS | gitleaks chemins modifiés 0 détection | mobile tsc 0
+- [x] E2E local complet rejoué (résultat dans progress.md)
+- [x] Aucun push, aucun deploy (facturation Vercel toujours bloquée — preuves locales uniquement)
+
+### Reste ouvert (bloqué externe ou décision Tissma)
+- [ ] Déploy + E2E prod : bloqué facture Vercel overdue
+- [ ] Agent DÉCOUVERTE + anti-scam tokens : à spécifier (source brief introuvable)
+- [ ] Suppression code dormant (trading historique, connect, signaux) : chantier dédié après validation
+- [ ] EAS build mobile : bloqué EXPO_TOKEN/Apple Team ID

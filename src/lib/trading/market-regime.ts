@@ -4,7 +4,6 @@
 // =============================================================================
 
 import type { MarketRegime, Candle } from '@/lib/agents/types';
-import { getCurrentIndex } from '@/lib/data/fear-greed';
 
 export interface RegimeAnalysis {
   regime: MarketRegime;
@@ -218,6 +217,8 @@ export async function detectRegimeWithLiveFearGreed(
 ): Promise<RegimeAnalysis> {
   let fgValue: number | undefined;
   try {
+    // Import dynamique : garde ce module testable sans réseau (detectRegime pur).
+    const { getCurrentIndex } = await import('@/lib/data/fear-greed');
     const fg = await getCurrentIndex();
     fgValue = fg?.value;
   } catch {

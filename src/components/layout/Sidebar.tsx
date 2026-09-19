@@ -14,7 +14,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Bell,
-  BookOpen,
 } from 'lucide-react';
 import MidasLogo from './MidasLogo';
 
@@ -28,7 +27,8 @@ const navItems = [
 ];
 
 const bottomItems = [
-  { label: 'Guide', icon: BookOpen, href: '/dashboard/guide', testId: 'sidebar-guide' },
+  // « Guide » retiré : /dashboard/guide est neutralisé (D2=A) et rebondissait
+  // sur /dashboard/help — l'entrée « Aide » couvre déjà cette destination.
   { label: 'Aide', icon: HelpCircle, href: '/dashboard/help', testId: 'sidebar-help' },
   { label: 'Paramètres', icon: Settings, href: '/dashboard/settings', testId: 'sidebar-settings' },
 ];

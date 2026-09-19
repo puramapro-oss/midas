@@ -440,3 +440,15 @@
 - Toutes créations (deploy + env preview) → «Your team has an overdue balance. Please add a valid payment method» — persistant ~8 min après l'annonce du règlement
 - Diagnostic: facture probablement encore «due» (ajout carte ≠ paiement facture overdue, prélèvement pas toujours automatique)
 - Pipeline prêt: 3 vars preview à ajouter, deploy preview → smoke+E2E → prod (aucune étape exécutée, aucun trading réel)
+
+## 2026-09-19 — Audit ultime complétude : faux DONE corrigé, 72 tests unitaires créés
+- Lecture exhaustive docs (CLAUDE/AGENTS/BRIEF/DECISIONS/BATON/NIYAMA/PRE-CERTIF/CONFORMITE/ANTIFRAUD/ERRORS/PATTERNS/task_plan/progress) + 3 agents exploration parallèles (architecture agents, intégrations, middleware+dead code)
+- Matrice exigence→code→test→preuve établie ; exigences sans source locale signalées (Agent DÉCOUVERTE, MIDAS-BRIEF-ULTIMATE.md introuvable)
+- Baseline vérifiée avant toute modification : check-niyama PASS, tsc 0, lint 0/0, 10/10 unit, build PASS, npm audit 0 vuln (mieux que doc qui disait 1 modérée), mobile tsc 0
+- FAUX DONE trouvé et corrigé : témoignage «Marc +2400€» toujours dans le cron email-sequence actif malgré consignation «remplacé» du 2026-09-18 ; 7 templates réécrits éducatifs D2=A + CTAs atteignables
+- 8 corrections chirurgicales UI/API/config (leaderboard, sidebar, help cards, markets, agents auth, market-regime lazy import, risk-agent doc, vercel crons morts)
+- 8 fichiers de tests unitaires node:test créés (risk-levels, kelly-sizing, position-sizer, slippage-estimator, scoring, confluence-scoring, dynamic-weighting, market-regime) — 82/82 PASS dont property-based déterministe
+- gitleaks sur chemins modifiés : 0 détection ; GitNexus : index cassé (storage v43 vs moteur v42), rebuild tenté, impact vérifié par grep callers sur chaque symbole modifié
+- E2E local complet : voir résultat ci-dessous ; aucun push/deploy (facturation Vercel bloquée)
+- E2E local complet (Playwright, 2 viewports) : **446 passed / 492 skipped / 0 failed** — strictement identique à la baseline certifiée 2026-09-18, zéro régression introduite
+- Commit local : b54a967 (21 fichiers, +908/−47). Aucun push (gel), aucun deploy (facture Vercel overdue)
