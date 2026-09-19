@@ -178,8 +178,8 @@ export default function HelpPage() {
         </div>
       </div>
 
-      {/* FAQ */}
-      <div>
+      {/* FAQ — ancre cible des GUIDE_CARDS */}
+      <div id="faq" className="scroll-mt-24">
         <h2 className="text-sm font-semibold text-white/60 mb-4 flex items-center gap-2">
           <HelpCircle className="h-4 w-4 text-[#FFD700]/40" />
           Questions fréquentes

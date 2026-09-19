@@ -86,6 +86,10 @@ const nextConfig: NextConfig = {
       { source: '/politique-confidentialite', destination: '/legal/privacy', permanent: true },
       { source: '/cgv', destination: '/legal/cgv', permanent: true },
       { source: '/cgu', destination: '/legal/cgu', permanent: true },
+      // Alias historique : le classement remplace le leaderboard (l'ancienne
+      // cible copy-trading est neutralisée D2=A). Redirection serveur, plus
+      // de shim client.
+      { source: '/dashboard/leaderboard', destination: '/dashboard/classement', permanent: true },
     ];
   },
   serverExternalPackages: ['ccxt'],

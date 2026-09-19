@@ -68,7 +68,9 @@ test('property: kelly outputs stay within [0, 0.05] for any valid statistics', (
   for (let i = 0; i < 5_000; i++) {
     const p = 0.01 + next() * 0.98; // (0.01, 0.99)
     const b = 0.1 + next() * 10;
-    assert.ok(halfKelly(p, b) >= 0 && halfKelly(p, b) <= 0.05);
-    assert.ok(quarterKelly(p, b) >= 0 && quarterKelly(p, b) <= 0.05);
+    const half = halfKelly(p, b);
+    const quarter = quarterKelly(p, b);
+    assert.ok(half >= 0 && half <= 0.05);
+    assert.ok(quarter >= 0 && quarter <= 0.05);
   }
 });

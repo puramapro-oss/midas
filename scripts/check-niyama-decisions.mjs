@@ -24,6 +24,9 @@ const mobileHelp = await readFile(new URL('../mobile/app/(stack)/help.tsx', impo
 const mobileMarkets = await readFile(new URL('../mobile/app/(stack)/markets.tsx', import.meta.url), 'utf8');
 const mobileSettings = await readFile(new URL('../mobile/app/(stack)/settings.tsx', import.meta.url), 'utf8');
 const mobileStore = await readFile(new URL('../mobile/store.config.json', import.meta.url), 'utf8');
+const notifEmail = await readFile(new URL('../src/lib/notifications/email.ts', import.meta.url), 'utf8');
+const emailSequence = await readFile(new URL('../src/app/api/cron/email-sequence/route.ts', import.meta.url), 'utf8');
+const vercelJson = JSON.parse(await readFile(new URL('../vercel.json', import.meta.url), 'utf8'));
 
 assert.match(phase, /walletMode: 'points'/);
 assert.match(phase, /withdrawalAvailable: false/);
@@ -83,5 +86,24 @@ assert.doesNotMatch(mobileMarkets, /router\.push|\/analysis\//);
 assert.doesNotMatch(mobileSettings, /Exchanges|Agents IA|Bots|Partenaire|Tirage/);
 assert.match(mobileStore, /ne contient aucun achat ni lien d'achat/);
 assert.doesNotMatch(mobileStore, /https?:\/\/[^"\s]*(?:subscribe|pricing|checkout)/i);
+
+// --- Garde anti-régression emails sortants (D2=A / D4=A) ---
+// Les deux pipelines d'emails actifs (cron email-sequence + cron
+// retention-followup via lib/notifications/email.ts) ne doivent contenir
+// ni remise commerciale, ni témoignage/chiffre de gain, ni CTA vers une
+// page neutralisée par EDUCATION_ONLY_PAGE_PREFIXES.
+assert.doesNotMatch(notifEmail, /-50%|-30%|-20%|settings\/abonnement|tes bots/);
+assert.doesNotMatch(emailSequence, /-50%|-30%|-20%|dashboard\/signals|dashboard\/bots|dashboard\/settings\/abonnement|\+\d+\s*€/);
+
+// --- Garde anti-régression crons : aucun cron planifié ne doit pointer
+// vers un préfixe API neutralisé (403 middleware permanent, ex. fiscal-*).
+const eduPrefixMatch = middleware.match(/EDUCATION_ONLY_API_PREFIXES = \[([\s\S]*?)\]/);
+assert.ok(eduPrefixMatch, 'EDUCATION_ONLY_API_PREFIXES illisible');
+const eduApiPrefixes = [...eduPrefixMatch[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+assert.ok(eduApiPrefixes.length > 0);
+const deadCrons = (vercelJson.crons ?? []).filter((cron) =>
+  eduApiPrefixes.some((prefix) => cron.path === prefix || cron.path.startsWith(prefix)),
+);
+assert.deepEqual(deadCrons, [], `crons neutralisés déclarés: ${JSON.stringify(deadCrons)}`);
 
 console.log('NIYAMA MIDAS D1=C D2=A: PASS');

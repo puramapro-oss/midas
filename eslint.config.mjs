@@ -17,6 +17,7 @@ const eslintConfig = [
       "public/sw.js",
       "mobile/**",
       ".worktrees/**",
+      ".gitnexus/**",
       "next-env.d.ts",
     ],
   },

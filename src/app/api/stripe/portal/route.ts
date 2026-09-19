@@ -51,7 +51,7 @@ export async function POST() {
 
     const session = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
-      return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/settings/abonnement`,
+      return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard`, // D2=A : /dashboard/settings/abonnement neutralisé — retour sur le dashboard
     });
 
     return NextResponse.json({ url: session.url });

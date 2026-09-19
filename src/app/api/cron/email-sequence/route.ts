@@ -94,6 +94,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
+const APP_URL = 'https://midas.purama.dev';
+
 function generateEmailHtml(type: string, name: string): string {
   const baseStyle = `
     <style>
@@ -113,14 +115,53 @@ function generateEmailHtml(type: string, name: string): string {
     </div>
   `;
 
+  // Enveloppe unique : chaque template ne porte plus que son contenu propre.
+  const wrap = (heading: string, body: string, ctaPath: string, ctaLabel: string): string =>
+    `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>${heading}</h2>${body}<a href="${APP_URL}${ctaPath}" class="cta">${ctaLabel}</a>${footer}</div>`;
+
   const templates: Record<string, string> = {
-    welcome: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>Bienvenue ${name} !</h2><p>Ton compte MIDAS est prêt. MIDAS est un outil d'information générale et de simulation éducative : aucune clé d'exchange, aucun ordre réel, uniquement de l'apprentissage.</p><p>Commence par découvrir les marchés et l'aide intégrée.</p><a href="https://midas.purama.dev/dashboard" class="cta">Accéder à MIDAS</a>${footer}</div>`,
-    tip: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>Astuce du jour</h2><p>Salut ${name} ! Savais-tu que tu peux poser toutes tes questions de compréhension des marchés au chat IA de MIDAS ?</p><p>Essaie : "Explique-moi le RSI et ses limites sur BTC/USDT en 4h"</p><a href="https://midas.purama.dev/dashboard/chat" class="cta">Essayer maintenant</a>${footer}</div>`,
-    reminder: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>Une question sur les marchés ?</h2><p>${name}, le centre d'aide MIDAS rassemble FAQ, glossaire et réflexes de prudence.</p><p>Aucune recommandation personnalisée — juste de la pédagogie claire.</p><a href="https://midas.purama.dev/dashboard/help" class="cta">Ouvrir l'aide</a>${footer}</div>`,
-    tips: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>3 notions de marché</h2><p>${name}, voici trois concepts que MIDAS t'aide à comprendre :</p><ol style="color:#ccc"><li>Tendance et moyennes mobiles (EMA)</li><li>Volatilité et ATR</li><li>Psychologie de marché et biais cognitifs</li></ol><a href="https://midas.purama.dev/dashboard/help" class="cta">Approfondir</a>${footer}</div>`,
-    upgrade: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>Tu n'as pas tout vu</h2><p>${name}, ton compte donne déjà accès à :</p><ul style="color:#ccc"><li>Analyses de marché générales</li><li>Backtesting pédagogique</li><li>Simulation éducative</li><li>Chat IA illimité en questions</li></ul><a href="https://midas.purama.dev/dashboard" class="cta">Explorer MIDAS</a>${footer}</div>`,
-    testimonial: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>3 fonctionnalités à essayer</h2><p>${name}, si tu n'as pas encore exploré ces outils éducatifs, c'est le moment :</p><ul style="color:#ccc"><li>Le suivi des marchés en temps réel</li><li>Le backtesting pour tester une idée de stratégie</li><li>Le chat IA pour poser tes questions de compréhension</li></ul><a href="https://midas.purama.dev/dashboard" class="cta">Découvrir</a>${footer}</div>`,
-    winback: `${baseStyle}<div class="container"><div class="logo">MIDAS</div><h2>Tu nous manques ${name} !</h2><p>Les marchés évoluent et MIDAS aussi. Reprends où tu t'étais arrêté :</p><ul style="color:#ccc"><li>Suivi pédagogique des marchés</li><li>Simulation éducative</li><li>Aide et glossaire complets</li></ul><a href="https://midas.purama.dev/dashboard" class="cta">Revenir sur MIDAS</a>${footer}</div>`,
+    welcome: wrap(
+      `Bienvenue ${name} !`,
+      `<p>Ton compte MIDAS est prêt. MIDAS est un outil d'information générale et de simulation éducative : aucune clé d'exchange, aucun ordre réel, uniquement de l'apprentissage.</p><p>Commence par découvrir les marchés et l'aide intégrée.</p>`,
+      '/dashboard',
+      'Accéder à MIDAS',
+    ),
+    tip: wrap(
+      'Astuce du jour',
+      `<p>Salut ${name} ! Savais-tu que tu peux poser toutes tes questions de compréhension des marchés au chat IA de MIDAS ?</p><p>Essaie : "Explique-moi le RSI et ses limites sur BTC/USDT en 4h"</p>`,
+      '/dashboard/chat',
+      'Essayer maintenant',
+    ),
+    reminder: wrap(
+      'Une question sur les marchés ?',
+      `<p>${name}, le centre d'aide MIDAS rassemble FAQ, glossaire et réflexes de prudence.</p><p>Aucune recommandation personnalisée — juste de la pédagogie claire.</p>`,
+      '/dashboard/help',
+      'Ouvrir l\'aide',
+    ),
+    tips: wrap(
+      '3 notions de marché',
+      `<p>${name}, voici trois concepts que MIDAS t'aide à comprendre :</p><ol style="color:#ccc"><li>Tendance et moyennes mobiles (EMA)</li><li>Volatilité et ATR</li><li>Psychologie de marché et biais cognitifs</li></ol>`,
+      '/dashboard/help',
+      'Approfondir',
+    ),
+    upgrade: wrap(
+      'Tu n\'as pas tout vu',
+      `<p>${name}, ton compte donne déjà accès à :</p><ul style="color:#ccc"><li>Analyses de marché générales</li><li>Backtesting pédagogique</li><li>Simulation éducative</li><li>Chat IA illimité en questions</li></ul>`,
+      '/dashboard',
+      'Explorer MIDAS',
+    ),
+    testimonial: wrap(
+      '3 fonctionnalités à essayer',
+      `<p>${name}, si tu n'as pas encore exploré ces outils éducatifs, c'est le moment :</p><ul style="color:#ccc"><li>Le suivi des marchés en temps réel</li><li>Le backtesting pour tester une idée de stratégie</li><li>Le chat IA pour poser tes questions de compréhension</li></ul>`,
+      '/dashboard',
+      'Découvrir',
+    ),
+    winback: wrap(
+      `Tu nous manques ${name} !`,
+      `<p>Les marchés évoluent et MIDAS aussi. Reprends où tu t'étais arrêté :</p><ul style="color:#ccc"><li>Suivi pédagogique des marchés</li><li>Simulation éducative</li><li>Aide et glossaire complets</li></ul>`,
+      '/dashboard',
+      'Revenir sur MIDAS',
+    ),
   };
 
   return templates[type] ?? templates.welcome;

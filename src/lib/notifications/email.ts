@@ -146,37 +146,33 @@ export async function sendShieldAlert(
   return sendEmail(email, `[${alert.severity.toUpperCase()}] MIDAS Shield - ${alert.type} ${alert.provider}`, html);
 }
 
-// RETENTION-BRIEF.md §2 — emails J+7/J+30 post-résiliation. J+30 = même compteur que
-// le flow (isJ30SameOfferWindow) : jamais un 2e -50% si déjà utilisée.
+// RETENTION-BRIEF.md §2 — emails J+7/J+30 post-résiliation. Sous verrou NIYAMA
+// (D2=A/D4=A), ces emails restent éducatifs : aucune remise, aucun CTA vers
+// une page neutralisée. canOfferDiscount50 est conservé pour la signature
+// (compteur isJ30SameOfferWindow) mais ne déclenche plus d'offre commerciale.
 export async function sendRetentionJ7Email(email: string): Promise<EmailResult> {
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; background: #0A0A0F; color: #F8FAFC; padding: 32px; border-radius: 16px;">
       <h1 style="font-size: 24px; margin-bottom: 8px;">MIDAS</h1>
-      <p style="color: rgba(255,255,255,0.8);">Ton abonnement s'est terminé il y a 7 jours. Si tu veux revenir, tes bots et ton historique de trades t'attendent.</p>
-      <a href="https://midas.purama.dev/pricing" style="display: inline-block; background: linear-gradient(135deg, #F59E0B, #D97706); color: #000; padding: 12px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; margin: 24px 0;">Revenir sur MIDAS</a>
-      <p style="margin-top: 24px; font-size: 12px; color: rgba(255,255,255,0.4);">MIDAS Trading AI - purama.dev</p>
+      <p style="color: rgba(255,255,255,0.8);">Ton abonnement s'est terminé il y a 7 jours. Ton compte MIDAS reste ouvert : suivi des marchés, simulations éducatives et aide complète t'attendent.</p>
+      <a href="https://midas.purama.dev/dashboard" style="display: inline-block; background: linear-gradient(135deg, #F59E0B, #D97706); color: #000; padding: 12px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; margin: 24px 0;">Revenir sur MIDAS</a>
+      <p style="margin-top: 24px; font-size: 12px; color: rgba(255,255,255,0.4);">MIDAS — information générale et simulation éducative</p>
     </div>
   `;
   return sendEmail(email, 'MIDAS - Ton compte t\'attend', html);
 }
 
 export async function sendRetentionJ30Email(email: string, canOfferDiscount50: boolean): Promise<EmailResult> {
-  const html = canOfferDiscount50
-    ? `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; background: #0A0A0F; color: #F8FAFC; padding: 32px; border-radius: 16px;">
-        <h1 style="font-size: 24px; margin-bottom: 8px;">MIDAS</h1>
-        <p style="color: rgba(255,255,255,0.8);">Un mois sans MIDAS ? Reviens avec -50% pendant 3 mois, une seule fois.</p>
-        <a href="https://midas.purama.dev/dashboard/settings/abonnement" style="display: inline-block; background: linear-gradient(135deg, #F59E0B, #D97706); color: #000; padding: 12px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; margin: 24px 0;">Profiter de -50%</a>
-        <p style="margin-top: 24px; font-size: 12px; color: rgba(255,255,255,0.4);">MIDAS Trading AI - purama.dev</p>
-      </div>
-    `
-    : `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; background: #0A0A0F; color: #F8FAFC; padding: 32px; border-radius: 16px;">
-        <h1 style="font-size: 24px; margin-bottom: 8px;">MIDAS</h1>
-        <p style="color: rgba(255,255,255,0.8);">Un mois sans MIDAS ? Le plan Free reste ouvert, ou reviens sur l'annuel -30%.</p>
-        <a href="https://midas.purama.dev/pricing" style="display: inline-block; background: linear-gradient(135deg, #F59E0B, #D97706); color: #000; padding: 12px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; margin: 24px 0;">Voir les plans</a>
-        <p style="margin-top: 24px; font-size: 12px; color: rgba(255,255,255,0.4);">MIDAS Trading AI - purama.dev</p>
-      </div>
-    `;
+  const body = canOfferDiscount50
+    ? 'Un mois sans MIDAS ? Ton historique, tes simulations éducatives et le suivi des marchés t\'attendent toujours.'
+    : 'Un mois sans MIDAS ? Le compte gratuit reste ouvert : suivi des marchés et simulations éducatives.';
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; background: #0A0A0F; color: #F8FAFC; padding: 32px; border-radius: 16px;">
+      <h1 style="font-size: 24px; margin-bottom: 8px;">MIDAS</h1>
+      <p style="color: rgba(255,255,255,0.8);">${body}</p>
+      <a href="https://midas.purama.dev/dashboard" style="display: inline-block; background: linear-gradient(135deg, #F59E0B, #D97706); color: #000; padding: 12px 32px; border-radius: 12px; text-decoration: none; font-weight: 700; margin: 24px 0;">Revenir sur MIDAS</a>
+      <p style="margin-top: 24px; font-size: 12px; color: rgba(255,255,255,0.4);">MIDAS — information générale et simulation éducative</p>
+    </div>
+  `;
   return sendEmail(email, 'MIDAS - On a pensé à toi', html);
 }

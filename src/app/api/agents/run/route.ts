@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 import { analyzeMacro } from '@/lib/agents/macro-agent';
 import { analyzeDefi } from '@/lib/agents/defi-agent';
@@ -44,17 +43,7 @@ const bodySchema = z.object({
 // Le middleware bloque déjà cette route (D2=A) ; cette garde est une
 // défense en profondeur si la liste EDUCATION_ONLY_API_PREFIXES évolue.
 async function getAuthUser() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll(); },
-        setAll() {},
-      },
-    }
-  );
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   return user;
 }

@@ -18,19 +18,8 @@ function candles(prices: number[]): Candle[] {
   });
 }
 
-function flat(n: number, price = 100): Candle[] {
-  return Array.from({ length: n }, (_, i) => ({
-    timestamp: 1_700_000_000_000 + i * 3_600_000,
-    open: price,
-    high: price * 1.001,
-    low: price * 0.999,
-    close: price,
-    volume: 100,
-  }));
-}
-
 test('fewer than 10 candles fails safe to a low-confidence ranging regime', () => {
-  const result = detectRegime(flat(5), 10, 'above', 1, 1);
+  const result = detectRegime(candles(Array(5).fill(100)), 10, 'above', 1, 1);
   assert.equal(result.regime, 'ranging');
   assert.equal(result.confidence, 0.2);
 });
