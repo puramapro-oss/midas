@@ -35,9 +35,6 @@ export async function executeTrade(
   const supabase = createServiceClient();
 
   try {
-    // 1. Pre-trade simulation — pipeline Shield complet (profil, limites,
-    //    positions ouvertes, circuit breaker 30j, crash-protection BTC).
-    //    Source unique du gate risque : ne PAS dupliquer les requêtes ici.
     const simResult = await simulate(decision, userId);
 
     if (!simResult.passed) {
@@ -45,8 +42,18 @@ export async function executeTrade(
       return failResult(`Pre-trade simulation failed: ${simResult.reasons.join('; ')}`, timestamp);
     }
 
-    // 2. Exécution paper uniquement
     const paperResult = await executePaperTrade(decision, userId, options.quoteAmount);
+    if (!paperResult.success) {
+      await logAudit(
+        supabase,
+        userId,
+        decision,
+        'paper_execution_failed',
+        [paperResult.error ?? 'Paper execution failed'],
+      );
+      return paperResult;
+    }
+
     await logAudit(supabase, userId, decision, 'paper_executed', []);
     return paperResult;
   } catch (err) {
@@ -77,7 +84,7 @@ async function logAudit(
   action: string,
   details: string[]
 ): Promise<void> {
-  await supabase.from('trade_audit_logs').insert({
+  const { error } = await supabase.from('trade_audit_logs').insert({
     user_id: userId,
     action,
     symbol: decision.pair,
@@ -91,4 +98,8 @@ async function logAudit(
     details: { failures: details, reasoning: decision.reasoning },
     created_at: new Date().toISOString(),
   });
+
+  if (error) {
+    throw new Error(`Trade audit log failed: ${error.message}`);
+  }
 }
