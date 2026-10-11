@@ -1,0 +1,58 @@
+name: MIDAS Core Verification
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # These tests use only Node built-ins; a private dependency must not stop
+      # the independent core checks. The Playwright job remains mandatory work.
+      - run: npm run test:unit
+      - run: node scripts/check-niyama-decisions.mjs
+  paper-transactions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci --prefix tests/paper --ignore-scripts --no-audit --fund=false
+      - run: npm test --prefix tests/paper
+  postgres-concurrency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local-ci-only
+          POSTGRES_DB: midas_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d midas_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci --prefix tests/paper --ignore-scripts --no-audit --fund=false
+      - run: npm run test:postgres --prefix tests/paper
+        env:
+          TEST_DATABASE_URL: postgres://postgres:local-ci-only@localhost:5432/midas_ci
+          MIDAS_TEST_DATABASE_IS_DISPOSABLE: 'true'

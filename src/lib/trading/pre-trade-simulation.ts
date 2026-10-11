@@ -1,12 +1,14 @@
 // =============================================================================
 // MIDAS — Pre-Trade Simulation
-// Validates data quality, slippage, shield, and exchange before execution
+// Validates data quality, educational sizing and the shield before persistence
 // =============================================================================
 
 import type { CoordinatorDecision } from '@/lib/agents/types';
 import { createServiceClient } from '@/lib/supabase/server';
 import { RiskManager, type UserProfile, type OpenPosition, type TradeHistory } from './risk-manager';
 import { fetchKlines } from '@/lib/exchange/binance-public';
+import { validatePaperDecision, paperPositionSize, hasUsableCrashHistory } from './paper-validation';
+import { netRecordedPnl } from './recorded-pnl';
 
 export interface SimulationResult {
   passed: boolean;
@@ -19,7 +21,8 @@ export interface SimulationResult {
 
 export async function simulate(
   decision: CoordinatorDecision,
-  userId: string
+  userId: string,
+  quoteAmount?: number,
 ): Promise<SimulationResult> {
   const reasons: string[] = [];
   let estimatedSlippage = 0;
@@ -36,6 +39,10 @@ export async function simulate(
     dataQualityScore = dataCheck.score;
   }
 
+  if (reasons.length > 0) {
+    return { passed: false, reasons, estimated_slippage_pct: 0, data_quality_score: dataQualityScore, shield_passed: false, exchange_ready: false };
+  }
+
   // 2. Estimate slippage
   estimatedSlippage = estimateSlippage(decision);
   if (estimatedSlippage > 1.0) {
@@ -45,19 +52,19 @@ export async function simulate(
   // 3. Shield levels check
   const supabase = createServiceClient();
 
-  const { data: profileData } = await supabase
+  const { data: profileData, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
     .single();
 
-  const { data: tradingSettings } = await supabase
+  const { data: tradingSettings, error: settingsError } = await supabase
     .from('trading_settings')
     .select('*')
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
 
-  if (!profileData) {
+  if (profileError || settingsError || !profileData) {
     reasons.push('User profile not found');
     shieldPassed = false;
   } else {
@@ -69,14 +76,15 @@ export async function simulate(
       monthly_loss_limit_usd: tradingSettings?.monthly_loss_limit_usd ?? 2000,
       max_position_size_pct: tradingSettings?.max_position_size_pct ?? 2,
       max_concurrent_positions: tradingSettings?.max_concurrent_positions ?? 5,
-      capital_usd: tradingSettings?.capital_usd ?? 1000,
+      capital_usd: Number(tradingSettings?.paper_capital ?? 10000),
     };
 
-    const { data: positionsData } = await supabase
+    const { data: positionsData, error: positionsError } = await supabase
       .from('trades')
       .select('*')
       .eq('user_id', userId)
-      .eq('status', 'open');
+      .eq('status', 'open')
+      .eq('is_paper_trade', true);
 
     const openPositions: OpenPosition[] = (positionsData ?? []).map((p) => ({
       id: p.id as string,
@@ -93,30 +101,39 @@ export async function simulate(
       opened_at: new Date(p.created_at as string).getTime(),
     }));
 
-    const { data: historyData } = await supabase
+    const { data: historyData, error: historyError } = await supabase
       .from('trades')
-      .select('pnl, closed_at')
+      .select('pnl, fees, closed_at')
       .eq('user_id', userId)
       .eq('status', 'closed')
+      .eq('is_paper_trade', true)
       .order('closed_at', { ascending: false })
       .gte('closed_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
       .limit(5000);
 
-    const recentTrades: TradeHistory[] = (historyData ?? [])
-      .filter((t) => t.closed_at)
-      .map((t) => ({
-        pnl: Number(t.pnl ?? 0),
-        closed_at: new Date(t.closed_at as string).getTime(),
-      }));
+    if (positionsError || historyError) {
+      return { passed: false, reasons: ['Paper risk history unavailable'], estimated_slippage_pct: estimatedSlippage, data_quality_score: dataQualityScore, shield_passed: false, exchange_ready: true };
+    }
+
+    const normalizedHistory = (historyData ?? []).map(t => ({
+      pnl: netRecordedPnl(t.pnl, t.fees),
+      closed_at: t.closed_at ? new Date(t.closed_at as string).getTime() : NaN,
+    }));
+    if (normalizedHistory.some(t => t.pnl === null || !Number.isFinite(t.closed_at))) {
+      return { passed: false, reasons: ['Paper risk history contains invalid amounts or dates'], estimated_slippage_pct: estimatedSlippage, data_quality_score: 0, shield_passed: false, exchange_ready: true };
+    }
+    const recentTrades: TradeHistory[] = normalizedHistory.map(t => ({ pnl: t.pnl!, closed_at: t.closed_at }));
 
     const btcCandles = await fetchKlines('BTC/USDT', '1m', 61);
-    if (btcCandles.length < 2) {
+    if (!hasUsableCrashHistory(btcCandles)) {
       shieldPassed = false;
-      reasons.push('BTC crash-protection data unavailable');
+      reasons.push('BTC crash-protection data missing, stale or incomplete');
     }
     const btcPriceHistory = btcCandles.map((candle) => ({ timestamp: candle.timestamp, price: candle.close }));
-    const riskManager = new RiskManager(undefined, recentTrades, btcPriceHistory);
-    const shieldResult = riskManager.checkAllLevels(decision, userProfile, openPositions);
+    const size = paperPositionSize(userProfile.capital_usd, decision.position_size_pct, quoteAmount);
+    const checkedDecision = { ...decision, position_size_pct: size.percentage };
+    const riskManager = new RiskManager({ max_position_size_pct: Math.min(2, userProfile.max_position_size_pct) }, recentTrades, btcPriceHistory);
+    const shieldResult = riskManager.checkAllLevels(checkedDecision, userProfile, openPositions);
 
     if (!shieldResult.passed) {
       shieldPassed = false;
@@ -124,19 +141,8 @@ export async function simulate(
     }
   }
 
-  // 4. Check exchange connection
-  const { data: exchangeConn } = await supabase
-    .from('exchange_connections')
-    .select('is_active')
-    .eq('user_id', userId)
-    .eq('is_active', true)
-    .limit(1)
-    .single();
-
-  if (!exchangeConn) {
-    exchangeReady = false;
-    reasons.push('No active exchange connection found');
-  }
+  // Educational paper execution never needs an exchange account or its keys.
+  exchangeReady = true;
 
   // 5. Confidence threshold
   if (decision.confidence < 0.5) {
@@ -158,46 +164,9 @@ export async function simulate(
   };
 }
 
-function checkDataQuality(decision: CoordinatorDecision): {
-  passed: boolean;
-  reasons: string[];
-  score: number;
-} {
-  const reasons: string[] = [];
-  let score = 100;
-
-  if (!decision.pair || decision.pair.length === 0) {
-    reasons.push('Missing trading pair');
-    score -= 50;
-  }
-
-  if (decision.entry_price <= 0) {
-    reasons.push('Invalid entry price (must be > 0)');
-    score -= 30;
-  }
-
-  if (decision.action !== 'hold' && decision.stop_loss === 0) {
-    reasons.push('Stop loss is zero');
-    score -= 20;
-  }
-
-  if (decision.agent_results.length === 0) {
-    reasons.push('No agent results available — insufficient data');
-    score -= 25;
-  }
-
-  if (decision.composite_score === 0) {
-    reasons.push('Composite score is zero — suspicious');
-    score -= 15;
-  }
-
-  score = Math.max(0, score);
-
-  return {
-    passed: score >= 60,
-    reasons,
-    score,
-  };
+function checkDataQuality(decision: CoordinatorDecision) {
+  const reasons = validatePaperDecision(decision);
+  return { passed: reasons.length === 0, reasons, score: reasons.length === 0 ? 100 : 0 };
 }
 
 function estimateSlippage(decision: CoordinatorDecision): number {

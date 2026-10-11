@@ -2,10 +2,9 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { z } from 'zod';
-import { fetchTicker24h } from '@/lib/data/binance';
-import { pairToSymbol } from '@/lib/exchange/binance-public';
+import { fetchPaperQuote } from '@/lib/exchange/binance-public';
 import { createServiceClient } from '@/lib/supabase/server';
-import { PAPER_FEE_RATE } from '@/lib/trading/paper-trading-engine';
+import { applyPaperObservation } from '@/lib/trading/paper-position';
 
 const bodySchema = z.object({
   tradeId: z.string().uuid(),
@@ -34,7 +33,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: 'Donnees invalides', details: parsed.error.flatten() }, { status: 400 });
@@ -55,16 +54,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Trade introuvable' }, { status: 404 });
     }
 
-    if (trade.status !== 'open') {
-      return NextResponse.json({ error: 'Ce trade est deja ferme', status: trade.status }, { status: 400 });
-    }
-
-    const entryPrice = Number(trade.entry_price ?? 0);
-    const quantity = Number(trade.quantity ?? 0);
-    if (entryPrice <= 0 || quantity <= 0) {
-      return NextResponse.json({ error: 'Position invalide: prix ou quantite manquant' }, { status: 409 });
-    }
-
     // Décision Tissma D2=A (2026-09-05), contrat check-niyama-decisions.mjs :
     // fermeture en simulation uniquement. Un trade marqué non-paper (données
     // historiques antérieures) ne peut PAS déclencher d'ordre exchange —
@@ -76,49 +65,20 @@ export async function POST(request: Request) {
       );
     }
 
-    const ticker = await fetchTicker24h(pairToSymbol(trade.pair));
-    if (!ticker || ticker.lastPrice <= 0) {
-      return NextResponse.json({ error: 'Prix de marche indisponible; position non modifiee' }, { status: 503 });
-    }
-    const exitPrice = ticker.lastPrice;
-    const exitQuantity = quantity;
-    const exitFees = quantity * exitPrice * PAPER_FEE_RATE;
-
-    // Calculate P&L
-    let pnl = 0;
-    if (entryPrice > 0 && exitPrice > 0) {
-      const priceDiff = trade.side === 'buy'
-        ? exitPrice - entryPrice
-        : entryPrice - exitPrice;
-      pnl = priceDiff * exitQuantity;
-    }
-    const totalFees = Number(trade.fees ?? 0) + exitFees;
-
-    // Update trade
-    const { data: updatedTrade, error: updateError } = await supabase
-      .from('trades')
-      .update({
-        status: 'closed',
-        exit_price: parseFloat(exitPrice.toFixed(8)),
-        pnl: parseFloat(pnl.toFixed(2)),
-        fees: parseFloat(totalFees.toFixed(8)),
-        pnl_pct: entryPrice * exitQuantity > 0 ? (pnl / (entryPrice * exitQuantity)) * 100 : 0,
-        close_reason: 'manual',
-        exchange_response: trade.exchange_response,
-        closed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', tradeId)
-      .eq('user_id', user.id)
-      .eq('status', 'open')
-      .select('*')
-      .single();
-
-    if (updateError || !updatedTrade) {
-      return NextResponse.json({ error: 'Erreur fermeture trade', details: updateError?.message }, { status: 500 });
+    if (trade.status === 'closed') return NextResponse.json({ trade, replayed: true });
+    if (trade.status !== 'open') return NextResponse.json({ error: 'Cette position ne peut pas être fermée' }, { status: 409 });
+    const quote = await fetchPaperQuote(trade.pair);
+    if (!quote) return NextResponse.json({ error: 'Prix récent indisponible ; aucune nouvelle clôture soumise' }, { status: 503 });
+    try {
+      const receipt = await applyPaperObservation(user.id, tradeId, quote, true);
+      return NextResponse.json(receipt);
+    } catch {
+      // The transaction may already have committed. Retrying this trade reads
+      // its closed state and cannot charge another exit fee.
+      return NextResponse.json({ error: 'Clôture non confirmée ; vérifie ou relance la même position',
+        tradeId, state: 'reconciliation_required' }, { status: 503 });
     }
 
-    return NextResponse.json({ trade: updatedTrade });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur interne';
     return NextResponse.json({ error: message }, { status: 500 });

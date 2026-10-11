@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { requestBacktest } from '@/lib/trading/backtest-client';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FlaskConical,
@@ -11,15 +12,12 @@ import {
   Clock,
   DollarSign,
   ArrowUpRight,
-  Lock,
-  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/formatters';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import {
-  SAMPLE_RESULT,
   pairOptions,
   periodOptions,
   strategyOptions,
@@ -37,30 +35,56 @@ export default function BacktestingPage() {
   const [tp, setTp] = useState('5');
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<BacktestResult | null>(null);
-  const [isFreeUser] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const active = useRef<AbortController | null>(null);
+  useEffect(() => () => { active.current?.abort(); }, []);
 
-  const handleRun = () => {
-    setRunning(true);
-    setResult(null);
-    setTimeout(() => {
-      setResult(SAMPLE_RESULT);
-      setRunning(false);
-    }, 2000);
+  const handleRun = async () => {
+    if (active.current) return;
+    const amount = Number(capital);
+    if (!Number.isFinite(amount) || amount < 100 || amount > 10000000) {
+      setError('Le capital doit être compris entre 100 et 10 000 000 USDT.'); return;
+    }
+    const days = ({ '1m': 30, '3m': 90, '6m': 180, '1y': 365, '2y': 730 } as Record<string, number>)[period];
+    const end = Date.now();
+    const controller = new AbortController(); active.current = controller;
+    const deadline = setTimeout(() => controller.abort(), 60000);
+    setRunning(true); setResult(null); setError(null);
+    try {
+      const response = await requestBacktest({ pair, strategy, timeframe: '4h', capital: amount,
+        startDate: new Date(end - days * 86400000).toISOString(), endDate: new Date(end).toISOString(),
+        stopLossPct: Number(sl), takeProfitPct: Number(tp) }, controller.signal);
+      const summary = response.result.summary;
+      setResult({ pair: response.result.config.symbol, strategy: response.result.config.strategy,
+        initialCapital: response.result.config.initial_capital, stopLossPct: response.result.config.stop_loss_pct,
+        takeProfitPct: response.result.config.take_profit_pct,
+        pnlPercent: summary.total_pnl_pct, pnlAbsolute: summary.total_pnl, winRate: summary.win_rate,
+        sharpeRatio: summary.sharpe_ratio, totalTrades: summary.total_trades, maxDrawdown: summary.max_drawdown_pct,
+        avgTradeDuration: `${summary.avg_holding_time_hours.toFixed(1)} h`, bestTrade: summary.best_trade,
+        worstTrade: summary.worst_trade, profitFactor: summary.profit_factor, source: response.market_data_source,
+        start: response.coverage.first_open_time, end: response.coverage.end_exclusive,
+        candles: response.coverage.candles, fees: summary.total_fees });
+    } catch (cause) {
+      setError(controller.signal.aborted ? 'Simulation interrompue ou délai dépassé. Tu peux réessayer.'
+        : cause instanceof Error ? cause.message : 'Simulation indisponible.');
+    } finally { clearTimeout(deadline); active.current = null; setRunning(false); }
   };
+  const ratio = (value: number | null) => value === null ? 'Non défini' : value.toFixed(2);
+  const signed = (value: number) => `${value > 0 ? '+' : ''}${value.toFixed(2)}`;
 
   const resultCards = result
     ? [
         {
           label: 'P&L',
-          value: `+${result.pnlPercent}%`,
-          sub: `+${result.pnlAbsolute.toLocaleString('fr-FR')} $`,
+          value: `${signed(result.pnlPercent)}%`,
+          sub: `${signed(result.pnlAbsolute)} USDT`,
           icon: <TrendingUp className="h-4 w-4" />,
-          color: 'text-emerald-400',
-          bg: 'bg-emerald-500/10 border-emerald-500/20',
+          color: result.pnlAbsolute >= 0 ? 'text-emerald-400' : 'text-red-400',
+          bg: result.pnlAbsolute >= 0 ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20',
         },
         {
           label: 'Win Rate',
-          value: `${result.winRate}%`,
+          value: `${result.winRate.toFixed(1)}%`,
           sub: `${result.totalTrades} trades`,
           icon: <Target className="h-4 w-4" />,
           color: 'text-[#FFD700]',
@@ -68,16 +92,16 @@ export default function BacktestingPage() {
         },
         {
           label: 'Sharpe Ratio',
-          value: result.sharpeRatio.toFixed(2),
-          sub: result.sharpeRatio >= 1.5 ? 'Excellent' : result.sharpeRatio >= 1 ? 'Bon' : 'Faible',
+          value: ratio(result.sharpeRatio),
+          sub: 'Annualisation indicative, taux de référence 0%',
           icon: <BarChart3 className="h-4 w-4" />,
-          color: result.sharpeRatio >= 1.5 ? 'text-emerald-400' : 'text-orange-400',
-          bg: result.sharpeRatio >= 1.5 ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-orange-500/10 border-orange-500/20',
+          color: 'text-white',
+          bg: 'bg-white/5 border-white/10',
         },
         {
           label: 'Max Drawdown',
-          value: `${result.maxDrawdown}%`,
-          sub: `Profit Factor: ${result.profitFactor}`,
+          value: `${result.maxDrawdown.toFixed(2)}%`,
+          sub: `Profit Factor: ${ratio(result.profitFactor)}`,
           icon: <ArrowUpRight className="h-4 w-4" />,
           color: result.maxDrawdown > 15 ? 'text-red-400' : 'text-orange-400',
           bg: result.maxDrawdown > 15 ? 'bg-red-500/10 border-red-500/20' : 'bg-orange-500/10 border-orange-500/20',
@@ -93,39 +117,11 @@ export default function BacktestingPage() {
           Backtesting
         </h1>
         <p className="text-sm text-white/40 mt-1">
-          Teste tes strat&eacute;gies sur des donn&eacute;es historiques avant de risquer du capital r&eacute;el.
+          Simulation pédagogique sur des données historiques. Les résultats passés ne prédisent pas les résultats futurs.
         </p>
       </div>
 
-      {/* Free user upgrade prompt */}
-      {isFreeUser && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-2xl border border-[#FFD700]/20 bg-[#FFD700]/[0.03] p-6 flex flex-col sm:flex-row items-start sm:items-center gap-4"
-          data-testid="upgrade-prompt"
-        >
-          <div className="w-12 h-12 rounded-xl bg-[#FFD700]/10 border border-[#FFD700]/20 flex items-center justify-center shrink-0">
-            <Lock className="h-5 w-5 text-[#FFD700]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-white">
-              Fonctionnalit&eacute; Premium
-            </h3>
-            <p className="text-xs text-white/40 mt-1">
-              Le backtesting avanc&eacute; est r&eacute;serv&eacute; aux plans Starter et sup&eacute;rieurs. Acc&egrave;de &agrave; des simulations illimit&eacute;es, toutes les strat&eacute;gies et des rapports d&eacute;taill&eacute;s.
-            </p>
-          </div>
-          <Button
-            variant="primary"
-            size="sm"
-            icon={<Zap className="h-4 w-4" />}
-            data-testid="upgrade-button"
-          >
-            Passer &agrave; Starter
-          </Button>
-        </motion.div>
-      )}
+      {error && <div role="alert" className="rounded-xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">{error}</div>}
 
       {/* Configuration Form */}
       <motion.div
@@ -139,7 +135,7 @@ export default function BacktestingPage() {
           <h2 className="text-sm font-semibold text-white">Configuration du backtest</h2>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <fieldset disabled={running} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <Select
             label="Paire"
             options={pairOptions}
@@ -159,8 +155,9 @@ export default function BacktestingPage() {
             onChange={setStrategy}
           />
           <div className="space-y-1.5">
-            <label className="block text-xs text-white/40">Capital initial ($)</label>
+            <label htmlFor="backtest-capital" className="block text-xs text-white/40">Capital simulé (USDT)</label>
             <input
+              id="backtest-capital"
               type="number"
               value={capital}
               onChange={(e) => setCapital(e.target.value)}
@@ -182,16 +179,18 @@ export default function BacktestingPage() {
             value={tp}
             onChange={setTp}
           />
-        </div>
+        </fieldset>
 
-        <div className="mt-6 flex justify-end">
+        <p className="mt-4 text-xs text-white/50">Bougies de 4 h, une position à la fois, sans levier. Frais de 0,1% par côté et glissement simulé de 0,05%.</p>
+        <div className="mt-6 flex justify-end gap-3" aria-live="polite" aria-busy={running}>
+          {running && <Button variant="secondary" onClick={() => active.current?.abort()}>Annuler</Button>}
           <Button
             variant="primary"
             size="lg"
             icon={<Play className="h-4 w-4" />}
             loading={running}
             onClick={handleRun}
-            disabled={isFreeUser}
+            disabled={running}
             data-testid="run-backtest-button"
           >
             {running ? 'Simulation en cours...' : 'Lancer le Backtest'}
@@ -217,6 +216,9 @@ export default function BacktestingPage() {
               </Badge>
             </div>
 
+            <p className="text-xs text-white/60">{result.pair} · {result.strategy} · capital initial : {result.initialCapital.toLocaleString('fr-FR')} USDT · stop {result.stopLossPct}% · objectif {result.takeProfitPct}%.</p>
+            <p className="text-xs text-white/60">Source : {result.source} · {result.candles} bougies · du {new Date(result.start).toLocaleDateString('fr-FR')} au {new Date(result.end).toLocaleDateString('fr-FR')} · frais simulés : {result.fees.toFixed(2)} USDT.</p>
+            <p className="text-xs text-white/50">Les ratios sur périodes courtes sont instables. Leur annualisation suppose des rendements sans corrélation temporelle ; un ratio non défini ne signifie pas zéro risque.</p>
             {/* KPI Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {resultCards.map((card, index) => (
@@ -269,7 +271,7 @@ export default function BacktestingPage() {
                     Meilleur trade
                   </p>
                   <p className="text-sm font-semibold text-emerald-400 mt-1 font-mono">
-                    +{result.bestTrade.toFixed(2)} $
+                    {signed(result.bestTrade)} USDT
                   </p>
                 </div>
                 <div>
@@ -278,7 +280,7 @@ export default function BacktestingPage() {
                     Pire trade
                   </p>
                   <p className="text-sm font-semibold text-red-400 mt-1 font-mono">
-                    {result.worstTrade.toFixed(2)} $
+                    {signed(result.worstTrade)} USDT
                   </p>
                 </div>
                 <div>
@@ -287,7 +289,7 @@ export default function BacktestingPage() {
                     Profit Factor
                   </p>
                   <p className="text-sm font-semibold text-[#FFD700] mt-1 font-mono">
-                    {result.profitFactor}
+                    {ratio(result.profitFactor)}
                   </p>
                 </div>
               </div>

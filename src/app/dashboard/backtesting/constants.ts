@@ -1,28 +1,25 @@
 export interface BacktestResult {
+  pair: string;
+  strategy: string;
+  initialCapital: number;
+  stopLossPct: number;
+  takeProfitPct: number;
   pnlPercent: number;
   pnlAbsolute: number;
   winRate: number;
-  sharpeRatio: number;
+  sharpeRatio: number | null;
   totalTrades: number;
   maxDrawdown: number;
   avgTradeDuration: string;
   bestTrade: number;
   worstTrade: number;
-  profitFactor: number;
+  profitFactor: number | null;
+  source: string;
+  start: number;
+  end: number;
+  candles: number;
+  fees: number;
 }
-
-export const SAMPLE_RESULT: BacktestResult = {
-  pnlPercent: 24.5,
-  pnlAbsolute: 2450.0,
-  winRate: 67.3,
-  sharpeRatio: 1.82,
-  totalTrades: 156,
-  maxDrawdown: 9.2,
-  avgTradeDuration: '3h 28m',
-  bestTrade: 412.5,
-  worstTrade: -189.3,
-  profitFactor: 2.14,
-};
 
 export const pairOptions = [
   { value: 'BTC/USDT', label: 'BTC/USDT' },
@@ -45,7 +42,8 @@ export const strategyOptions = [
   { value: 'momentum', label: 'Momentum' },
   { value: 'grid', label: 'Grid Trading' },
   { value: 'mean_reversion', label: 'Mean Reversion' },
-  { value: 'breakout', label: 'Breakout' },
+  { value: 'swing', label: 'Swing' },
+  { value: 'smart_entry', label: 'Smart Entry' },
   { value: 'dca', label: 'DCA' },
   { value: 'scalping', label: 'Scalping' },
 ];
