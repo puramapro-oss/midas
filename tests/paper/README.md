@@ -54,3 +54,11 @@ tests passed; NIYAMA guard passed. A diagnostic typecheck using locked public
 dependencies found the same 14 missing-PURAMA-package/type errors in baseline
 `c688d764` and this candidate, with no added diagnostics. This is not a successful
 full application build. Multi-session CI results must be checked independently.
+
+GitHub Actions run `38154232610` also passed the 101 unit tests, 18 transaction
+and boundary tests, and 2 real multi-session PostgreSQL tests for candidate
+`f6e25743`. Playwright run `38154232553` failed during dependency installation
+with `Permission denied (publickey)` for private SMARANA; its browser tests were
+skipped. Its Node 20 runtime also conflicted with the locked packages' Node 22+
+requirements, so the workflow now uses Node 24. This does not resolve the
+separate private-package access requirement.
