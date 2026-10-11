@@ -14,7 +14,7 @@ export async function executeTrade(
   decision: CoordinatorDecision, userId: string, options: PaperExecutionOptions,
 ): Promise<TradeResult> {
   try {
-    validateOperationId(options?.operationId);
+    options = { ...options, operationId: validateOperationId(options?.operationId) };
     if (!userId?.trim()) throw new Error('Account required');
   } catch {
     return paperFailure('A stable operation identifier and an account are required', null);

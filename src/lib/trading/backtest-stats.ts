@@ -96,7 +96,7 @@ export function buildDrawdownCurve(equityCurve: EquityPoint[]): EquityPoint[] {
   });
 }
 
-export function buildMonthlyReturns(trades: BacktestTrade[]): MonthlyReturn[] {
+export function buildMonthlyReturns(trades: BacktestTrade[], initialCapital: number): MonthlyReturn[] {
   const monthlyMap = new Map<
     string,
     { pnl: number; trades: number; wins: number }
@@ -111,13 +111,13 @@ export function buildMonthlyReturns(trades: BacktestTrade[]): MonthlyReturn[] {
     monthlyMap.set(month, existing);
   }
 
+  let openingCapital = initialCapital;
   return Array.from(monthlyMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, data]) => ({
-      month,
-      pnl: data.pnl,
-      pnl_pct: 0,
-      trades: data.trades,
-      win_rate: data.trades > 0 ? (data.wins / data.trades) * 100 : 0,
-    }));
+    .map(([month, data]) => {
+      const percentage = openingCapital > 0 ? data.pnl / openingCapital * 100 : 0;
+      openingCapital += data.pnl;
+      return { month, pnl: data.pnl, pnl_pct: percentage, trades: data.trades,
+        win_rate: data.trades > 0 ? (data.wins / data.trades) * 100 : 0 };
+    });
 }

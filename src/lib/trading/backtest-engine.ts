@@ -9,7 +9,7 @@ import type {
   BacktestResult,
   EquityPoint,
 } from '@/types/trading';
-import { BaseStrategy } from './strategies/base-strategy';
+import type { BaseStrategy, StrategySignal } from './strategies/base-strategy';
 import {
   type ActivePosition,
   type PositionState,
@@ -17,13 +17,13 @@ import {
   checkPositionClose,
   closeTrade,
   calculateEquity,
-} from './backtest-position';
+} from './backtest-position.ts';
 import {
   type BacktestMetrics,
   buildSummary,
   buildDrawdownCurve,
   buildMonthlyReturns,
-} from './backtest-stats';
+} from './backtest-stats.ts';
 
 interface BacktestState extends PositionState {
   initialCapital: number;
@@ -63,11 +63,19 @@ export async function runBacktest(
     return emptyResult(config);
   }
 
+  let pendingSignal: StrategySignal | null = null;
   for (let i = warmupPeriod; i < candles.length; i++) {
     const currentCandle = candles[i];
     if (!currentCandle) continue;
 
     const candleSlice = candles.slice(0, i + 1);
+
+    // A signal calculated from a completed candle becomes executable only on
+    // the following opening, whose price was not known when it was calculated.
+    if (!state.position && pendingSignal) {
+      openTrade(state, pendingSignal, { ...currentCandle, close: currentCandle.open }, config);
+    }
+    pendingSignal = null;
 
     if (state.position) {
       const closeResult = checkPositionClose(state.position, currentCandle, config);
@@ -76,11 +84,11 @@ export async function runBacktest(
       }
     }
 
-    if (!state.position) {
+    if (!state.position && i + 1 < candles.length) {
       try {
         const signal = await strategy.analyze(candleSlice, {});
         if (signal.action !== 'hold' && signal.confidence >= 0.4) {
-          openTrade(state, signal, currentCandle, config);
+          pendingSignal = signal;
         }
       } catch {
         // Skip candle
@@ -95,16 +103,19 @@ export async function runBacktest(
     }
     const drawdown = state.peakEquity - equity;
     const drawdownPct = state.peakEquity > 0 ? (drawdown / state.peakEquity) * 100 : 0;
-    if (drawdown > state.maxDrawdown) {
-      state.maxDrawdown = drawdown;
-      state.maxDrawdownPct = drawdownPct;
-    }
+    state.maxDrawdown = Math.max(state.maxDrawdown, drawdown);
+    state.maxDrawdownPct = Math.max(state.maxDrawdownPct, drawdownPct);
   }
 
   if (state.position && candles.length > 0) {
     const lastCandle = candles[candles.length - 1];
     if (lastCandle) {
       closeTrade(state, lastCandle.close, 'timeout', lastCandle, config);
+      // The final chart point must include forced-close fees and slippage.
+      state.equityCurve[state.equityCurve.length - 1] = { timestamp: lastCandle.timestamp, value: state.capital };
+      state.peakEquity = Math.max(state.peakEquity, state.capital);
+      state.maxDrawdown = Math.max(state.maxDrawdown, state.peakEquity - state.capital);
+      state.maxDrawdownPct = Math.max(state.maxDrawdownPct, (state.peakEquity - state.capital) / state.peakEquity * 100);
     }
   }
 
@@ -124,7 +135,7 @@ export async function runBacktest(
     trades: state.trades,
     equity_curve: state.equityCurve,
     drawdown_curve: buildDrawdownCurve(state.equityCurve),
-    monthly_returns: buildMonthlyReturns(state.trades),
+    monthly_returns: buildMonthlyReturns(state.trades, state.initialCapital),
   };
 }
 

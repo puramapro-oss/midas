@@ -34,3 +34,12 @@ test('invalid P&L is excluded and break-even trades are counted in win-rate', ()
   assert.equal(summary.excluded_rows, 2);
   assert.equal(summary.total_pnl, 5);
 });
+test('memory uses net recorded fees and does not count empty amounts as break-even', () => {
+  const summary = summarizeMemory([
+    { pnl: 1, fees: 3, closed_at: '' }, { pnl: '5', fees: '1', closed_at: '' },
+    { pnl: ' ', fees: 0, closed_at: '' }, { pnl: 10, fees: -1, closed_at: '' },
+  ]);
+  assert.equal(summary.total_pnl, 2);
+  assert.equal(summary.wins, 1); assert.equal(summary.losses, 1);
+  assert.equal(summary.excluded_rows, 2);
+});

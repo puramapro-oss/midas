@@ -62,3 +62,55 @@ with `Permission denied (publickey)` for private SMARANA; its browser tests were
 skipped. Its Node 20 runtime also conflicted with the locked packages' Node 22+
 requirements, so the workflow now uses Node 24. This does not resolve the
 separate private-package access requirement.
+
+## Follow-up audit, 11 October 2026
+
+The latest local candidate passes **122 unit tests and 22 SQL/boundary tests**
+with no failures or skipped tests. NIYAMA passes. The diagnostic typecheck still
+reports the same 14 missing-shared-package/type errors, without additional
+diagnostics. The CI results above describe earlier commits; inspect the current
+PR checks for the new commit's PostgreSQL and browser results.
+
+Reproduced defects corrected in this pass:
+
+- Closing a backtest position added its principal to capital even though opening
+  had not deducted it. Capital now reconciles with initial capital plus net P&L;
+  trade results include both entry and exit fees.
+- Signals computed from a completed bar execute at the next opening. Stops use
+  adverse opening gaps, trailing levels use previously known extremes, and the
+  final equity point includes forced-close costs. Monthly realized returns use
+  opening capital. Invalid dates cannot mutate capital before failing.
+- Recorded trade P&L and recorded fees are separate database columns. Memory,
+  paper loss limits and SQL available capital now use their net difference;
+  malformed financial history blocks execution. This helper must not be applied
+  to backtest P&L, which is already net.
+- Uppercase operation UUIDs are normalized before lookup, persistence and receipt
+  validation, preserving one operation across retries.
+- Exchange candles must preserve pair, interval, chronological continuity, OHLC
+  consistency and volume validity. Requests abort after four seconds per
+  attempt; identical in-flight reads share one request. A transient failure can
+  use a configured HTTPS relay. Provider refusals or quota errors never trigger
+  relay retries; credentials cannot follow redirects or travel over HTTP.
+
+CoinGecko OHLC is no longer silently substituted for exchange candles. The
+separate `fetchCoinGeckoOhlc` helper explicitly returns USD observations, actual
+automatic granularity and unavailable volume. It converts closing timestamps
+to opening timestamps. This helper is tested with controlled responses but is
+not connected to a user interface. The market route returns 503 when exact
+candles are unavailable. Other price-data providers remain available for their
+existing uses. Historical descriptions of the old candle fallback cascade do
+not describe this candidate.
+
+Source contracts consulted:
+
+- https://developers.binance.com/en/docs/catalog/core-trading-spot-trading/api/rest-api/market
+- https://docs.coingecko.com/demo/reference/coins-id-ohlc
+
+Remaining audit work includes the legacy Sharpe/Sortino annualization from trade
+returns, non-annualized Calmar calculation, and profit-factor sentinel `999`.
+Those statistics are not validated performance measures. Bar-based fills still
+use a conservative stop-before-target convention when both levels occur in one
+bar; exact intrabar sequencing requires finer data. Paper closing/monitoring,
+full browser flows, actual provider availability and user-facing latency also
+need end-to-end validation after the shared packages and unpublished M3 work
+are recovered. No production-readiness claim follows from these unit results.

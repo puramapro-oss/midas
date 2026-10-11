@@ -18,7 +18,7 @@ export interface PaperExecutionOptions {
 export async function findPaperExecution(
   decision: CoordinatorDecision, userId: string, options: PaperExecutionOptions,
 ): Promise<TradeResult | null> {
-  validateOperationId(options.operationId);
+  options = { ...options, operationId: validateOperationId(options.operationId) };
   const { data, error } = await createServiceClient().from('trade_execution_intents')
     .select('execution_mode, request_payload, exchange_response, status')
     .eq('user_id', userId)
@@ -36,7 +36,7 @@ export async function findPaperExecution(
 export async function executePaperTrade(
   decision: CoordinatorDecision, userId: string, options: PaperExecutionOptions,
 ): Promise<TradeResult> {
-  validateOperationId(options.operationId);
+  options = { ...options, operationId: validateOperationId(options.operationId) };
   try {
     const { data, error } = await createServiceClient().rpc('midas_execute_paper_trade', {
       p_user_id: userId,

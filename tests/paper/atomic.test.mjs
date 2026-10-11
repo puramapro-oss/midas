@@ -112,3 +112,9 @@ test('the migration can be reapplied without losing stored receipts', async () =
   await db.exec(await migration('20261011153000_atomic_paper_execution.sql'));
   assert.deepEqual(await execute(user, operation), receipt);
 });
+test('recorded closing fees reduce available paper capital', async () => {
+  const user = await account();
+  const receipt = await execute(user, randomUUID());
+  await db.query("UPDATE public.trades SET status='closed', pnl=0, fees=9950, closed_at=now() WHERE id=$1", [receipt.trade_id]);
+  await assert.rejects(execute(user, randomUUID()), /Insufficient paper capital/);
+});

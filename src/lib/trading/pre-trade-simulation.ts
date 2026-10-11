@@ -8,6 +8,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { RiskManager, type UserProfile, type OpenPosition, type TradeHistory } from './risk-manager';
 import { fetchKlines } from '@/lib/exchange/binance-public';
 import { validatePaperDecision, paperPositionSize, hasUsableCrashHistory } from './paper-validation';
+import { netRecordedPnl } from './recorded-pnl';
 
 export interface SimulationResult {
   passed: boolean;
@@ -102,7 +103,7 @@ export async function simulate(
 
     const { data: historyData, error: historyError } = await supabase
       .from('trades')
-      .select('pnl, closed_at')
+      .select('pnl, fees, closed_at')
       .eq('user_id', userId)
       .eq('status', 'closed')
       .eq('is_paper_trade', true)
@@ -114,12 +115,14 @@ export async function simulate(
       return { passed: false, reasons: ['Paper risk history unavailable'], estimated_slippage_pct: estimatedSlippage, data_quality_score: dataQualityScore, shield_passed: false, exchange_ready: true };
     }
 
-    const recentTrades: TradeHistory[] = (historyData ?? [])
-      .filter((t) => t.closed_at)
-      .map((t) => ({
-        pnl: Number(t.pnl ?? 0),
-        closed_at: new Date(t.closed_at as string).getTime(),
-      }));
+    const normalizedHistory = (historyData ?? []).map(t => ({
+      pnl: netRecordedPnl(t.pnl, t.fees),
+      closed_at: t.closed_at ? new Date(t.closed_at as string).getTime() : NaN,
+    }));
+    if (normalizedHistory.some(t => t.pnl === null || !Number.isFinite(t.closed_at))) {
+      return { passed: false, reasons: ['Paper risk history contains invalid amounts or dates'], estimated_slippage_pct: estimatedSlippage, data_quality_score: 0, shield_passed: false, exchange_ready: true };
+    }
+    const recentTrades: TradeHistory[] = normalizedHistory.map(t => ({ pnl: t.pnl!, closed_at: t.closed_at }));
 
     const btcCandles = await fetchKlines('BTC/USDT', '1m', 61);
     if (!hasUsableCrashHistory(btcCandles)) {

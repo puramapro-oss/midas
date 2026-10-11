@@ -15,6 +15,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 
 let stale = false;
 let historyError = false;
+let history = [];
 let reads = 0;
 const db = { from(table) {
   reads++;
@@ -25,7 +26,7 @@ const db = { from(table) {
     if (table === 'trading_settings') return { data: { paper_capital: 10000, capital_usd: 1000 }, error: null };
     assert.equal(filters.user_id, 'a');
     assert.equal(filters.is_paper_trade, true);
-    return { data: [], error: historyError ? { message: 'unavailable' } : null };
+    return { data: filters.status === 'closed' ? history : [], error: historyError ? { message: 'unavailable' } : null };
   };
   const query = {
     select: () => query, eq: (key, value) => { filters[key] = value; return query; },
@@ -69,4 +70,22 @@ test('invalid numeric decisions are rejected before any database reads', async (
   reads = 0;
   assert.equal((await simulate({ ...decision, entry_price: NaN }, 'a', 100)).passed, false);
   assert.equal(reads, 0);
+});
+test('recorded fees count toward paper loss limits', async () => {
+  stale = false; historyError = false;
+  history = [{ pnl: 0, fees: 150, closed_at: new Date().toISOString() }];
+  const result = await simulate(decision, 'a', 100);
+  assert.equal(result.passed, false);
+  assert.equal(result.shield_passed, false);
+  history = [];
+});
+test('invalid paper history is rejected instead of being treated as zero profit', async () => {
+  stale = false; historyError = false;
+  for (const row of [{ pnl: '', fees: 0 }, { pnl: 0, fees: -1 }, { pnl: null, fees: 0 }, { pnl: 0, fees: 0, closed_at: 'invalid' }]) {
+    history = [{ closed_at: new Date().toISOString(), ...row }];
+    const result = await simulate(decision, 'a', 100);
+    assert.equal(result.passed, false);
+    assert.ok(result.reasons.includes('Paper risk history contains invalid amounts or dates'));
+  }
+  history = [];
 });

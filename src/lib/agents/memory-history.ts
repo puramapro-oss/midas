@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { netRecordedPnl } from '../trading/recorded-pnl.ts';
 
 export interface MemoryScope {
   userId: string;
@@ -8,6 +9,7 @@ export interface MemoryScope {
 
 export interface MemoryTrade {
   pnl: number | string | null;
+  fees?: number | string | null;
   closed_at: string;
 }
 
@@ -17,7 +19,7 @@ export async function readMemoryHistory(db: Pick<SupabaseClient, 'from'>, pair: 
     throw new Error('Memory lookup requires an account, a pair and an explicit paper/live mode');
   }
   let query = db.from('trades')
-    .select('pnl, closed_at')
+    .select('pnl, fees, closed_at')
     .eq('user_id', scope.userId)
     .eq('is_paper_trade', scope.isPaper)
     .eq('pair', pair)
@@ -31,10 +33,11 @@ export async function readMemoryHistory(db: Pick<SupabaseClient, 'from'>, pair: 
 }
 
 export function summarizeMemory(trades: MemoryTrade[]) {
-  const pnl = trades.filter(t => t.pnl !== null).map(t => Number(t.pnl)).filter(Number.isFinite);
+  const pnl = trades.map(t => netRecordedPnl(t.pnl, t.fees)).filter((value): value is number => value !== null);
   const wins = pnl.filter(value => value > 0).length;
   const losses = pnl.filter(value => value < 0).length;
   return {
+    pnl_basis: 'net_recorded_fees' as const,
     trades_analyzed: pnl.length,
     excluded_rows: trades.length - pnl.length,
     wins,

@@ -47,10 +47,12 @@ export function samePaperRequest(saved: unknown, decision: CoordinatorDecision, 
   return canonical(saved) === canonical(JSON.parse(JSON.stringify(paperRequest(decision, quoteAmount))));
 }
 
-export function validateOperationId(operationId: string): void {
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationId)) {
+export function validateOperationId(operationId: string): string {
+  if (typeof operationId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationId)) {
     throw new Error('A stable operation UUID is required');
   }
+  // PostgreSQL's UUID representation is lowercase regardless of caller casing.
+  return operationId.toLowerCase();
 }
 
 /** The crash shield needs a recent, continuous hour of one-minute samples. */

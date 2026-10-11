@@ -1,3 +1,5 @@
+import { validateOperationId } from './paper-validation.ts';
+
 export interface TradeResult {
   success: boolean;
   trade_id: string | null;
@@ -27,6 +29,7 @@ export function paperFailure(error: string, operationId: string | null, uncertai
 }
 
 export function parsePaperReceipt(value: unknown, operationId: string): TradeResult {
+  operationId = validateOperationId(operationId);
   if (!value || typeof value !== 'object') throw new Error('Invalid paper receipt');
   const receipt = value as Record<string, unknown>;
   if (receipt.success !== true || receipt.is_paper !== true || receipt.operation_id !== operationId ||

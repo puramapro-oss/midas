@@ -44,6 +44,14 @@ test('an unaudited or malformed receipt cannot become a successful execution', (
   }
 });
 
+test('UUID casing does not change the receipt identity', () => {
+  const canonical = 'abcdefab-cdef-4abc-8def-abcdefabcdef';
+  const receipt = { ...paperFailure('', canonical), success: true, trade_id: canonical, executed_price: 100,
+    executed_quantity: 1, error: null, state: 'paper_executed', audit_status: 'recorded' };
+  assert.equal(validateOperationId(canonical.toUpperCase()), canonical);
+  assert.equal(parsePaperReceipt(receipt, canonical.toUpperCase()).operation_id, canonical);
+});
+
 test('the crash shield rejects stale, future, incomplete and invalid price histories', () => {
   const now = 1800000000000;
   const history = Array.from({ length: 61 }, (_, i) => ({ timestamp: now - (60 - i) * 60000, close: 100 }));

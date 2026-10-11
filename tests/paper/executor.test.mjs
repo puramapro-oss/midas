@@ -19,7 +19,7 @@ let loseResponse = false;
 let calls = 0;
 let simulations = 0;
 let allowed = true;
-const operation = '11111111-1111-4111-8111-111111111111';
+const operation = 'abcdefab-cdef-4abc-8def-abcdefabcdef';
 const decision = { action: 'buy', pair: 'BTC/USDT', entry_price: 100, stop_loss: 95, take_profit: 110,
   position_size_pct: 1, confidence: 0.8, composite_score: 0, risk_reward_ratio: 2, strategy: 'manual',
   reasoning: 'Test', agent_results: [], approved_by_shield: false };
@@ -44,6 +44,7 @@ const db = {
     calls++;
     assert.equal(name, 'midas_execute_paper_trade');
     assert.equal(args.p_user_id, 'account-a');
+    assert.equal(args.p_operation_id, operation);
     const receipt = { success: true, trade_id: 'trade-1', order_id: `PAPER-${operation}`, operation_id: operation,
       executed_price: 100.05, executed_quantity: 1, fees: 0.10005, slippage_pct: 0.05,
       is_paper: true, error: null, timestamp: 100, state: 'paper_executed', audit_status: 'recorded' };
@@ -98,4 +99,13 @@ test('an invalid operation identifier fails before service-role access', async (
   assert.equal(result.success, false);
   assert.equal(calls, 0);
   assert.equal(simulations, 0);
+});
+test('uppercase UUIDs reconcile the same canonical operation without a second execution', async () => {
+  reset();
+  const first = await executeTrade(decision, 'account-a', { ...options, operationId: operation.toUpperCase() });
+  assert.equal(first.success, true);
+  assert.equal(first.operation_id, operation);
+  const replay = await executeTrade(decision, 'account-a', options);
+  assert.equal(replay.replayed, true);
+  assert.equal(calls, 1);
 });

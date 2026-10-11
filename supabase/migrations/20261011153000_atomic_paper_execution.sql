@@ -93,7 +93,12 @@ BEGIN
   SELECT count(*) INTO v_daily FROM public.trades
     WHERE user_id = p_user_id AND is_paper_trade = true
       AND created_at >= (date_trunc('day', timezone('UTC', now())) AT TIME ZONE 'UTC');
-  SELECT COALESCE(sum(pnl), 0) INTO v_realized FROM public.trades
+  IF EXISTS (SELECT 1 FROM public.trades WHERE user_id = p_user_id AND is_paper_trade = true AND status = 'closed'
+      AND (pnl IS NULL OR fees IS NULL OR NOT (pnl > -1e12 AND pnl < 1e12 AND fees >= 0 AND fees < 1e12))) THEN
+    RAISE EXCEPTION 'Paper history contains invalid amounts';
+  END IF;
+  -- Existing trade rows keep gross P&L and cumulative fees in separate columns.
+  SELECT COALESCE(sum(pnl - fees), 0) INTO v_realized FROM public.trades
     WHERE user_id = p_user_id AND is_paper_trade = true AND status = 'closed';
   IF v_open >= LEAST(5, p_max_positions, COALESCE(v_settings.max_concurrent_positions, 5))
       OR v_daily >= p_daily_limit OR v_exposure + v_quote > v_capital * 0.20 THEN
