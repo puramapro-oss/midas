@@ -8,10 +8,11 @@
     "start": "next start",
     "lint": "eslint",
     "test:unit": "node --experimental-strip-types --test src/lib/**/*.test.ts",
+    "test:paper": "npm test --prefix tests/paper",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "test:all": "npm run build && npm run test:e2e"
+    "test:all": "npm run test:unit && npm run test:paper && node scripts/check-niyama-decisions.mjs && npm run build && npm run test:e2e"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",

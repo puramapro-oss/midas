@@ -2,6 +2,9 @@
 // MIDAS — Idempotency Guard
 // Prevent duplicate trade execution using Redis with 5-minute buckets
 // =============================================================================
+// Legacy rate heuristic, NOT a durable execution receipt. Educational execution
+// uses trade_execution_intents and midas_execute_paper_trade (migration 20261011153000).
+// Never use this bucket guard to decide whether a timed-out operation committed.
 
 import { redis } from '@/lib/cache/upstash';
 

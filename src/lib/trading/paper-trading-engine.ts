@@ -1,153 +1,56 @@
-// =============================================================================
-// MIDAS — Paper Trading Engine
-// Simulated trade execution with real prices, fake slippage, and fees
-// =============================================================================
-
+// Educational execution only. The database commits the trade, audit and receipt
+// together and replays the stored receipt for the same operation identifier.
 import type { CoordinatorDecision } from '@/lib/agents/types';
 import { createServiceClient } from '@/lib/supabase/server';
-import type { TradeResult } from './trade-executor';
+import type { TradeResult } from './paper-outcome';
+import { samePaperRequest, validateOperationId } from './paper-validation';
+import { parsePaperReceipt, paperFailure } from './paper-outcome';
 
-// Taux unique de frais simulés — partagé avec /api/trade/close pour que
-// frais d'entrée et de sortie restent cohérents (source unique).
-export const PAPER_FEE_RATE = 0.001; // 0.1% maker fee simulation
-const PAPER_SLIPPAGE_RANGE = { min: 0.01, max: 0.15 }; // 0.01% to 0.15%
-
-export async function executePaperTrade(
-  decision: CoordinatorDecision,
-  userId: string,
-  requestedQuoteAmount?: number,
-): Promise<TradeResult> {
-  const supabase = createServiceClient();
-  const timestamp = Date.now();
-
-  if (decision.action === 'hold') {
-    return {
-      success: false,
-      trade_id: null,
-      order_id: null,
-      executed_price: 0,
-      executed_quantity: 0,
-      fees: 0,
-      slippage_pct: 0,
-      is_paper: true,
-      error: 'Cannot execute paper trade for hold action',
-      timestamp,
-    };
-  }
-
-  // Simulate realistic slippage
-  const slippagePct = simulateSlippage(decision.pair);
-  const slippageDirection = decision.action === 'buy' ? 1 : -1;
-  const executedPrice = decision.entry_price * (1 + (slippagePct / 100) * slippageDirection);
-
-  // Get user's paper trading capital
-  const { data: settings } = await supabase
-    .from('trading_settings')
-    .select('paper_capital, capital_usd')
-    .eq('user_id', userId)
-    .single();
-
-  const paperCapital = Number(settings?.paper_capital ?? settings?.capital_usd ?? 10000);
-
-  // Calculate position size
-  const riskPct = decision.position_size_pct;
-  const positionValue = requestedQuoteAmount ?? paperCapital * (riskPct / 100);
-  const quantity = executedPrice > 0 ? positionValue / executedPrice : 0;
-
-  if (quantity <= 0) {
-    return {
-      success: false,
-      trade_id: null,
-      order_id: null,
-      executed_price: executedPrice,
-      executed_quantity: 0,
-      fees: 0,
-      slippage_pct: slippagePct,
-      is_paper: true,
-      error: 'Calculated quantity is zero or negative',
-      timestamp,
-    };
-  }
-
-  // Calculate fees
-  const fees = quantity * executedPrice * PAPER_FEE_RATE;
-
-  // Generate a deterministic paper order ID
-  const orderId = `PAPER-${userId.slice(0, 8)}-${timestamp}`;
-
-  // Save paper trade to DB
-  const { data: savedTrade, error: saveError } = await supabase
-    .from('trades')
-    .insert({
-      user_id: userId,
-      exchange: 'paper',
-      pair: decision.pair,
-      side: decision.action === 'buy' ? 'buy' : 'sell',
-      type: 'market',
-      entry_price: executedPrice,
-      quantity,
-      quote_amount: positionValue,
-      stop_loss: decision.stop_loss,
-      take_profit: decision.take_profit,
-      status: 'open',
-      fees,
-      slippage_pct: slippagePct,
-      exchange_order_id: orderId,
-      strategy: decision.strategy,
-      confidence: decision.confidence,
-      ai_reasoning: decision.reasoning,
-      composite_score: decision.composite_score,
-      risk_reward_ratio: decision.risk_reward_ratio,
-      agent_results: decision.agent_results,
-      is_paper_trade: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .select('id')
-    .single();
-
-  if (saveError) {
-    return {
-      success: false,
-      trade_id: null,
-      order_id: orderId,
-      executed_price: executedPrice,
-      executed_quantity: quantity,
-      fees,
-      slippage_pct: slippagePct,
-      is_paper: true,
-      error: `Failed to save paper trade: ${saveError.message}`,
-      timestamp,
-    };
-  }
-
-  return {
-    success: true,
-    trade_id: savedTrade?.id ?? null,
-    order_id: orderId,
-    executed_price: executedPrice,
-    executed_quantity: quantity,
-    fees,
-    slippage_pct: slippagePct,
-    is_paper: true,
-    error: null,
-    timestamp,
-  };
+// Shared with the close route and verified against the atomic SQL function.
+export const PAPER_FEE_RATE = 0.001;
+export interface PaperExecutionOptions {
+  operationId: string;
+  quoteAmount?: number;
+  dailyLimit?: number;
+  maxPositions?: number;
 }
 
-function simulateSlippage(pair: string): number {
-  const upperPair = pair.toUpperCase();
+export async function findPaperExecution(
+  decision: CoordinatorDecision, userId: string, options: PaperExecutionOptions,
+): Promise<TradeResult | null> {
+  validateOperationId(options.operationId);
+  const { data, error } = await createServiceClient().from('trade_execution_intents')
+    .select('execution_mode, request_payload, exchange_response, status')
+    .eq('user_id', userId)
+    .eq('idempotency_key', options.operationId)
+    .maybeSingle();
+  if (error) throw new Error('Paper receipt lookup unavailable');
+  if (!data) return null;
+  if (data.execution_mode !== 'paper' || !samePaperRequest(data.request_payload, decision, options.quoteAmount)) {
+    return paperFailure('Operation identifier already belongs to a different request', options.operationId);
+  }
+  if (data.status !== 'confirmed') return paperFailure('Operation requires reconciliation', options.operationId, true);
+  return { ...parsePaperReceipt(data.exchange_response, options.operationId), replayed: true };
+}
 
-  // Major pairs get lower slippage
-  const majorPairs = ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT'];
-  const isMajor = majorPairs.includes(upperPair);
-
-  const min = isMajor ? PAPER_SLIPPAGE_RANGE.min : PAPER_SLIPPAGE_RANGE.min * 2;
-  const max = isMajor ? PAPER_SLIPPAGE_RANGE.max / 2 : PAPER_SLIPPAGE_RANGE.max;
-
-  // Deterministic-ish but varied: use timestamp modulus for pseudo-random
-  const seed = Date.now() % 1000;
-  const normalized = seed / 1000;
-
-  return min + normalized * (max - min);
+export async function executePaperTrade(
+  decision: CoordinatorDecision, userId: string, options: PaperExecutionOptions,
+): Promise<TradeResult> {
+  validateOperationId(options.operationId);
+  try {
+    const { data, error } = await createServiceClient().rpc('midas_execute_paper_trade', {
+      p_user_id: userId,
+      p_operation_id: options.operationId,
+      p_decision: decision,
+      p_quote_amount: options.quoteAmount ?? null,
+      p_daily_limit: options.dailyLimit ?? 5,
+      p_max_positions: options.maxPositions ?? 3,
+    });
+    // A transport error can occur after COMMIT. Never claim that nothing was
+    // saved, and never manufacture a new operation identifier for a retry.
+    if (error) return paperFailure('Paper execution unconfirmed; retry only with the same operation identifier', options.operationId, true);
+    return parsePaperReceipt(data, options.operationId);
+  } catch {
+    return paperFailure('Paper execution requires reconciliation', options.operationId, true);
+  }
 }
