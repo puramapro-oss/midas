@@ -1,6 +1,6 @@
 import test, { beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchKlinesWithSource, fetchCoinGeckoOhlc } from './binance-public.ts';
+import { fetchKlinesWithSource, fetchCoinGeckoOhlc, fetchHistoricalKlines, fetchPaperQuote } from './binance-public.ts';
 
 const originalFetch = globalThis.fetch;
 const originalRelay = process.env.MIDAS_BINANCE_PROXY_URL;
@@ -142,4 +142,44 @@ test('explicit indicative observations disclose USD, actual duration, close-time
   assert.equal(result.candles[0].timestamp, closeTime - step);
   assert.equal(result.volume_available, false);
   assert.equal(result.candles[0].volume, null);
+});
+
+test('historical requests paginate the actual requested dates beyond 1000 candles', async () => {
+  respond = async url => {
+    const query = new URL(url).searchParams;
+    const first = Number(query.get('startTime')); const count = Number(query.get('limit'));
+    return Response.json(Array.from({ length: count }, (_, i) => [first + i * 60000, 100, 110, 90, 105, 10, first + (i + 1) * 60000 - 1]));
+  };
+  const result = await fetchHistoricalKlines('BTC/USDT', '1m', start, start + 1001 * 60000);
+  assert.equal(result.complete, true);
+  assert.equal(result.candles.length, 1001);
+  assert.equal(calls.length, 2);
+  assert.equal(result.candles.at(-1)?.timestamp, start + 1000 * 60000);
+  assert.equal(new URL(calls[1].url).searchParams.get('startTime'), String(start + 1000 * 60000));
+});
+
+test('partial or shifted historical data is rejected as incomplete', async () => {
+  for (const body of [rows().slice(1), rows().map(row => [Number(row[0]) + 60000, ...row.slice(1, 6), Number(row[6]) + 60000])]) {
+    respond = async () => Response.json(body);
+    const result = await fetchHistoricalKlines('BTC/USDT', '1m', start, start + 120000);
+    assert.equal(result.complete, false); assert.deepEqual(result.candles, []);
+  }
+});
+
+test('invalid, future and unbounded historical requests perform no provider reads', async () => {
+  for (const [first, end] of [[NaN, start], [start, start], [start, start + 5001 * 60000], [start, Date.now() + 60000]]) {
+    await assert.rejects(fetchHistoricalKlines('BTC/USDT', '1m', first, end));
+  }
+  assert.equal(calls.length, 0);
+});
+
+test('paper marks require a real recent transaction timestamp and a valid price', async () => {
+  respond = async () => Response.json([{ p: '100', T: Date.now() - 1000 }]);
+  const good = await fetchPaperQuote('BTC/USDT');
+  assert.equal(good?.price, 100); assert.equal(good?.source, 'binance_aggTrades');
+  for (const raw of [{ p: '100', T: Date.now() - 180000 }, { p: '100', T: Date.now() + 60000 },
+    { p: null, T: Date.now() }, { p: 'NaN', T: Date.now() }, { p: '100' }]) {
+    respond = async () => Response.json([raw]);
+    assert.equal(await fetchPaperQuote('BTC/USDT'), null);
+  }
 });

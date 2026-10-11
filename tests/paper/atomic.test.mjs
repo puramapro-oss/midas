@@ -24,6 +24,7 @@ before(async () => {
   }
   await db.exec(await migration('007_trade_execution_intents.sql'));
   await db.exec(await migration('20261011153000_atomic_paper_execution.sql'));
+  await db.exec(await migration('20261011194000_atomic_paper_observation.sql'));
 });
 after(() => db.close());
 
@@ -117,4 +118,66 @@ test('recorded closing fees reduce available paper capital', async () => {
   const receipt = await execute(user, randomUUID());
   await db.query("UPDATE public.trades SET status='closed', pnl=0, fees=9950, closed_at=now() WHERE id=$1", [receipt.trade_id]);
   await assert.rejects(execute(user, randomUUID()), /Insufficient paper capital/);
+});
+
+async function observe(user, trade, price, manual = false, date = new Date().toISOString()) {
+  const result = await db.query('SELECT public.midas_apply_paper_observation($1,$2,$3,$4,$5) AS receipt', [user, trade, price, date, manual]);
+  return result.rows[0].receipt;
+}
+test('closing is atomic, includes both fees and replays without a second closing fee', async () => {
+  const user = await account(); const opened = await execute(user, randomUUID());
+  const close = await observe(user, opened.trade_id, 110, true);
+  assert.equal(close.trade.status, 'closed'); assert.equal(close.trade.close_reason, 'manual');
+  const expectedFee = opened.fees + Math.round(opened.executed_quantity * 110 * 0.001 * 1e8) / 1e8;
+  assert.ok(Math.abs(Number(close.trade.fees) - expectedFee) < 1e-8);
+  const replay = await observe(user, opened.trade_id, 120, true);
+  assert.equal(replay.replayed, true); assert.deepEqual(replay.trade, close.trade);
+  assert.deepEqual(await counts(user), { trades: 1, audits: 2, intents: 1 });
+});
+test('a failed close audit rolls back the close and its fees', async () => {
+  const user = await account(); const opened = await execute(user, randomUUID());
+  await db.exec(`CREATE FUNCTION public.reject_close_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'injected close failure'; END $$;
+    CREATE TRIGGER reject_close_audit BEFORE INSERT ON public.trade_audit_logs FOR EACH ROW EXECUTE FUNCTION public.reject_close_audit();`);
+  try {
+    await assert.rejects(observe(user, opened.trade_id, 110, true), /injected close failure/);
+    const row = (await db.query('SELECT status, fees FROM public.trades WHERE id=$1', [opened.trade_id])).rows[0];
+    assert.equal(row.status, 'open'); assert.equal(Number(row.fees), opened.fees);
+  } finally { await db.exec('DROP TRIGGER reject_close_audit ON public.trade_audit_logs; DROP FUNCTION public.reject_close_audit();'); }
+});
+test('a stop crossed by a price gap closes at the observed price, not a fictitious stop fill', async () => {
+  const user = await account(); const opened = await execute(user, randomUUID());
+  const close = await observe(user, opened.trade_id, 85);
+  assert.equal(Number(close.trade.exit_price), 85); assert.equal(close.trade.close_reason, 'stop_loss');
+  assert.equal(close.actions[0].action, 'close_sl');
+});
+test('stale, future, negative and foreign observations cannot mutate a position', async () => {
+  const user = await account(); const other = await account(); const opened = await execute(user, randomUUID());
+  await assert.rejects(observe(other, opened.trade_id, 100), /unavailable/);
+  await assert.rejects(observe(user, opened.trade_id, -1), /Invalid/);
+  await assert.rejects(observe(user, opened.trade_id, 100, true, new Date(Date.now() - 180000).toISOString()), /stale/);
+  await assert.rejects(observe(user, opened.trade_id, 100, true, new Date(Date.now() + 60000).toISOString()), /stale/);
+  assert.deepEqual(await counts(user), { trades: 1, audits: 1, intents: 1 });
+});
+test('reordered prices cannot lower a trailing stop or repeat an audited action', async () => {
+  const user = await account(); const opened = await execute(user, randomUUID(), { ...decision, take_profit: 150 });
+  await db.query('UPDATE public.trades SET trailing_stop_pct=2 WHERE id=$1', [opened.trade_id]);
+  const time = new Date().toISOString();
+  const first = await observe(user, opened.trade_id, 120, false, time);
+  assert.equal(Number(first.trade.stop_loss), 117.6);
+  assert.equal(first.trade.breakeven_activated, true);
+  const repeat = await observe(user, opened.trade_id, 120, false, time);
+  assert.equal(repeat.replayed, true); assert.deepEqual(repeat.actions, []);
+  await assert.rejects(observe(user, opened.trade_id, 100, false, new Date(Date.parse(time) - 1000).toISOString()), /Out-of-order/);
+  const close = await observe(user, opened.trade_id, 115, false, new Date(Date.parse(time) + 1).toISOString());
+  assert.equal(close.trade.close_reason, 'trailing_stop'); assert.equal(Number(close.trade.exit_price), 115);
+});
+test('live positions and untrusted roles cannot use paper observation persistence', async () => {
+  const user = await account(); const opened = await execute(user, randomUUID());
+  await db.query('UPDATE public.trades SET is_paper_trade=false WHERE id=$1', [opened.trade_id]);
+  await assert.rejects(observe(user, opened.trade_id, 100, true), /Live position mutation prohibited/);
+  for (const role of ['anon', 'authenticated']) {
+    await db.exec(`SET ROLE ${role}`);
+    try { await assert.rejects(observe(user, opened.trade_id, 100), /permission denied/); }
+    finally { await db.exec('RESET ROLE'); }
+  }
 });

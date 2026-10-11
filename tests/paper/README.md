@@ -13,7 +13,7 @@ node scripts/check-niyama-decisions.mjs
 ```
 
 The transaction suite runs the repository's real baseline table definitions and
-migrations 007 and 20261011153000 in an in-memory PGlite PostgreSQL engine. It
+migrations 007, 20261011153000 and 20261011194000 in an in-memory PGlite PostgreSQL engine. It
 injects an audit failure, replays lost receipts, rejects conflicting operation
 identifiers, checks quotas and verifies the service-only function grant. PGlite
 serializes one connection; its parallel-promise test is not a proof of
@@ -65,7 +65,7 @@ separate private-package access requirement.
 
 ## Follow-up audit, 11 October 2026
 
-The latest local candidate passes **122 unit tests and 22 SQL/boundary tests**
+Candidate `476535e` passed **122 unit tests and 22 SQL/boundary tests**
 with no failures or skipped tests. NIYAMA passes. The diagnostic typecheck still
 reports the same 14 missing-shared-package/type errors, without additional
 diagnostics. The CI results above describe earlier commits; inspect the current
@@ -106,7 +106,7 @@ Source contracts consulted:
 - https://developers.binance.com/en/docs/catalog/core-trading-spot-trading/api/rest-api/market
 - https://docs.coingecko.com/demo/reference/coins-id-ohlc
 
-Remaining audit work includes the legacy Sharpe/Sortino annualization from trade
+At candidate `476535e`, remaining audit work included the legacy Sharpe/Sortino annualization from trade
 returns, non-annualized Calmar calculation, and profit-factor sentinel `999`.
 Those statistics are not validated performance measures. Bar-based fills still
 use a conservative stop-before-target convention when both levels occur in one
@@ -114,3 +114,76 @@ bar; exact intrabar sequencing requires finer data. Paper closing/monitoring,
 full browser flows, actual provider availability and user-facing latency also
 need end-to-end validation after the shared packages and unpublished M3 work
 are recovered. No production-readiness claim follows from these unit results.
+
+
+## Current consolidation, 11 October 2026
+
+This section supersedes the earlier outstanding list for ratios and the paper
+closing implementation. The earlier counts above remain historical evidence.
+Current local verification: **146 unit tests and 35 SQL/boundary tests passed**,
+NIYAMA passed, and the diagnostic typecheck still has the 14 pre-existing
+missing-PURAMA-package/type errors. Full build/lint/browser checks remain blocked.
+The PostgreSQL suite now has three independent-session tests; its result for the
+published commit must be read from the PR checks, not inferred from PGlite.
+
+Changes verified with controlled inputs and the actual implementation:
+
+- The backtesting page no longer returns a fixed sample after a timer. It calls
+  the authenticated route and reports errors, cancellation, real coverage, source
+  and simulation fees. The response must match the selected pair, strategy,
+  period, capital and stop/target percentages. Historical reads paginate exact
+  requested dates, up to 5,000 complete candles; gaps and partial windows fail.
+- Stop/target percentages no longer undergo an erroneous division by 100 in the
+  route. Entry size fits capital including fees, including the default 2% stop.
+  Opening gaps are processed before the intrabar range; the tighter previously
+  known trailing stop takes precedence. Unknown intrabar order remains a
+  conservative stop-before-target assumption, not tick-level execution.
+- Sharpe and Sortino use uniform portfolio equity returns. Their zero reference
+  rate/MAR, 365-day convention and square-root annualization assumption are
+  explicit. Calmar uses geometric annualized return. Undefined ratios are null,
+  not 999 or zero; flat trades are distinguished from losses. The strategy engine
+  rejects unsupported leverage/AI options and discards failed analyses.
+- Portfolio and JSON/CSV exports share recorded net-P&L calculations. Counts,
+  true rolling periods and profit factor use net results. The portfolio drawdown
+  is realized cash drawdown in USDT, not an equity percentage without a capital
+  and cash-flow history. The views are explicitly paper-only and do not mix a
+  live exchange balance with simulated P&L. CSV uses actual quantity/fees column
+  names and escapes spreadsheet formulas in text cells.
+- Report reads paginate, verify counts, detect duplicates/invalid accounts and
+  reject observed concurrent changes. They have a 15-second read deadline and
+  a 10,000-position ceiling. They are not a transactional database snapshot;
+  oversize, failed or incomplete reads return errors rather than partial totals.
+  Realized aggregate reports currently require USDT pairs.
+- Manual close and the existing `check-positions` cron now share the atomic
+  observation function. The old cron no longer substitutes CoinGecko USD prices
+  for exchange pair prices or omits exit fees. A lost response or competing close
+  cannot overwrite the first close or add a second exit fee. Audit failure rolls
+  back the state change. The function refuses live rows and untrusted SQL roles.
+- Marks require a recent Binance aggregate-trade timestamp (120 seconds maximum,
+  five seconds future tolerance). They remain last-trade educational marks, not
+  executable bid/ask quotes or guaranteed fills. The monitoring queries/RPCs have
+  eight-second deadlines; batches stop starting after 20 seconds. The global
+  read requires a complete inventory of at most 500 positions, and an individual
+  read at most 100. Errors or unfinished work never yield a complete cron result.
+  The existing five-minute scheduling frequency is unchanged; this is not a
+  continuous exchange-side protective stop.
+- The crash cron rejects missing, nonnumeric, wrong-asset or stale observations
+  instead of declaring a stable zero. It checks persistence failures. The weekly
+  signal inventory identifies itself as an inventory, not an executed backtest.
+
+Apply **both** `20261011153000_atomic_paper_execution.sql` and
+`20261011194000_atomic_paper_observation.sql` in an isolated authorized database
+before integration. Neither has been applied to a production database here.
+No live order, provider purchase, deployment, merge or Mac-worker modification
+was performed. D2=A and the Vercel freeze remain unchanged. Reconcile the local
+unpublished M3 work first; the pipeline's source/package access remains required
+for browser flows and real-provider checks. Production latency, accessibility,
+scientific validity of every strategy, and the three proposed financial agents
+are **not** validated by these core tests.
+
+Primary contracts and metric references consulted:
+
+- https://web.stanford.edu/~wfsharpe/art/sr/sr.htm
+- https://cran.r-project.org/web/packages/PerformanceAnalytics/PerformanceAnalytics.pdf
+- https://docs.coingecko.com/reference/coins-markets
+- Binance market-data contract linked above.

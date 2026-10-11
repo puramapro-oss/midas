@@ -70,3 +70,37 @@ test('an invalid date cannot debit fees before an opening or closing fails', () 
   assert.throws(() => closeTrade(state, 100, 'timeout', { ...candle, timestamp: 1e100 }, config), /date/);
   assert.deepEqual(state, before);
 });
+
+test('selected stop and target percentages apply to the executed entry price', () => {
+  const state = fresh();
+  openTrade(state, signal, candle, { ...config, stop_loss_pct: 3, take_profit_pct: 6 });
+  near(state.position!.stopLoss, 97); near(state.position!.takeProfit, 106);
+});
+
+test('the default 2% stop sizes within capital including entry fees instead of rejecting every entry', () => {
+  const state = fresh();
+  openTrade(state, signal, candle, { ...config, stop_loss_pct: 2, take_profit_pct: 5 });
+  assert.ok(state.position);
+  const notional = state.position.entryPrice * state.position.quantity;
+  assert.ok(notional + state.position.entryFee <= 10000 + 1e-8);
+  closeTrade(state, 100, 'timeout', candle, config);
+  near(state.capital, 10000 - state.totalFees);
+});
+
+test('the tighter known trailing stop takes precedence over the original stop in both directions', () => {
+  const trailing = { ...config, trailing_stop: true, trailing_stop_pct: 10 };
+  const long = fresh(); openTrade(long, { ...signal, take_profit: 200 }, candle, trailing);
+  long.position!.trailingStopHighest = 120;
+  assert.deepEqual(checkPositionClose(long.position!, { ...candle, open: 110, high: 111, low: 90, close: 100 }, trailing),
+    { exitPrice: 108, reason: 'trailing_stop' });
+  const short = fresh(); openTrade(short, { ...signal, action: 'sell', stop_loss: 105, take_profit: 50 }, candle, trailing);
+  short.position!.trailingStopLowest = 80;
+  const close = checkPositionClose(short.position!, { ...candle, open: 85, low: 80, high: 110, close: 100 }, trailing);
+  near(close!.exitPrice, 88); assert.equal(close!.reason, 'trailing_stop');
+});
+
+test('a target already crossed at the opening precedes an opposite intrabar stop', () => {
+  const long = fresh(); openTrade(long, signal, candle, config);
+  assert.deepEqual(checkPositionClose(long.position!, { ...candle, open: 115, high: 120, low: 90 }, config),
+    { exitPrice: 110, reason: 'take_profit' });
+});

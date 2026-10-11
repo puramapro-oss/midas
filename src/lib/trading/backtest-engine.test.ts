@@ -5,7 +5,7 @@ import { buildMonthlyReturns } from './backtest-stats.ts';
 import type { BaseStrategy } from './strategies/base-strategy';
 import type { BacktestConfig, BacktestTrade } from '@/types/trading';
 
-const config = { initial_capital: 10000, fee_rate: 0.001, slippage_pct: 0, trailing_stop: false } as BacktestConfig;
+const config = { timeframe: '1h', initial_capital: 10000, fee_rate: 0.001, slippage_pct: 0, trailing_stop: false } as BacktestConfig;
 const strategy = { analyze: async () => ({ action: 'buy', confidence: 0.8, entry_price: 100, stop_loss: 95, take_profit: 120, reasoning: 'test' }) } as unknown as BaseStrategy;
 
 test('a completed-candle signal fills at the next open and final equity includes both fees', async () => {
@@ -29,4 +29,12 @@ test('monthly realized returns use opening capital including prior net results',
   const returns = buildMonthlyReturns(trades, 1000);
   assert.equal(returns[0].pnl_pct, 10);
   assert.equal(returns[1].pnl_pct, -10);
+});
+
+test('invalid candles and a strategy exception cannot masquerade as a completed backtest', async () => {
+  const candles = Array.from({ length: 52 }, (_, i) => ({ timestamp: 1700000000000 + i * 3600000,
+    open: 100, high: 101, low: 99, close: 100, volume: 100 }));
+  await assert.rejects(runBacktest(config, candles.filter((_, i) => i !== 20), strategy), /incomplete/);
+  await assert.rejects(runBacktest(config, candles, { analyze: async () => { throw new Error('broken'); } } as unknown as BaseStrategy), /incomplete backtest discarded/);
+  await assert.rejects(runBacktest({ ...config, leverage: 10 }, candles, strategy), /unsupported/);
 });

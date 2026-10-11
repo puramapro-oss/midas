@@ -30,6 +30,7 @@ before(async () => {
   }
   await admin.query(await migration('007_trade_execution_intents.sql'));
   await admin.query(await migration('20261011153000_atomic_paper_execution.sql'));
+  await admin.query(await migration('20261011194000_atomic_paper_observation.sql'));
 });
 after(() => admin.end());
 
@@ -75,3 +76,33 @@ async function compete(sameOperation) {
 
 test('two PostgreSQL sessions replay one operation after a real row-lock wait', () => compete(true));
 test('two distinct operations compete atomically for the final daily quota slot', () => compete(false));
+
+test('two PostgreSQL closing requests charge one exit fee and preserve the first close', async () => {
+  const user = randomUUID();
+  await admin.query('INSERT INTO auth.users VALUES ($1)', [user]);
+  await admin.query('INSERT INTO public.profiles(id) VALUES ($1)', [user]);
+  const opened = (await admin.query(sql, [user, randomUUID(), JSON.stringify(decision), 5])).rows[0].receipt;
+  const first = new pg.Client({ connectionString }); const second = new pg.Client({ connectionString });
+  await Promise.all([first.connect(), second.connect()]);
+  const closeSql = 'SELECT public.midas_apply_paper_observation($1,$2,$3,clock_timestamp(),true) AS receipt';
+  let pending;
+  try {
+    await first.query('BEGIN');
+    const original = (await first.query(closeSql, [user, opened.trade_id, 110])).rows[0].receipt;
+    pending = second.query(closeSql, [user, opened.trade_id, 120]).then(result => ({ result }), error => ({ error }));
+    let waiting = false; const deadline = Date.now() + 3000;
+    while (!waiting && Date.now() < deadline) {
+      waiting = (await admin.query('SELECT wait_event_type FROM pg_stat_activity WHERE pid=$1', [second.processID])).rows[0]?.wait_event_type === 'Lock';
+      if (!waiting) await delay(10);
+    }
+    assert.equal(waiting, true); await first.query('COMMIT');
+    const replay = await pending; assert.equal(replay.error, undefined);
+    assert.deepEqual(replay.result.rows[0].receipt.trade, original.trade);
+    assert.equal(replay.result.rows[0].receipt.replayed, true);
+    const audits = await admin.query("SELECT count(*)::int AS n FROM public.trade_audit_logs WHERE user_id=$1 AND action='paper_closed'", [user]);
+    assert.equal(audits.rows[0].n, 1);
+  } finally {
+    await first.query('ROLLBACK'); if (pending) await pending;
+    await Promise.all([first.end(), second.end()]);
+  }
+});

@@ -2,13 +2,12 @@
 // observations are exposed separately and never substituted for exchange bars.
 import type { Candle } from '@/lib/agents/types';
 import { createSingleFlight } from '../cache/single-flight.ts';
+import { CANDLE_INTERVAL_MS as INTERVAL_MS, historicalWindow, type CandleInterval as Interval } from './candle-contract.ts';
 
 const BINANCE_BASE = 'https://api.binance.com';
 const REQUEST_TIMEOUT_MS = 4000;
 const coalesce = createSingleFlight();
 export const MIN_CANDLES = 200;
-const INTERVAL_MS = { '1m': 60000, '5m': 300000, '15m': 900000, '1h': 3600000, '4h': 14400000, '1d': 86400000 } as const;
-type Interval = keyof typeof INTERVAL_MS;
 
 export interface KlineFetchResult {
   candles: Candle[];
@@ -69,14 +68,18 @@ export async function fetchKlines(pair: string, interval: Interval = '1h', limit
   return (await fetchKlinesWithSource(pair, interval, limit)).candles;
 }
 
-export async function fetchKlinesWithSource(pair: string, interval: Interval = '1h', limit = 200): Promise<KlineFetchResult> {
+export async function fetchKlinesWithSource(pair: string, interval: Interval = '1h', limit = 200,
+  window?: { startTime: number; endTime: number }): Promise<KlineFetchResult> {
   const symbol = pairToSymbol(pair);
   if (!Object.hasOwn(INTERVAL_MS, interval) || !Number.isInteger(limit) || limit < 1 || limit > 1000) throw new Error('Invalid candle interval or limit');
+  if (window && (!Number.isSafeInteger(window.startTime) || !Number.isSafeInteger(window.endTime) ||
+      window.startTime <= 0 || window.endTime < window.startTime)) throw new Error('Invalid candle window');
   const normalized = pair.trim().toUpperCase();
-  return coalesce(`${normalized}:${interval}:${limit}`, async () => {
+  return coalesce(`${normalized}:${interval}:${limit}:${window?.startTime ?? ''}:${window?.endTime ?? ''}`, async () => {
     const base = { pair: normalized, interval, timestamp_basis: 'open' as const };
     const empty = (reason: string): KlineFetchResult => ({ ...base, candles: [], source: 'none', volume_available: false, fetched_at: Date.now(), unavailable_reason: reason });
     const query = new URLSearchParams({ symbol, interval, limit: String(limit) });
+    if (window) { query.set('startTime', String(window.startTime)); query.set('endTime', String(window.endTime)); }
     const direct = await requestJSON(`${BINANCE_BASE}/api/v3/klines?${query}`);
     if (direct.status === 200) {
       const candles = parseBinanceKlines(direct.body, interval, limit);
@@ -102,6 +105,44 @@ export async function fetchKlinesWithSource(pair: string, interval: Interval = '
       }
     }
     return empty('matching_candles_unavailable');
+  });
+}
+
+/** Fetch the entire requested interval. Partial history is never relabeled as a
+ * complete backtest; provider restrictions retain the same fail-closed policy. */
+export async function fetchHistoricalKlines(pair: string, interval: Interval, start: number, end: number) {
+  const window = historicalWindow(start, end, interval);
+  const candles: Candle[] = [];
+  const sources = new Set<string>();
+  for (let cursor = window.first; cursor < window.endExclusive;) {
+    const limit = Math.min(1000, (window.endExclusive - cursor) / window.step);
+    const page = await fetchKlinesWithSource(pair, interval, limit, {
+      startTime: cursor, endTime: cursor + limit * window.step - 1,
+    });
+    if (page.candles.length !== limit || page.candles[0]?.timestamp !== cursor) {
+      return { ...window, candles: [] as Candle[], sources: [] as string[], complete: false,
+        unavailable_reason: page.unavailable_reason ?? 'historical_range_incomplete' };
+    }
+    candles.push(...page.candles); sources.add(page.source);
+    cursor += limit * window.step;
+  }
+  return { ...window, candles, sources: [...sources], complete: true, unavailable_reason: undefined };
+}
+
+export interface PaperQuote { price: number; observed_at: number; source: 'binance_aggTrades' }
+/** Last observed transaction, with its exchange timestamp. It is an educational
+ * mark, not an executable bid/ask or an exchange fill. */
+export async function fetchPaperQuote(pair: string): Promise<PaperQuote | null> {
+  const symbol = pairToSymbol(pair);
+  return coalesce(`paper-quote:${symbol}`, async () => {
+    const result = await requestJSON(`${BINANCE_BASE}/api/v3/aggTrades?${new URLSearchParams({ symbol, limit: '1' })}`);
+    if (result.status !== 200 || !Array.isArray(result.body) || result.body.length !== 1) return null;
+    const raw = result.body[0];
+    if (!raw || typeof raw !== 'object') return null;
+    const price = numeric(raw.p); const observed_at = numeric(raw.T);
+    if (!Number.isFinite(price) || price <= 0 || price >= 1e12 || !Number.isSafeInteger(observed_at) ||
+        observed_at < Date.now() - 120000 || observed_at > Date.now() + 5000) return null;
+    return { price, observed_at, source: 'binance_aggTrades' };
   });
 }
 
