@@ -69,6 +69,48 @@ test('L1 rejects a position size above the configured max', () => {
   assert.match(result.message, /L1 Position Sizing/);
 });
 
+test('L1 enforces the user maximum when it is stricter than the global maximum', () => {
+  const profile = { ...PROFILE, max_position_size_pct: 1 };
+  assert.equal(level1PositionSizing(decision({ position_size_pct: 1.5 }), profile, CONFIG).passed, false);
+  assert.equal(level1PositionSizing(decision({ position_size_pct: 1 }), profile, CONFIG).passed, true);
+});
+
+test('L1 fails closed when the user risk cap is absent or invalid at runtime', () => {
+  const missing = { ...PROFILE };
+  delete (missing as Partial<UserProfile>).max_position_size_pct;
+  assert.equal(level1PositionSizing(decision({ position_size_pct: 1 }), missing, CONFIG).passed, false);
+  for (const value of [undefined, null, NaN, Infinity, -Infinity, '1', 0, -1, 101]) {
+    const profile = { ...PROFILE, max_position_size_pct: value } as unknown as UserProfile;
+    assert.equal(level1PositionSizing(decision({ position_size_pct: 1 }), profile, CONFIG).passed, false, `user cap ${String(value)}`);
+  }
+});
+
+test('L1 fails closed when the global risk cap is absent or invalid at runtime', () => {
+  const missing = { ...CONFIG };
+  delete (missing as Partial<ShieldConfig>).max_position_size_pct;
+  assert.equal(level1PositionSizing(decision({ position_size_pct: 1 }), PROFILE, missing).passed, false);
+  for (const value of [undefined, null, NaN, Infinity, -Infinity, '1', 0, -1, 101]) {
+    const config = { ...CONFIG, max_position_size_pct: value } as unknown as ShieldConfig;
+    assert.equal(level1PositionSizing(decision({ position_size_pct: 1 }), PROFILE, config).passed, false, `global cap ${String(value)}`);
+  }
+});
+
+test('L1 refuses invalid requested sizes and preserves the stricter finite cap', () => {
+  for (const value of [undefined, null, NaN, Infinity, -Infinity, '1', 0, -1]) {
+    const d = decision({ position_size_pct: value as number });
+    assert.equal(level1PositionSizing(d, PROFILE, CONFIG).passed, false, `size ${String(value)}`);
+  }
+  for (const userCap of [0.5, 1, 2, 100]) {
+    for (const globalCap of [0.5, 1, 2, 100]) {
+      const cap = Math.min(userCap, globalCap);
+      const profile = { ...PROFILE, max_position_size_pct: userCap };
+      const config = { ...CONFIG, max_position_size_pct: globalCap };
+      assert.equal(level1PositionSizing(decision({ position_size_pct: cap }), profile, config).passed, true);
+      assert.equal(level1PositionSizing(decision({ position_size_pct: cap + 0.01 }), profile, config).passed, false);
+    }
+  }
+});
+
 test('L1 implied-loss stays within the capital-based max risk for any valid size', () => {
   // Invariant : avec position_size_pct <= max, la perte implicite au stop ne
   // peut jamais dépasser maxRiskUsd (distance de stop < 100%). Le test le
@@ -122,6 +164,36 @@ test('L3 recomputes RRR from prices and rejects an inflated claimed ratio', () =
   const result = level3TrailingStopReady(d, CONFIG);
   assert.equal(result.passed, false);
   assert.match(result.message, /Computed RRR/);
+});
+
+test('L3 rejects a buy target on the loss side despite a positive claimed ratio', () => {
+  const d = decision({ entry_price: 100, stop_loss: 95, take_profit: 88, risk_reward_ratio: 2.4 });
+  assert.equal(level3TrailingStopReady(d, CONFIG).passed, false);
+});
+
+test('L3 enforces profitable direction for a sell target', () => {
+  const d = decision({ action: 'sell', entry_price: 100, stop_loss: 105, take_profit: 112, risk_reward_ratio: 2.4 });
+  assert.equal(level3TrailingStopReady(d, CONFIG).passed, false);
+  assert.equal(level3TrailingStopReady({ ...d, take_profit: 88 }, CONFIG).passed, true);
+});
+
+test('L3 refuses missing or invalid prices instead of accepting an unverifiable reward', () => {
+  for (const field of ['take_profit', 'stop_loss', 'entry_price'] as const) {
+    for (const value of [undefined, null, NaN, Infinity, -Infinity, '100', 0, -1]) {
+      const d = decision({ [field]: value } as unknown as Partial<CoordinatorDecision>);
+      assert.equal(level3TrailingStopReady(d, CONFIG).passed, false, `${field} ${String(value)}`);
+    }
+  }
+});
+
+test('L3 refuses invalid declared ratios or thresholds and an undefined price-based ratio', () => {
+  for (const value of [undefined, null, NaN, Infinity, -Infinity, '1.5', 0, -1]) {
+    assert.equal(level3TrailingStopReady(decision({ risk_reward_ratio: value as number }), CONFIG).passed, false, `ratio ${String(value)}`);
+    const config = { ...CONFIG, min_risk_reward: value } as unknown as ShieldConfig;
+    assert.equal(level3TrailingStopReady(decision(), config).passed, false, `minimum ${String(value)}`);
+  }
+  assert.equal(level3TrailingStopReady(decision({ stop_loss: 100 }), CONFIG).passed, false);
+  assert.equal(level3TrailingStopReady(decision({ entry_price: Number.MIN_VALUE * 2, stop_loss: Number.MIN_VALUE, take_profit: Number.MAX_VALUE }), CONFIG).passed, false);
 });
 
 // --- L4 Circuit Breaker ---
