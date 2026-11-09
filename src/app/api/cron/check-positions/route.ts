@@ -1,118 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { getPrice } from '@/lib/data/coingecko';
 import { assertCronAuth } from '@/lib/cron-auth';
-
-const SYMBOL_TO_COINGECKO: Record<string, string> = {
-  BTC: 'bitcoin',
-  ETH: 'ethereum',
-  SOL: 'solana',
-};
+import { monitorAllPaperPositions } from '@/lib/trading/trade-monitor';
 
 export async function GET(request: NextRequest) {
   const unauthorized = assertCronAuth(request);
   if (unauthorized) return unauthorized;
-
   try {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { db: { schema: 'public' } }
-    );
-
-    const { data: openTrades, error: fetchError } = await supabase
-      .from('trades')
-      .select('*')
-      .eq('status', 'open')
-      // Live positions must be closed through the authenticated exchange path.
-      // Never mark a live position closed from a public-price-only cron.
-      .eq('is_paper_trade', true);
-
-    if (fetchError) {
-      return NextResponse.json({ error: 'Erreur récupération trades', details: fetchError.message }, { status: 500 });
-    }
-
-    if (!openTrades || openTrades.length === 0) {
-      return NextResponse.json({ success: true, checked: 0, closed: 0 });
-    }
-
-    const symbols = [...new Set(openTrades.map((t) => {
-      const base = t.pair?.split('/')[0] ?? '';
-      return base;
-    }))];
-
-    const coinIds = symbols
-      .map((s) => SYMBOL_TO_COINGECKO[s])
-      .filter(Boolean);
-
-    const prices = coinIds.length > 0
-      ? await getPrice(coinIds, { include24hChange: false })
-      : {};
-
-    let closed = 0;
-
-    for (const trade of openTrades) {
-      const base = trade.pair?.split('/')[0] ?? '';
-      const coinId = SYMBOL_TO_COINGECKO[base];
-      if (!coinId || !prices[coinId]) continue;
-
-      const currentPrice = prices[coinId].usd;
-      const stopLoss = trade.stop_loss as number | null;
-      const takeProfit = trade.take_profit as number | null;
-      const side = trade.side as string;
-
-      let shouldClose = false;
-      let closeReason = '';
-
-      if (side === 'buy') {
-        if (stopLoss && currentPrice <= stopLoss) {
-          shouldClose = true;
-          closeReason = 'stop_loss';
-        } else if (takeProfit && currentPrice >= takeProfit) {
-          shouldClose = true;
-          closeReason = 'take_profit';
-        }
-      } else if (side === 'sell') {
-        if (stopLoss && currentPrice >= stopLoss) {
-          shouldClose = true;
-          closeReason = 'stop_loss';
-        } else if (takeProfit && currentPrice <= takeProfit) {
-          shouldClose = true;
-          closeReason = 'take_profit';
-        }
-      }
-
-      if (shouldClose) {
-        const entryPrice = trade.entry_price as number;
-        const quantity = trade.quantity as number;
-        const pnl = side === 'buy'
-          ? (currentPrice - entryPrice) * quantity
-          : (entryPrice - currentPrice) * quantity;
-
-        const { error: updateError } = await supabase
-          .from('trades')
-          .update({
-            status: 'closed',
-            exit_price: currentPrice,
-            pnl,
-            close_reason: closeReason,
-            closed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', trade.id);
-
-        if (!updateError) closed++;
-      }
-    }
-
+    const result = await monitorAllPaperPositions();
+    const complete = result.errors.length === 0;
     return NextResponse.json({
-      success: true,
-      checked: openTrades.length,
-      closed,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Erreur interne';
-    return NextResponse.json({ error: message }, { status: 500 });
+      success: complete, checked: result.positions_checked,
+      closed: result.actions_taken.filter(action => action.action.startsWith('close_')).length,
+      actions: result.actions_taken, errors: result.errors, timestamp: new Date().toISOString(),
+    }, { status: complete ? 200 : 503 });
+  } catch {
+    return NextResponse.json({ error: 'Suivi simulé indisponible ; vérifier les positions avant de relancer' }, { status: 503 });
   }
 }

@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 
     const json = await req.json().catch(() => ({}));
     const { pair, agents, interval } = bodySchema.parse(json);
-    const requested: AgentName[] = (agents ?? [...ALL_AGENTS]) as AgentName[];
+    const requested: AgentName[] = [...new Set(agents ?? ALL_AGENTS)];
 
     // Master heartbeat
     await publishHeartbeat({
@@ -102,6 +102,7 @@ export async function POST(req: NextRequest) {
     const labels: AgentName[] = [];
 
     for (const a of requested) {
+      const previousTaskCount = tasks.length;
       switch (a) {
         case 'macro':
           tasks.push(analyzeMacro(pair));
@@ -110,7 +111,7 @@ export async function POST(req: NextRequest) {
           tasks.push(analyzeDefi(pair));
           break;
         case 'memory':
-          tasks.push(analyzeMemory(pair));
+          tasks.push(analyzeMemory(pair, { userId: user.id, isPaper: true }));
           break;
         case 'sentiment':
           tasks.push(analyzeSentiment(pair));
@@ -169,7 +170,9 @@ export async function POST(req: NextRequest) {
           break;
         }
       }
-      labels.push(a);
+      // Missing candles can skip a task: keep its label aligned with the
+      // promise actually scheduled, including for failure reporting.
+      if (tasks.length > previousTaskCount) labels.push(a);
     }
 
     const settled = await Promise.allSettled(tasks);
@@ -190,6 +193,8 @@ export async function POST(req: NextRequest) {
     // Publish heartbeats + signals for ALL agents (even those that don't self-publish)
     await Promise.all(
       results.map(async (r, i) => {
+        // Personal history belongs only in this authenticated response.
+        if (r.agent_name === 'memory') return;
         const status = settled[i].status === 'fulfilled' ? 'running' : 'error';
         const name = (labels[i] as BusAgentName) ?? 'master';
         await publishHeartbeat({
@@ -217,6 +222,7 @@ export async function POST(req: NextRequest) {
       pair,
       interval,
       agents_run: labels,
+      agents_skipped: requested.filter(name => !labels.includes(name)),
       candles_count: candles.length,
       candles_source: candleSource,
       results,

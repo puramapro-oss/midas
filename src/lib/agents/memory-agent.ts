@@ -1,123 +1,32 @@
-// =============================================================================
-// MIDAS — Memory Agent
-// Analyse rétrospective : interroge l'historique de trades pour détecter
-// si une situation similaire (paire + stratégie) a été gagnante/perdante.
-// =============================================================================
-
+// Personal retrospective analytics. Historical win rates do not predict market
+// direction and must not be published in the global agent bus.
 import type { AgentResult } from './types';
 import { createServiceClient } from '@/lib/supabase/server';
-import { publishHeartbeat, publishSignal } from './agent-bus';
+import { readMemoryHistory, summarizeMemory, type MemoryScope } from './memory-history';
 
-interface TradeRow {
-  id: string;
-  pair: string;
-  strategy: string | null;
-  pnl: number | null;
-  status: string | null;
-  created_at: string;
-  is_paper_trade: boolean | null;
-}
-
-/**
- * Calcule le winrate et le P&L moyen sur les trades similaires (même paire)
- * exécutés sur les 90 derniers jours.
- */
-export async function analyzeMemory(pair: string): Promise<AgentResult> {
-  const startMs = Date.now();
-  const supabase = createServiceClient();
-
-  let trades: TradeRow[] = [];
-  let queryError: string | null = null;
-
+export async function analyzeMemory(pair: string, scope: MemoryScope): Promise<AgentResult> {
+  const started = Date.now();
   try {
-    const since = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-    const { data, error } = await supabase
-      .from('trades')
-      .select('id, pair, strategy, pnl, status, created_at, is_paper_trade')
-      .eq('pair', pair)
-      .eq('status', 'closed')
-      .gte('created_at', since)
-      .limit(500);
-    if (error) queryError = error.message;
-    trades = (data ?? []) as TradeRow[];
-  } catch (e) {
-    queryError = e instanceof Error ? e.message : 'unknown';
+    const history = await readMemoryHistory(createServiceClient(), pair, scope);
+    const summary = summarizeMemory(history);
+    return {
+      agent_name: 'memory',
+      signal: 'neutral',
+      score: 0,
+      confidence: 0, // No calibrated directional forecast is made here.
+      reasoning: summary.win_rate === null
+        ? `Aucun historique exploitable sur ${pair} (90j).`
+        : `${summary.trades_analyzed} opérations ${scope.isPaper ? 'simulées' : 'réelles'} sur ${pair} (90j), ` +
+          `${(summary.win_rate * 100).toFixed(0)}% gagnantes. Statistique rétrospective, sans prévision directionnelle.`,
+      data: { ...summary, is_paper: scope.isPaper, duration_ms: Date.now() - started },
+      timestamp: new Date(),
+    };
+  } catch {
+    return {
+      agent_name: 'memory', signal: 'neutral', score: 0, confidence: 0,
+      reasoning: 'Historique personnel indisponible.',
+      data: { unavailable: true, duration_ms: Date.now() - started },
+      timestamp: new Date(),
+    };
   }
-
-  let score = 0;
-  let signal: 'bullish' | 'bearish' | 'neutral' = 'neutral';
-  let confidence = 0.4;
-  const reasons: string[] = [];
-
-  if (trades.length === 0) {
-    reasons.push(
-      queryError
-        ? `Mémoire indisponible: ${queryError}`
-        : `Aucun trade historique sur ${pair} (90j) — pas de pattern à exploiter`,
-    );
-  } else {
-    const wins = trades.filter((t) => Number(t.pnl ?? 0) > 0).length;
-    const losses = trades.filter((t) => Number(t.pnl ?? 0) < 0).length;
-    const total = wins + losses;
-    const winrate = total > 0 ? wins / total : 0;
-    const totalPnl = trades.reduce((s, t) => s + Number(t.pnl ?? 0), 0);
-
-    reasons.push(
-      `${trades.length} trades sur ${pair} (90j), winrate ${(winrate * 100).toFixed(0)}%, P&L cumulé ${totalPnl.toFixed(2)}$`,
-    );
-
-    if (winrate > 0.6 && total >= 5) {
-      score += 0.3;
-      confidence = 0.65;
-      reasons.push('Historique favorable — prior bullish');
-      signal = 'bullish';
-    } else if (winrate < 0.4 && total >= 5) {
-      score -= 0.3;
-      confidence = 0.65;
-      reasons.push('Historique défavorable — prudence');
-      signal = 'bearish';
-    } else if (total >= 3) {
-      confidence = 0.5;
-    }
-
-    // Bonus / malus selon P&L cumulé
-    if (totalPnl > 100) {
-      score += 0.1;
-    } else if (totalPnl < -100) {
-      score -= 0.1;
-    }
-  }
-
-  const result: AgentResult = {
-    agent_name: 'memory',
-    signal,
-    score: Math.max(-1, Math.min(1, score)),
-    confidence,
-    reasoning: reasons.join(' • '),
-    data: {
-      trades_analyzed: trades.length,
-      duration_ms: Date.now() - startMs,
-    },
-    timestamp: new Date(),
-  };
-
-  await publishHeartbeat({
-    name: 'memory',
-    status: 'running',
-    last_beat_ms: Date.now(),
-    metrics: { trades_analyzed: trades.length, duration_ms: Date.now() - startMs },
-  });
-
-  await publishSignal({
-    agent: 'memory',
-    type: 'historical_lookup',
-    symbol: pair,
-    direction: signal,
-    confidence,
-    reasoning: result.reasoning,
-    data: result.data,
-    ts: Date.now(),
-  });
-
-  return result;
 }

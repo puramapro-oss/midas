@@ -3,22 +3,67 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, audit/l7-global-daily-loss-20261109]
+permissions:
+  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: midas
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          node-version: 20
-      - run: npm ci
-      - run: npx playwright install chromium
+          path: midas
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - name: Read immutable shared package revision
+        id: shared
+        run: node scripts/bootstrap-shared-packages.mjs --github-output
+      - name: Check required private read credentials
+        env:
+          PACKAGE_SOURCE_TOKEN: ${{ secrets.PURAMA_PACKAGES_READ_TOKEN || secrets.SMARANA_READ_TOKEN }}
+          SMARANA_READ_TOKEN: ${{ secrets.SMARANA_READ_TOKEN }}
+        run: |
+          if [ -z "$PACKAGE_SOURCE_TOKEN" ]; then
+            echo '::error::A read-only PURAMA_PACKAGES_READ_TOKEN (or SMARANA_READ_TOKEN with access to both repositories) is required for purama-master.'
+            exit 1
+          fi
+          if [ -z "$SMARANA_READ_TOKEN" ]; then
+            echo '::error::SMARANA_READ_TOKEN with read-only access to purama-smarana is required.'
+            exit 1
+          fi
+      - name: Retrieve only the pinned private package directories
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: puramapro-oss/purama-master
+          ref: ${{ steps.shared.outputs.commit }}
+          token: ${{ secrets.PURAMA_PACKAGES_READ_TOKEN || secrets.SMARANA_READ_TOKEN }}
+          persist-credentials: false
+          path: shared-source
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /packages/purama-antifraud/
+            /packages/purama-entraide/
+            /packages/purama-retention/
+            /packages/eslint-config-purama/
+      - name: Verify every source digest and create the sibling package layout
+        run: node scripts/bootstrap-shared-packages.mjs "$GITHUB_WORKSPACE/shared-source" "$GITHUB_WORKSPACE/packages"
+      - name: Install the locked dependencies with repository-scoped credentials
+        env:
+          SMARANA_READ_TOKEN: ${{ secrets.SMARANA_READ_TOKEN }}
+        run: node scripts/install-private-dependencies.mjs
+      - name: Run dependency lifecycle scripts without repository credentials
+        run: npm rebuild --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium webkit
       - run: npx playwright test
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: playwright-report
-          path: playwright-report/
+          path: midas/playwright-report/
           retention-days: 7
