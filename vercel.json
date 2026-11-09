@@ -1,5 +1,10 @@
 {
   "framework": "nextjs",
+  "git": {
+    "deploymentEnabled": {
+      "audit/l7-global-daily-loss-20261109": false
+    }
+  },
   "functions": {
     "src/app/api/chat/route.ts": {
       "maxDuration": 120

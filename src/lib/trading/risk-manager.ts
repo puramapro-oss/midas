@@ -13,7 +13,7 @@ import {
   level5CheckCrashProtection,
   level6CheckDiversification,
   level7CheckUserLimits,
-} from './risk-levels';
+} from './risk-levels.ts';
 
 export interface UserProfile {
   id: string;
@@ -50,7 +50,7 @@ export interface ShieldCheckResult {
 }
 
 const DEFAULT_SHIELD_CONFIG: ShieldConfig = {
-  max_daily_loss_pct: 5,
+  max_daily_loss_pct: 1,
   max_daily_loss_usd: 500,
   max_position_size_pct: 2,
   max_leverage: 10,
