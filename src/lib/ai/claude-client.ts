@@ -6,6 +6,7 @@
 import 'server-only';
 import { smarana } from '@purama/smarana';
 import Anthropic from '@anthropic-ai/sdk';
+import { parseModelJSON } from './model-json';
 
 // Loi 1 SMARANA-BRIEF.md : "Aucune app n'appelle l'API directement. Tout passe par smarana.ask()."
 // MIDAS ne détient plus de client Anthropic — mémoire cross-écosystème + cache + usage
@@ -37,6 +38,7 @@ export async function askClaude(
 export async function askClaudeJSON<T>(
   systemPrompt: string,
   userMessage: string,
+  validate: (value: unknown) => T,
   maxTokens = 4096,
   userId?: string
 ): Promise<T> {
@@ -44,23 +46,7 @@ export async function askClaudeJSON<T>(
 
   const text = await askClaude(jsonSystemPrompt, userMessage, maxTokens, userId);
 
-  // Extraire le JSON meme si entoure de backticks
-  let cleaned = text.trim();
-  if (cleaned.startsWith('```json')) {
-    cleaned = cleaned.slice(7);
-  } else if (cleaned.startsWith('```')) {
-    cleaned = cleaned.slice(3);
-  }
-  if (cleaned.endsWith('```')) {
-    cleaned = cleaned.slice(0, -3);
-  }
-  cleaned = cleaned.trim();
-
-  try {
-    return JSON.parse(cleaned) as T;
-  } catch {
-    throw new Error(`[MIDAS] Impossible de parser la reponse JSON de Claude: ${cleaned.slice(0, 200)}`);
-  }
+  return parseModelJSON(text, validate);
 }
 
 /**

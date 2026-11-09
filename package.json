@@ -8,17 +8,20 @@
     "start": "next start",
     "lint": "eslint",
     "test:unit": "node --experimental-strip-types --test src/lib/**/*.test.ts",
+    "test:paper": "npm test --prefix tests/paper",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "test:all": "npm run build && npm run test:e2e"
+    "test:all": "npm run test:unit && npm run test:paper && npm run test:dependency-security && npm run test:development-dependency-security && node scripts/check-niyama-decisions.mjs && npm run build && npm run test:e2e",
+    "test:dependency-security": "node --experimental-strip-types --test scripts/test-dependency-security-20261109.mjs",
+    "test:development-dependency-security": "node --test scripts/test-development-dependency-security-20261109.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",
     "@purama/antifraud": "file:../packages/purama-antifraud",
     "@purama/entraide": "file:../packages/purama-entraide",
     "@purama/retention": "file:../packages/purama-retention",
-    "@purama/smarana": "github:puramapro-oss/purama-smarana#main",
+    "@purama/smarana": "git+ssh://git@github.com/puramapro-oss/purama-smarana.git#531cc653c81ffa3c99ab94667067f217deb5f944",
     "@stripe/connect-js": "^3.3.35",
     "@stripe/react-connect-js": "^3.3.34",
     "@supabase/ssr": "^0.9.0",
@@ -35,7 +38,7 @@
     "jspdf": "^4.2.1",
     "lightweight-charts": "^5.1.0",
     "lucide-react": "^1.7.0",
-    "next": "16.3.5",
+    "next": "16.4.5",
     "next-intl": "^4.9.0",
     "next-themes": "^0.4.6",
     "openai": "^6.33.0",
@@ -50,7 +53,7 @@
     "stripe": "^21.0.1",
     "tailwind-merge": "^3.5.0",
     "technicalindicators": "^3.1.0",
-    "zod": "^4.3.6",
+    "zod": "^4.6.7",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
@@ -76,10 +79,17 @@
     "qs": "^6.14.1",
     "uuid": "^11.1.1",
     "postcss": "^8.5.18",
-    "sharp": "^0.36.0",
-    "brace-expansion": "^5.0.8",
-    "minimatch": {
+    "sharp": "^0.35.5",
+    "dompurify": "^3.4.17",
+    "brace-expansion": "^5.0.12",
+    "minimatch@3": {
       "brace-expansion": "^1.1.7"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.1"
+    },
+    "lighthouse": {
+      "puppeteer-core": "25.16.0"
     }
   }
 }

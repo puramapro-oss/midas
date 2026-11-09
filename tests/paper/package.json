@@ -1,0 +1,10 @@
+{
+  "name": "midas-paper-transaction-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-test-module-mocks --test *.test.mjs",
+    "test:postgres": "node --test postgres.integration.mjs"
+  },
+  "devDependencies": { "@electric-sql/pglite": "0.5.8", "pg": "8.22.0" }
+}
