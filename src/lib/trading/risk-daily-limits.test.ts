@@ -79,7 +79,8 @@ test('L7 retains the strictest of all three daily limits at and below its bounda
         const limit = Math.min(profileLimit, globalLimit, 5 * percentage / 100);
         const history = (loss: number): TradeHistory[] => [{ pnl: -loss, closed_at: Date.now() - 1000 }];
         assert.equal(level7CheckUserLimits(decision(), profile, history(limit), config).passed, false);
-        assert.equal(level7CheckUserLimits(decision(), profile, history(limit / 2), config).passed, true);
+        // The smallest remaining allowance is $0.005; 1% size risks $0.0025 at the stop.
+        assert.equal(level7CheckUserLimits(decision({ position_size_pct: 1 }), profile, history(limit / 2), config).passed, true);
       }
     }
   }
@@ -105,7 +106,8 @@ test('L7 does not reopen the daily allowance due to floating-point summation', (
     { pnl: -0.01, closed_at: Date.now() - 1000 },
   ];
   assert.equal(level7CheckUserLimits(decision(), profile, recent, config).passed, false);
-  assert.equal(level7CheckUserLimits(decision(), profile, [
+  // $0.069 closed + $0.00025 nominal stop risk stays below the $0.07 limit.
+  assert.equal(level7CheckUserLimits(decision({ position_size_pct: 0.1 }), profile, [
     { pnl: -0.069, closed_at: Date.now() - 1000 },
   ], config).passed, true);
 });

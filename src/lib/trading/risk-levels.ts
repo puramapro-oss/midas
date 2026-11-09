@@ -278,8 +278,8 @@ export function level7CheckUserLimits(
     return { passed: false, message: '[L7 User Limits] Invalid or zero loss limit or capital' };
   }
 
-  // This only checks the supplied capital and history. It does not obtain
-  // account equity or reserve a loss budget shared with other processes.
+  // This checks supplied capital, history and nominal decision size, not final
+  // fills, account equity or a loss budget shared with other processes.
   const dailyLimitUsd = Math.min(
     profile.daily_loss_limit_usd,
     config.max_daily_loss_usd,
@@ -287,6 +287,18 @@ export function level7CheckUserLimits(
   );
   if (!Number.isFinite(dailyLimitUsd) || dailyLimitUsd <= 0) {
     return { passed: false, message: '[L7 User Limits] Invalid effective daily loss limit' };
+  }
+
+  const { action, entry_price: entry, stop_loss: stop, position_size_pct: size } = decision;
+  if ((action !== 'buy' && action !== 'sell')
+    || ![entry, stop, size].every((value) => Number.isFinite(value) && value > 0)
+    || size > 100 || (action === 'buy' ? stop >= entry : stop <= entry)) {
+    return { passed: false, message: '[L7 User Limits] Invalid nominal position or stop' };
+  }
+  // Same allocation-based, unleveraged nominal loss as L1; no execution overrides or fees.
+  const nominalStopLoss = (Math.abs(entry - stop) / entry) * (profile.capital_usd * (size / 100));
+  if (!Number.isFinite(nominalStopLoss) || nominalStopLoss <= 0) {
+    return { passed: false, message: '[L7 User Limits] Invalid nominal stop loss' };
   }
 
   const now = Date.now();
@@ -311,28 +323,29 @@ export function level7CheckUserLimits(
   const weeklyLoss = sumLosses(weekAgo);
   const monthlyLoss = sumLosses(monthAgo);
 
-  // Roundoff in sums such as 0.06 + 0.01 must not reopen a reached limit.
+  // Allow for rounding in the historical sum and nominal size/stop arithmetic.
+  // A sum such as 0.06 + 0.01 must not reopen a reached limit.
   const hasReachedLimit = (loss: number, limit: number): boolean =>
-    loss >= limit || limit - loss <= Number.EPSILON * Math.max(loss, limit) * (recentTrades.length + 1);
+    loss >= limit || limit - loss <= Number.EPSILON * Math.max(loss, limit) * (recentTrades.length + 5);
 
-  if (hasReachedLimit(Math.abs(dailyLoss), dailyLimitUsd)) {
+  if (hasReachedLimit(Math.abs(dailyLoss) + nominalStopLoss, dailyLimitUsd)) {
     return {
       passed: false,
-      message: `[L7 User Limits] Daily loss $${Math.abs(dailyLoss).toFixed(2)} reached limit $${dailyLimitUsd}`,
+      message: `[L7 User Limits] Daily loss $${Math.abs(dailyLoss)} plus nominal stop loss $${nominalStopLoss} would reach limit $${dailyLimitUsd}`,
     };
   }
 
-  if (hasReachedLimit(Math.abs(weeklyLoss), profile.weekly_loss_limit_usd)) {
+  if (hasReachedLimit(Math.abs(weeklyLoss) + nominalStopLoss, profile.weekly_loss_limit_usd)) {
     return {
       passed: false,
-      message: `[L7 User Limits] Weekly loss $${Math.abs(weeklyLoss).toFixed(2)} reached limit $${profile.weekly_loss_limit_usd}`,
+      message: `[L7 User Limits] Weekly loss $${Math.abs(weeklyLoss)} plus nominal stop loss $${nominalStopLoss} would reach limit $${profile.weekly_loss_limit_usd}`,
     };
   }
 
-  if (hasReachedLimit(Math.abs(monthlyLoss), profile.monthly_loss_limit_usd)) {
+  if (hasReachedLimit(Math.abs(monthlyLoss) + nominalStopLoss, profile.monthly_loss_limit_usd)) {
     return {
       passed: false,
-      message: `[L7 User Limits] Monthly loss $${Math.abs(monthlyLoss).toFixed(2)} reached limit $${profile.monthly_loss_limit_usd}`,
+      message: `[L7 User Limits] Monthly loss $${Math.abs(monthlyLoss)} plus nominal stop loss $${nominalStopLoss} would reach limit $${profile.monthly_loss_limit_usd}`,
     };
   }
 
