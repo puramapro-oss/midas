@@ -264,7 +264,40 @@ export function level7CheckUserLimits(
     return { passed: true, message: '' };
   }
 
+  // Zero or unavailable limits never mean unlimited permission to trade.
+  const lossLimitInputs = [
+    profile.daily_loss_limit_usd,
+    profile.weekly_loss_limit_usd,
+    profile.monthly_loss_limit_usd,
+    profile.capital_usd,
+    config.max_daily_loss_usd,
+    config.max_daily_loss_pct,
+  ];
+  if (!lossLimitInputs.every((value) => Number.isFinite(value) && value > 0)
+    || config.max_daily_loss_pct > 100) {
+    return { passed: false, message: '[L7 User Limits] Invalid or zero loss limit or capital' };
+  }
+
+  // This only checks the supplied capital and history. It does not obtain
+  // account equity or reserve a loss budget shared with other processes.
+  const dailyLimitUsd = Math.min(
+    profile.daily_loss_limit_usd,
+    config.max_daily_loss_usd,
+    profile.capital_usd * (config.max_daily_loss_pct / 100),
+  );
+  if (!Number.isFinite(dailyLimitUsd) || dailyLimitUsd <= 0) {
+    return { passed: false, message: '[L7 User Limits] Invalid effective daily loss limit' };
+  }
+
   const now = Date.now();
+  if (!Array.isArray(recentTrades) || !recentTrades.every((trade) =>
+    trade !== null && typeof trade === 'object'
+    && Number.isFinite(trade.pnl)
+    && Number.isFinite(trade.closed_at) && trade.closed_at >= 0 && trade.closed_at <= now
+  )) {
+    return { passed: false, message: '[L7 User Limits] Unavailable or invalid loss history' };
+  }
+
   const dayAgo = now - 24 * 60 * 60 * 1000;
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
   const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
@@ -278,21 +311,25 @@ export function level7CheckUserLimits(
   const weeklyLoss = sumLosses(weekAgo);
   const monthlyLoss = sumLosses(monthAgo);
 
-  if (profile.daily_loss_limit_usd > 0 && Math.abs(dailyLoss) >= profile.daily_loss_limit_usd) {
+  // Roundoff in sums such as 0.06 + 0.01 must not reopen a reached limit.
+  const hasReachedLimit = (loss: number, limit: number): boolean =>
+    loss >= limit || limit - loss <= Number.EPSILON * Math.max(loss, limit) * (recentTrades.length + 1);
+
+  if (hasReachedLimit(Math.abs(dailyLoss), dailyLimitUsd)) {
     return {
       passed: false,
-      message: `[L7 User Limits] Daily loss $${Math.abs(dailyLoss).toFixed(2)} reached limit $${profile.daily_loss_limit_usd}`,
+      message: `[L7 User Limits] Daily loss $${Math.abs(dailyLoss).toFixed(2)} reached limit $${dailyLimitUsd}`,
     };
   }
 
-  if (profile.weekly_loss_limit_usd > 0 && Math.abs(weeklyLoss) >= profile.weekly_loss_limit_usd) {
+  if (hasReachedLimit(Math.abs(weeklyLoss), profile.weekly_loss_limit_usd)) {
     return {
       passed: false,
       message: `[L7 User Limits] Weekly loss $${Math.abs(weeklyLoss).toFixed(2)} reached limit $${profile.weekly_loss_limit_usd}`,
     };
   }
 
-  if (profile.monthly_loss_limit_usd > 0 && Math.abs(monthlyLoss) >= profile.monthly_loss_limit_usd) {
+  if (hasReachedLimit(Math.abs(monthlyLoss), profile.monthly_loss_limit_usd)) {
     return {
       passed: false,
       message: `[L7 User Limits] Monthly loss $${Math.abs(monthlyLoss).toFixed(2)} reached limit $${profile.monthly_loss_limit_usd}`,
