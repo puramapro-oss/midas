@@ -3,7 +3,8 @@
   "git": {
     "deploymentEnabled": {
       "audit/l7-global-daily-loss-20261109": false,
-      "repair/midas-execution-contract-20261109": false
+      "repair/midas-execution-contract-20261109": false,
+      "audit/midas-ovh-contracts-priority": false
     }
   },
   "functions": {
