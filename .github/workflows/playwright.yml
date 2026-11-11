@@ -2,8 +2,8 @@ name: Playwright Tests
 on:
   push:
     branches: [main]
+  # Stacked pull requests must also receive the browser qualification.
   pull_request:
-    branches: [main, audit/l7-global-daily-loss-20261109]
 permissions:
   contents: read
 jobs:

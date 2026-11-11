@@ -2,8 +2,8 @@ name: MIDAS Core Verification
 on:
   push:
     branches: [main]
+  # Stacked pull requests target audit/repair branches as well as main.
   pull_request:
-    branches: [main, audit/l7-global-daily-loss-20261109, repair/midas-execution-contract-20261109]
 permissions:
   contents: read
 jobs:
@@ -26,6 +26,30 @@ jobs:
           scripts/qualify-ovh.test.mjs
           tests/shared-account-risk/adapter.test.mjs
       - run: node scripts/check-niyama-decisions.mjs
+  shared-account-risk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - name: Install the locked private PostgreSQL test runtime
+        run: npm ci --prefix tests/shared-account-risk/runtime --ignore-scripts --no-audit --no-fund
+      - name: Restore the locked PostgreSQL package's local library links
+        run: node tests/shared-account-risk/runtime/node_modules/@embedded-postgres/linux-x64/scripts/hydrate-symlinks.js
+      - name: Exercise the complete shared-account contract on a disposable cluster
+        run: npm run test:shared-risk:postgres
+      - name: Preserve native contract and cleanup evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: shared-account-risk-native
+          path: test-results/shared-account-risk/
+          if-no-files-found: error
+          retention-days: 7
   paper-transactions:
     runs-on: ubuntu-latest
     timeout-minutes: 5

@@ -12,7 +12,10 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "test:all": "npm run test:unit && npm run test:paper && npm run test:dependency-security && npm run test:development-dependency-security && node scripts/check-niyama-decisions.mjs && npm run build && npm run test:e2e",
+    "test:all": "npm run test:unit && npm run test:paper && npm run test:shared-risk && npm run test:dependency-security && npm run test:development-dependency-security && node scripts/check-niyama-decisions.mjs && npm run build && npm run test:e2e",
+    "test:shared-risk": "npm run test:shared-risk:adapter && npm run test:shared-risk:postgres",
+    "test:shared-risk:adapter": "node --experimental-strip-types --test tests/shared-account-risk/adapter.test.mjs",
+    "test:shared-risk:postgres": "node --experimental-strip-types tests/shared-account-risk/run-native.mjs",
     "test:dependency-security": "node --experimental-strip-types --test scripts/test-dependency-security-20261109.mjs",
     "test:development-dependency-security": "node --test scripts/test-development-dependency-security-20261109.mjs"
   },
