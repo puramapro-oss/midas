@@ -97,6 +97,74 @@ test('external fetch cannot invoke the underlying transport', async () => {
     assert.throws(() => createFetchTransport(fetch, journal, 'https://example.invalid'), /loopback/);
   });
 });
+test('exact Next metadata fixture is unavailable without calling any network transport', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'midas-next-metadata-'));
+  const journal = path.join(directory, 'requests.jsonl');
+  writeFileSync(journal, '');
+  let calls = 0;
+  const transport = createFetchTransport(() => { calls++; throw new Error('Must not call any transport'); }, journal);
+  const url = 'https://registry.npmjs.org/-/package/next/dist-tags';
+  try {
+    for (const input of [url, new URL(url), new Request(url)]) {
+      const response = await transport(input);
+      assert.equal(response.status, 503);
+      assert.equal(response.ok, false);
+      assert.equal(response.headers.get('cache-control'), 'no-store');
+      assert.equal(await response.text(), '');
+    }
+    assert.equal(calls, 0);
+    const events = readFileSync(journal, 'utf8').trim().split('\n').map(JSON.parse);
+    assert.equal(events.length, 3);
+    assert(events.every(event => event.type === 'fixture'
+      && event.contract === 'next-dev-version-metadata-unavailable' && event.status === 503));
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+test('Next metadata fixture refuses method, body, query, path and origin variants', async () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'midas-next-metadata-negative-'));
+  const journal = path.join(directory, 'requests.jsonl');
+  writeFileSync(journal, '');
+  let calls = 0;
+  const transport = createFetchTransport(() => { calls++; throw new Error('Must not call any transport'); }, journal);
+  const url = 'https://registry.npmjs.org/-/package/next/dist-tags';
+  const variants = [
+    [url, { method: 'POST' }], [url, { method: 'HEAD' }],
+    [url, { body: 'unexpected-body' }],
+    [url + '?extra=true'], [url + '#fragment'], [url + '/'],
+    [url.replace('/next/', '/react/')], [url.replace('https:', 'http:')],
+    [url.replace('registry.npmjs.org', 'registry.npmjs.org.example.invalid')],
+    [url.replace('registry.npmjs.org', 'fixture-user@registry.npmjs.org')],
+    [new Request(url, { method: 'POST' })],
+    [new Request(url), { method: 'POST' }],
+  ];
+  try {
+    for (const [input, init] of variants) await assert.rejects(transport(input, init), /External request refused/);
+    assert.equal(calls, 0);
+    const events = readFileSync(journal, 'utf8').trim().split('\n').map(JSON.parse);
+    assert.equal(events.length, variants.length);
+    assert(events.every(event => event.type === 'unexpected-external-fetch'));
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+test('locked Next consumer reports unknown version when offline metadata is unavailable', async () => {
+  const lock = JSON.parse(readFileSync(path.join(root, 'package-lock.json'), 'utf8'));
+  const installed = require('next/package.json').version;
+  assert.equal(installed, lock.packages['node_modules/next'].version);
+  const { getVersionInfo } = require('next/dist/server/dev/hot-reloader-shared-utils');
+  const directory = mkdtempSync(path.join(tmpdir(), 'midas-next-version-consumer-'));
+  const journal = path.join(directory, 'requests.jsonl');
+  writeFileSync(journal, '');
+  const saved = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = createFetchTransport(() => { calls++; throw new Error('Must not call any transport'); }, journal);
+  try {
+    assert.deepEqual(await getVersionInfo(), { installed, staleness: 'unknown' });
+    assert.equal(calls, 0);
+    const events = readFileSync(journal, 'utf8').trim().split('\n').map(JSON.parse);
+    assert.equal(events.length, 1);
+    assert.equal(events[0].type, 'fixture');
+    assert.equal(events[0].contract, 'next-dev-version-metadata-unavailable');
+    assert.equal(events[0].status, 503);
+  } finally { globalThis.fetch = saved; rmSync(directory, { recursive: true, force: true }); }
+});
 test('exact Supabase SDK rejects synthetic password credentials and never creates a session', async () => {
   await withFixture(async ({ origin }) => {
     const { createServerClient } = require('@supabase/ssr');
