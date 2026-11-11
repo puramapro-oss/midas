@@ -87,6 +87,52 @@ jobs:
           test ! -e "$auth_dir" && test ! -L "$auth_dir"
       - name: Run dependency lifecycle scripts without repository credentials
         run: npm rebuild --no-audit --no-fund
+      - name: Lint only the changed image routes and dependency regressions
+        run: >-
+          node node_modules/eslint/bin/eslint.js --max-warnings 0
+          src/app/api/og/route.tsx src/app/api/story/route.tsx
+          e2e/edge-image-api.spec.ts scripts/test-production-dependencies-20261111.mjs
+      - name: Typecheck only the image routes and their API regression
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { randomUUID } = require('node:crypto');
+          const { spawnSync } = require('node:child_process');
+          const assert = require('node:assert/strict');
+          const ts = require('typescript');
+          const root = process.cwd();
+          const files = ['src/app/api/og/route.tsx', 'src/app/api/story/route.tsx', 'e2e/edge-image-api.spec.ts'];
+          if (fs.existsSync('next-env.d.ts')) files.push('next-env.d.ts');
+          const config = path.join(root, `.midas-image-quality-${randomUUID()}.json`);
+          try {
+            fs.writeFileSync(config, JSON.stringify({
+              extends: './tsconfig.json',
+              compilerOptions: { incremental: false, noEmit: true },
+              files,
+              include: [],
+            }), { flag: 'wx', mode: 0o600 });
+            const parsed = ts.getParsedCommandLineOfConfigFile(config, {}, {
+              ...ts.sys,
+              onUnRecoverableConfigFileDiagnostic(error) { throw new Error(ts.flattenDiagnosticMessageText(error.messageText, '\n')); },
+            });
+            assert(parsed && parsed.errors.length === 0, 'The targeted TypeScript configuration must parse.');
+            assert.deepEqual(parsed.fileNames.map(file => path.relative(root, file)).sort(), [...files].sort());
+            assert.equal(parsed.options.strict, true);
+            assert.equal(parsed.options.skipLibCheck, true); // Unchanged canonical setting.
+            const checked = spawnSync(process.execPath, ['node_modules/typescript/bin/tsc', '--project', config, '--pretty', 'false'], {
+              stdio: 'inherit', timeout: 60000,
+            });
+            if (checked.error) throw checked.error;
+            assert.equal(checked.signal, null);
+            process.exitCode = checked.status === 0 ? 0 : 1;
+          } finally {
+            fs.rmSync(config, { force: true });
+            assert.equal(fs.existsSync(config), false, 'The owned temporary TypeScript config must be removed.');
+          }
+          NODE
+      - name: Verify corrected dependency behavior with loopback-only transports
+        run: node --test scripts/test-production-dependencies-20261111.mjs
       - name: Verify isolated HTTP and rejection contracts
         run: node --test scripts/e2e/isolation.test.mjs
       - name: Prepare exact public font assets before network isolation
