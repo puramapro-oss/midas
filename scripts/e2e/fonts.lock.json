@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "nextVersion": "16.4.5",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36",
+  "css": [
+    {
+      "family": "Orbitron",
+      "url": "https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap",
+      "bytes": 2472,
+      "sha256": "616639cdf6e0c000e1d516299ba425006fa65b4cc6c63ff962b818398f552e6c",
+      "fontFaceRules": 6,
+      "file": "orbitron.css"
+    },
+    {
+      "family": "DM Sans",
+      "url": "https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap",
+      "bytes": 4405,
+      "sha256": "74b26f8793925511f92dbbb10cf497232a6926dff89127fe762265c06942c3fc",
+      "fontFaceRules": 10,
+      "file": "dm-sans.css"
+    },
+    {
+      "family": "JetBrains Mono",
+      "url": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap",
+      "bytes": 10084,
+      "sha256": "f3f8ffc3da0c57d592710e12776a286f0fd55b70cbd506f1d7af4d7d317a4c8a",
+      "fontFaceRules": 24,
+      "file": "jetbrains-mono.css"
+    }
+  ],
+  "fonts": [
+    {
+      "family": "Orbitron",
+      "url": "https://fonts.gstatic.com/s/orbitron/v35/yMJRMIlzdpvBhQQL_Qq7dy1biN15.woff2",
+      "bytes": 11768,
+      "sha256": "967b3909a7d6a5cc6365e9947775060fca15efdb62bc70099aef2e7d86e10205"
+    },
+    {
+      "family": "DM Sans",
+      "url": "https://fonts.gstatic.com/s/dmsans/v17/rP2Yp2ywxg089UriI5-g4vlH9VoD8Cmcqbu6-K6z9mXgjU0.woff2",
+      "bytes": 18192,
+      "sha256": "219b02c7d8884817d3d6ad4c8771f2c000ce4c5669a67ef4e2e5617ffa25c4cc"
+    },
+    {
+      "family": "DM Sans",
+      "url": "https://fonts.gstatic.com/s/dmsans/v17/rP2Yp2ywxg089UriI5-g4vlH9VoD8Cmcqbu0-K6z9mXg.woff2",
+      "bytes": 36980,
+      "sha256": "468d56b6b25b05b70190b6c233d773f6f1770e8579827ce022a57f03fa8002fb"
+    },
+    {
+      "family": "JetBrains Mono",
+      "url": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2",
+      "bytes": 1664,
+      "sha256": "9343de2ca5d9549f792e7962375af8efb0f320c7643bfd36c884b5a30e5c396f"
+    },
+    {
+      "family": "JetBrains Mono",
+      "url": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2",
+      "bytes": 11596,
+      "sha256": "9c38cb2d0d2d93c1ee6e21fa78db76f13ea7e15e15cc64214c7ca89b6aaa35c4"
+    },
+    {
+      "family": "JetBrains Mono",
+      "url": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2",
+      "bytes": 31340,
+      "sha256": "2c32b9b3ee358c119e210f6f5195f9bd34894d78a785ff2e95d60e718e400af4"
+    },
+    {
+      "family": "JetBrains Mono",
+      "url": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2",
+      "bytes": 6800,
+      "sha256": "49c3da6c9a2b279b0f1f860f5cfb1f5dc38d88a5c7be9c9b1837bbc4e3db6111"
+    },
+    {
+      "family": "JetBrains Mono",
+      "url": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2",
+      "bytes": 8892,
+      "sha256": "4995a9a43ac659ec32fcd8b463755cd6a07b31a6e6b3894a6a153b661cf490e2"
+    },
+    {
+      "family": "JetBrains Mono",
+      "url": "https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2",
+      "bytes": 5872,
+      "sha256": "d44eb1936043a56038eb02dd70b243f379bef65783f94ec12f277550720411f1"
+    }
+  ]
+}
