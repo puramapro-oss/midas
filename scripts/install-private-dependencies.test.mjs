@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { mkdir, mkdtemp, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { installationEnvironment, installFromLock, sshInstallationEnvironment } from './install-private-dependencies.mjs';
+import { pathToFileURL } from 'node:url';
+import { installationEnvironment, installFromLock, retrieveSharedPackages, sshInstallationEnvironment } from './install-private-dependencies.mjs';
 
 function effectiveSshSettings(env) {
   // -G only evaluates local SSH configuration. No connection or key generation.
@@ -154,4 +155,120 @@ test('SSH invalid inputs and ambiguous transports fail before npm without exposi
     assert.throws(() => sshInstallationEnvironment({}, file, '/tmp/known_hosts'), /absolute temporary SSH file path/);
   }
   assert.equal(calls, 0);
+});
+
+async function sharedSourceFixture(t, { symbolicLink = false, extraFile = false } = {}) {
+  const root = await mkdtemp(path.join(tmpdir(), 'midas-shared-git-test-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const repository = path.join(root, 'origin');
+  await mkdir(repository);
+  const env = { PATH: process.env.PATH, HOME: root, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' };
+  const git = args => {
+    const result = spawnSync('git', args, { cwd: repository, env, encoding: 'utf8', timeout: 10000 });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  git(['init', '-q']);
+  git(['config', 'uploadpack.allowFilter', 'true']);
+  git(['config', 'uploadpack.allowAnySHA1InWant', 'true']);
+  const files = [];
+  for (const name of ['purama-antifraud', 'purama-entraide', 'purama-retention', 'eslint-config-purama']) {
+    await mkdir(path.join(repository, 'packages', name), { recursive: true });
+    for (let index = 0; index < 6; index++) {
+      const relative = `packages/${name}/${index === 0 ? 'package.json' : `fixture-${index}.txt`}`;
+      const bytes = Buffer.from(index === 0 ? JSON.stringify({ name, private: true }) : `synthetic ${name} ${index}\n`);
+      writeFileSync(path.join(repository, relative), bytes);
+      files.push({ path: relative, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
+    }
+  }
+  if (symbolicLink) {
+    const target = path.join(repository, files[1].path);
+    await rm(target);
+    await symlink('/unrelated/source', target);
+  }
+  if (extraFile) writeFileSync(path.join(repository, 'packages/purama-antifraud/unlisted.txt'), 'synthetic unlisted content');
+  git(['add', 'packages']);
+  // The pinned private repository has this structural defect at its root.
+  // This fixture contains no private source and never initializes a submodule.
+  git(['update-index', '--add', '--cacheinfo', `160000,${'a'.repeat(40)},adya`]);
+  git(['-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'Synthetic shared source']);
+  const manifest = { schemaVersion: 1, repository: 'puramapro-oss/purama-master', commit: git(['rev-parse', 'HEAD']), files };
+  const observed = { commands: [], identities: new Set() };
+  const run = (command, args, options) => {
+    assert.equal(command, 'git');
+    assert.equal(options.shell, false);
+    assert.equal(options.env.PURAMA_PACKAGES_READ_SSH_KEY, undefined);
+    assert.equal(options.env.SMARANA_READ_SSH_KEY, undefined);
+    observed.commands.push(args);
+    observed.identities.add(path.dirname(effectiveSshSettings(options.env).get('identityfile')));
+    // Exercise real Git fetching, partial-clone blob reads and tree parsing,
+    // replacing only network transport with this local upload-pack fixture.
+    const localEnv = { ...options.env, GIT_ALLOW_PROTOCOL: 'file', GIT_CONFIG_COUNT: '2',
+      GIT_CONFIG_KEY_1: `url.${pathToFileURL(repository).href}.insteadOf`,
+      GIT_CONFIG_VALUE_1: 'ssh://git@github.com/puramapro-oss/purama-master.git' };
+    return spawnSync(command, args, { ...options, env: localEnv });
+  };
+  return { root, repository, env, manifest, run, observed, sourceRoot: path.join(root, 'source') };
+}
+
+function assertSharedCleanup(fixture) {
+  for (const directory of fixture.observed.identities) assert.equal(existsSync(directory), false);
+  assert.equal(readdirSync(fixture.root).some(name => name.startsWith('.midas-source-')), false);
+}
+
+test('real Git reproduces the root gitlink cleanup failure and retrieves exactly 24 verified blobs without checkout', async t => {
+  const fixture = await sharedSourceFixture(t);
+  const before = spawnSync('git', ['submodule', 'foreach', '--recursive', 'true'], { cwd: fixture.repository, env: fixture.env, encoding: 'utf8' });
+  assert.equal(before.status, 128);
+  assert.match(before.stderr, /No url found for submodule path 'adya' in .gitmodules/);
+  const result = retrieveSharedPackages({ ...fixture, sshKey: 'synthetic-nonfunctional-key' });
+  assert.deepEqual(result, { sourceCommit: fixture.manifest.commit, verifiedFiles: 24, temporaryAuthenticationAbsent: true });
+  assert.deepEqual(readdirSync(fixture.sourceRoot), ['packages']);
+  for (const file of fixture.manifest.files) {
+    const content = readFileSync(path.join(fixture.sourceRoot, file.path));
+    assert.equal(content.length, file.bytes);
+    assert.equal(createHash('sha256').update(content).digest('hex'), file.sha256);
+  }
+  assert.equal(fixture.observed.commands.some(args => args.includes('checkout') || args.includes('submodule')), false);
+  assertSharedCleanup(fixture);
+});
+
+for (const [scenario, options, expected] of [
+  ['wrong digest', {}, /digest mismatch/],
+  ['symlink in an admitted package', { symbolicLink: true }, /unsupported or duplicate tree entry/],
+  ['unlisted package file', { extraFile: true }, /missing or unlisted files/],
+]) {
+  test(`real Git source acquisition rejects ${scenario} and removes owned staging/authentication`, async t => {
+    const fixture = await sharedSourceFixture(t, options);
+    if (scenario === 'wrong digest') fixture.manifest.files[0].sha256 = '0'.repeat(64);
+    assert.throws(() => retrieveSharedPackages({ ...fixture, sshKey: 'synthetic-nonfunctional-key' }), expected);
+    assert.equal(existsSync(fixture.sourceRoot), false);
+    assertSharedCleanup(fixture);
+  });
+}
+
+for (const command of ['fetch', 'cat-file']) {
+  test(`source ${command} failure cannot publish partial files or retain authentication`, async t => {
+    const fixture = await sharedSourceFixture(t);
+    const run = (program, args, options) => {
+      if (args.includes(command)) return { status: 128, stderr: Buffer.from('synthetic diagnostic must not be propagated') };
+      return fixture.run(program, args, options);
+    };
+    assert.throws(() => retrieveSharedPackages({ ...fixture, run, sshKey: 'synthetic-nonfunctional-key' }), /^Error: Shared source Git acquisition failed\.$/);
+    assert.equal(existsSync(fixture.sourceRoot), false);
+    assertSharedCleanup(fixture);
+  });
+}
+
+test('new source acquisition preserves an existing target and rejects out-of-scope paths before Git', async t => {
+  const fixture = await sharedSourceFixture(t);
+  await mkdir(fixture.sourceRoot);
+  writeFileSync(path.join(fixture.sourceRoot, 'keep.txt'), 'preserved');
+  assert.throws(() => retrieveSharedPackages({ ...fixture, sshKey: 'synthetic-nonfunctional-key' }), /must be new/);
+  assert.equal(readFileSync(path.join(fixture.sourceRoot, 'keep.txt'), 'utf8'), 'preserved');
+  for (const unsafePath of ['packages/purama-antifraud/../escape', 'packages/other/file', '/tmp/escape']) {
+    const manifest = { ...fixture.manifest, files: [{ ...fixture.manifest.files[0], path: unsafePath }, ...fixture.manifest.files.slice(1)] };
+    assert.throws(() => retrieveSharedPackages({ ...fixture, manifest, sshKey: 'synthetic-nonfunctional-key' }), /Invalid or duplicate/);
+  }
+  assert.equal(fixture.observed.commands.length, 0);
 });

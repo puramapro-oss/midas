@@ -35,22 +35,30 @@ registered with `read_only: true`:
 - `SMARANA_READ_SSH_KEY`: a separate private-key Actions secret in MIDAS; its
   public key belongs only to `puramapro-oss/purama-smarana`.
 
-Deploy keys grant read access to the entire corresponding repository. Sparse
-checkout and the manifest reduce the files retrieved and admitted, but do not
+Deploy keys grant read access to the entire corresponding repository. Partial
+Git fetch and the manifest reduce the files retrieved and admitted, but do not
 restrict the key to those directories or to one commit. These keys do not grant
 GitHub API access and have no built-in expiration; record their repository key
 IDs and rotate or revoke them when this access is no longer needed. Never use a
 personal SSH key or the administrator's GitHub token as either CI secret.
 
-The pinned checkout action retrieves master with strict SSH host checking and
-`persist-credentials: false`; its source removes authentication in `finally`
-and in the post-job hook. Since that action can warn instead of failing on a
-cleanup error, the workflow snapshots only temporary-file metadata before the
-private checkout. Immediately afterwards, a bounded guard rejects newly
-created or changed UUID identity/known-hosts files and persistent Git
-authentication configuration. It reads configuration names, never values,
-does not read or delete residual key files, and blocks subsequent steps on
-failure. Hosted verification must still review checkout cleanup warnings.
+The historical master revision has root Git submodule entries without a
+`.gitmodules` file. The private acquisition therefore uses a temporary bare Git
+repository instead of a checkout or submodule traversal. It fetches the exact
+commit with `blob:none`, checks the names and regular-file modes of the four
+package trees against the complete manifest, and reads only those blobs. Each
+blob must match its recorded length and SHA-256 digest before a complete source
+directory is published. Missing, extra, symbolic-link or Git submodule entries
+within those package trees fail closed. The source tree and lock are unchanged.
+
+Each master acquisition has a 180-second command budget, a 90-second maximum
+per Git command, at most 128 files and at most 4 MiB of manifest content. The
+Git repository, identity and pinned known-hosts file are all in one owned
+0700 temporary directory, removed and checked in `finally`. A separate
+`always()` workflow step removes the acquisition's owned outer directory,
+verifies its absence even after a failed acquisition, and rejects persistent
+authentication configuration in the MIDAS checkout by reading config names
+only. A cleanup failure keeps the job failed and blocks later install steps.
 The SMARANA package keeps its existing locked SSH URL
 and commit. Each acquisition receives only its own key; no shared SSH agent or
 global Git/SSH configuration is installed.
@@ -79,9 +87,8 @@ bootstrap and SQL checks do not require those private credentials. Do not switch
 to `pull_request_target` to give untrusted pull request code access to secrets.
 
 The offline bootstrap and credential/temporary-file contracts can be checked
-without real credentials. Access through newly configured deploy keys and a
-full hosted workflow remain **NON TESTÉ** until a successful authorized run is
-available. A successful local test does not establish that hosted access.
+without real credentials. A successful offline test does not establish private hosted access or a full
+browser qualification; those require an authorized run of the exact revision.
 
 ## Local use
 

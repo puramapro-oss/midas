@@ -1,8 +1,10 @@
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { chmodSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { validateManifest } from './bootstrap-shared-packages.mjs';
 
 const repository = 'https://github.com/puramapro-oss/purama-smarana.git';
 // GitHub's published Ed25519 host key, verified on 2026-11-11:
@@ -94,7 +96,100 @@ export function installFromLock({ token, sshKey, env = process.env, run = spawnS
   }
 }
 
+const statIfPresent = file => {
+  try { return lstatSync(file); } catch (error) { if (error.code === 'ENOENT') return null; throw error; }
+};
+
+/** Read only manifest-listed blobs; historical root gitlinks are never checked out. */
+export function retrieveSharedPackages({ sshKey, sourceRoot, manifest, env = process.env, run = spawnSync }) {
+  validateManifest(manifest);
+  if (manifest.files.length > 128 || manifest.files.reduce((sum, file) => sum + file.bytes, 0) > 4 * 1024 * 1024) {
+    throw new Error('Shared source manifest exceeds the acquisition bound.');
+  }
+  if (typeof sshKey !== 'string' || !sshKey.trim() || sshKey.includes('\0') || sshKey.length > 32768) {
+    throw new Error('PURAMA_PACKAGES_READ_SSH_KEY with read-only access is required.');
+  }
+  if (typeof sourceRoot !== 'string' || !path.isAbsolute(sourceRoot)) throw new Error('An absolute new source directory is required.');
+  sourceRoot = path.resolve(sourceRoot);
+  const parent = path.dirname(sourceRoot);
+  if (realpathSync(parent) !== parent || statIfPresent(sourceRoot)) throw new Error('Shared source destination must be new in a controlled plain directory.');
+  const parentIdentity = lstatSync(parent);
+  const staging = mkdtempSync(path.join(parent, '.midas-source-'));
+  let directory;
+  let promoted = false;
+  try {
+    directory = mkdtempSync(path.join(tmpdir(), 'midas-master-ssh-'));
+    chmodSync(directory, 0o700);
+    const keyFile = path.join(directory, 'identity');
+    const knownHostsFile = path.join(directory, 'known_hosts');
+    writeFileSync(keyFile, `${sshKey.trim()}\n`, { mode: 0o600, flag: 'wx' });
+    writeFileSync(knownHostsFile, githubKnownHosts, { mode: 0o600, flag: 'wx' });
+    const gitEnvironment = sshInstallationEnvironment(env, keyFile, knownHostsFile);
+    const gitDirectory = path.join(directory, 'repository.git');
+    mkdirSync(gitDirectory, { mode: 0o700 });
+    const deadline = Date.now() + 180000;
+    const git = (args, maximumBytes = 1024 * 1024) => {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw new Error('Shared source acquisition exceeded its time bound.');
+      const result = run('git', args, { cwd: gitDirectory, env: gitEnvironment, shell: false,
+        stdio: ['ignore', 'pipe', 'pipe'], timeout: Math.min(90000, remaining), maxBuffer: maximumBytes });
+      // Do not relay Git diagnostics that could include local credential paths.
+      if (result.error || result.status !== 0) throw new Error('Shared source Git acquisition failed.');
+      return Buffer.from(result.stdout ?? '');
+    };
+    git(['init', '--bare', '--template=', '--initial-branch=main']);
+    git(['remote', 'add', 'origin', 'ssh://git@github.com/puramapro-oss/purama-master.git']);
+    git(['config', '--local', 'remote.origin.promisor', 'true']);
+    git(['config', '--local', 'remote.origin.partialclonefilter', 'blob:none']);
+    git(['-c', 'protocol.version=2', 'fetch', '--no-tags', '--no-recurse-submodules', '--depth=1', '--filter=blob:none', 'origin', manifest.commit]);
+    if (git(['rev-parse', 'FETCH_HEAD']).toString('utf8').trim() !== manifest.commit) throw new Error('Shared source revision mismatch.');
+    const packagePaths = [...new Set(manifest.files.map(file => file.path.split('/').slice(0, 2).join('/')))];
+    const entries = git(['ls-tree', '-r', '-z', '--full-tree', manifest.commit, '--', ...packagePaths])
+      .toString('utf8').split('\0').filter(Boolean);
+    const objects = new Map();
+    for (const entry of entries) {
+      const match = /^(100644|100755) blob ([a-f0-9]{40})\t(.+)$/.exec(entry);
+      if (!match || objects.has(match[3])) throw new Error('Shared source contains an unsupported or duplicate tree entry.');
+      objects.set(match[3], match[2]);
+    }
+    if (objects.size !== manifest.files.length || manifest.files.some(file => !objects.has(file.path))) {
+      throw new Error('Shared source contains missing or unlisted files.');
+    }
+    for (const file of manifest.files) {
+      const bytes = git(['cat-file', 'blob', objects.get(file.path)], Math.max(file.bytes + 1, 65536));
+      if (bytes.length !== file.bytes || createHash('sha256').update(bytes).digest('hex') !== file.sha256) {
+        throw new Error('Shared source digest mismatch.');
+      }
+      const output = path.join(staging, file.path);
+      mkdirSync(path.dirname(output), { recursive: true, mode: 0o700 });
+      writeFileSync(output, bytes, { mode: 0o644, flag: 'wx' });
+    }
+    const currentParent = lstatSync(parent);
+    if (realpathSync(parent) !== parent || currentParent.dev !== parentIdentity.dev || currentParent.ino !== parentIdentity.ino
+        || statIfPresent(sourceRoot)) throw new Error('Shared source destination changed during acquisition.');
+    renameSync(staging, sourceRoot);
+    promoted = true;
+  } finally {
+    try {
+      if (!promoted) rmSync(staging, { recursive: true, force: true });
+    } finally {
+      if (directory) {
+        rmSync(directory, { recursive: true, force: true });
+        if (statIfPresent(directory)) throw new Error('Temporary shared source authentication remains.');
+      }
+    }
+  }
+  return { sourceCommit: manifest.commit, verifiedFiles: manifest.files.length, temporaryAuthenticationAbsent: true };
+}
+
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
-  try { installFromLock({ token: process.env.SMARANA_READ_TOKEN, sshKey: process.env.SMARANA_READ_SSH_KEY }); }
+  try {
+    if (process.argv[2] === '--shared-source' && process.argv.length === 4) {
+      const manifest = JSON.parse(readFileSync(new URL('../tooling/shared-packages.lock.json', import.meta.url), 'utf8'));
+      const result = retrieveSharedPackages({ sshKey: process.env.PURAMA_PACKAGES_READ_SSH_KEY, sourceRoot: process.argv[3], manifest });
+      process.stdout.write(`${JSON.stringify(result)}\n`);
+    } else if (process.argv.length === 2) installFromLock({ token: process.env.SMARANA_READ_TOKEN, sshKey: process.env.SMARANA_READ_SSH_KEY });
+    else throw new Error('Usage: node scripts/install-private-dependencies.mjs [--shared-source ABSOLUTE_NEW_SOURCE_DIRECTORY]');
+  }
   catch (error) { process.stderr.write(`${error.message}\n`); process.exitCode = 1; }
 }
