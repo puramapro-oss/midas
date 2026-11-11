@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createRequire } from 'node:module';
+import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fixtures from './fixtures.cjs';
-import { assertIsolatedState, verifyHttpGates } from './run-isolated.mjs';
+import { assertIsolatedState, verifyHttpGates, snapshotChildPids, observeNewOwnedChild, inspectNewOwnedChildren } from './run-isolated.mjs';
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -164,4 +165,35 @@ test('font guard rejects corruption and traversal before any font server starts'
     assert.throws(() => validateFonts(directory, { files: [{ file: hash + '.woff2', sha256: hash, bytes: 7 }] }));
     assert.throws(() => validateFonts(directory, { files: [{ file: '../outside', sha256: hash, bytes: 7 }] }));
   } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+test('owned process observation verifies a real child and refuses ambiguity or a different executable', async () => {
+  let before;
+  try { before = snapshotChildPids(); } catch { before = null; }
+  const children = [];
+  const launch = async () => {
+    const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)', '--', '--no-sandbox', '--synthetic-private-argument=not-for-receipts'],
+      { stdio: 'ignore' });
+    children.push(child);
+    await new Promise((resolve, reject) => { child.once('spawn', resolve); child.once('error', reject); });
+    return child;
+  };
+  try {
+    await launch();
+    const observed = inspectNewOwnedChildren(children.map(child => child.pid), [process.execPath]);
+    assert.deepEqual(observed, { status: 'OBSERVÉ', identityVerified: true, sandboxFlags: ['--no-sandbox'] });
+    assert(!JSON.stringify(observed).includes('not-for-receipts'));
+    if (before) assert.deepEqual(observeNewOwnedChild(before, [process.execPath]), observed);
+    else assert.deepEqual(observeNewOwnedChild([], [process.execPath]), { status: 'NON OBSERVÉ', reason: 'owned_child_snapshot_unavailable' });
+    assert.equal(inspectNewOwnedChildren(children.map(child => child.pid), ['/not-an-allowed-executable']).reason, 'child_executable_not_verified');
+    await launch();
+    assert.equal(inspectNewOwnedChildren(children.map(child => child.pid), [process.execPath]).reason, 'missing_or_ambiguous_new_child');
+  } finally {
+    await Promise.all(children.map(child => new Promise(resolve => {
+      if (child.exitCode !== null || child.signalCode !== null) return resolve();
+      child.once('exit', resolve);
+      child.kill('SIGTERM');
+    })));
+    for (const child of children) assert.throws(() => readFileSync('/proc/' + child.pid + '/status'), { code: 'ENOENT' }, 'Owned probe child must be reaped');
+  }
+  // Node children exercise safe observation only, not actual Chromium sandbox behavior.
 });

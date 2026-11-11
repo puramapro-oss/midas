@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, realpathSync, readlinkSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, realpathSync, readlinkSync, rmSync, openSync, readSync, closeSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { createServer, connect } from 'node:net';
 import { networkInterfaces, tmpdir } from 'node:os';
@@ -139,18 +139,80 @@ async function stopGroup(processInfo) {
   }
   throw new Error('An owned child process group still exists after cleanup');
 }
+function boundedProcFile(filename, maximum) {
+  const descriptor = openSync(filename, 'r');
+  try {
+    const buffer = Buffer.alloc(maximum + 1);
+    const bytes = readSync(descriptor, buffer, 0, buffer.length, null);
+    if (bytes > maximum) throw new Error('proc_observation_limit');
+    return buffer.subarray(0, bytes).toString('utf8');
+  } finally { closeSync(descriptor); }
+}
+export function snapshotChildPids() {
+  const text = boundedProcFile('/proc/self/task/' + process.pid + '/children', 4096).trim();
+  if (text && !/^\d+(?:\s+\d+)*$/.test(text)) throw new Error('invalid_child_snapshot');
+  const pids = text ? text.split(/\s+/).map(Number) : [];
+  if (pids.length > 16) throw new Error('child_observation_limit');
+  return pids;
+}
+export function inspectNewOwnedChildren(children, allowedExecutables) {
+  try {
+    if (children.length !== 1) return { status: 'NON OBSERVÉ', reason: 'missing_or_ambiguous_new_child' };
+    const pid = children[0];
+    if (!Number.isSafeInteger(pid) || pid <= 0) return { status: 'NON OBSERVÉ', reason: 'invalid_child_identity' };
+    const status = boundedProcFile('/proc/' + pid + '/status', 16384);
+    const parent = status.match(/^PPid:\s+(\d+)$/m);
+    const ids = status.match(/^Uid:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)$/m);
+    if (!parent || Number(parent[1]) !== process.pid || !ids || ids.slice(1).some(id => Number(id) !== process.getuid())) {
+      return { status: 'NON OBSERVÉ', reason: 'child_ownership_not_verified' };
+    }
+    if (readlinkSync('/proc/' + pid + '/ns/net') !== readlinkSync('/proc/self/ns/net')) {
+      return { status: 'NON OBSERVÉ', reason: 'child_namespace_not_verified' };
+    }
+    const executable = realpathSync('/proc/' + pid + '/exe');
+    const allowed = allowedExecutables.flatMap(filename => {
+      try { return [realpathSync(filename)]; } catch { return []; }
+    });
+    if (!allowed.includes(executable)) return { status: 'NON OBSERVÉ', reason: 'child_executable_not_verified' };
+    const arguments_ = boundedProcFile('/proc/' + pid + '/cmdline', 65536).split('\0').filter(Boolean);
+    if (!arguments_.length || realpathSync(arguments_[0]) !== executable) {
+      return { status: 'NON OBSERVÉ', reason: 'child_command_identity_not_verified' };
+    }
+    // Never persist arbitrary arguments, environment, PID or another process's data.
+    return { status: 'OBSERVÉ', identityVerified: true,
+      sandboxFlags: arguments_.filter(argument => /^--[^=]*(?:sandbox|seccomp)[^=]*(?:=|$)/.test(argument)).map(argument => argument.split('=')[0]) };
+  } catch {
+    return { status: 'NON OBSERVÉ', reason: 'owned_process_metadata_unavailable' };
+  }
+}
+export function observeNewOwnedChild(before, allowedExecutables) {
+  try { return inspectNewOwnedChildren(snapshotChildPids().filter(pid => !before.includes(pid)), allowedExecutables); }
+  catch { return { status: 'NON OBSERVÉ', reason: 'owned_child_snapshot_unavailable' }; }
+}
 async function fontGate(manifest, env) {
   const { chromium } = require('playwright');
+  let previousChildren;
+  try { previousChildren = snapshotChildPids(); } catch { previousChildren = null; }
   const browser = await chromium.launch({ env });
   try {
-    const protocol = await browser.newBrowserCDPSession();
-    const { arguments: browserArguments } = await protocol.send('Browser.getBrowserCommandLine');
+    let observation = { status: 'NON OBSERVÉ', reason: 'owned_child_snapshot_unavailable' };
+    if (previousChildren) {
+      try {
+        const registry = JSON.parse(readFileSync(path.join(path.dirname(require.resolve('playwright-core/package.json')), 'browsers.json'), 'utf8'));
+        const headless = registry.browsers.find(item => item.name === 'chromium-headless-shell');
+        const allowedExecutables = [chromium.executablePath()];
+        if (process.platform === 'linux' && process.arch === 'x64' && /^\d+$/.test(headless?.revision ?? '')) {
+          allowedExecutables.push(path.join(env.PLAYWRIGHT_BROWSERS_PATH, 'chromium_headless_shell-' + headless.revision,
+            'chrome-headless-shell-linux64/chrome-headless-shell'));
+        }
+        observation = observeNewOwnedChild(previousChildren, allowedExecutables);
+      } catch { observation = { status: 'NON OBSERVÉ', reason: 'registered_executable_metadata_unavailable' }; }
+    }
     const browserPolicy = {
       version: browser.version(), chromiumSandboxOption: 'unchanged; not overridden from the original Playwright defaults',
-      sandboxFlags: browserArguments.filter(argument => /sandbox|seccomp/.test(argument)),
+      observation,
       internalBrowserSandboxQualification: 'Not inferred from network namespace or UID checks',
     };
-    await protocol.detach();
     const page = await browser.newPage();
     const externalRequests = [];
     const fontErrors = [];
