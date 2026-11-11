@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, audit/l7-global-daily-loss-20261109]
+    branches: [main, audit/l7-global-daily-loss-20261109, repair/midas-execution-contract-20261109]
 permissions:
   contents: read
 jobs:
@@ -19,6 +19,12 @@ jobs:
       # the independent core checks. The Playwright job remains mandatory work.
       - run: node --test scripts/bootstrap-shared-packages.test.mjs scripts/install-private-dependencies.test.mjs
       - run: npm run test:unit
+      - name: Verify status, deployment evidence and shared-risk contracts without providers
+        run: >-
+          node --experimental-vm-modules --experimental-strip-types --test
+          scripts/status-contract.test.mjs
+          scripts/qualify-ovh.test.mjs
+          tests/shared-account-risk/adapter.test.mjs
       - run: node scripts/check-niyama-decisions.mjs
   paper-transactions:
     runs-on: ubuntu-latest
