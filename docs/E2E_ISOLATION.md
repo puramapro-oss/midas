@@ -76,6 +76,13 @@ et rend la qualification négative.
   doit rester une erreur 502, jamais des prix valides.
 - Binance : GET api/v3/ping sans query, réponse synthétique vide. La vraie route
   MIDAS construit son propre statut. Ce endpoint n'est pas la garde de readiness.
+- Métadonnées Next : seul le GET sans corps vers l'URL exacte
+  `https://registry.npmjs.org/-/package/next/dist-tags` reçoit localement un
+  HTTP 503 vide avec `Cache-Control: no-store`, sans appel réseau ni délégation
+  à `originalFetch`. Next 16.4.5 conserve sa version installée et l'état
+  `staleness: 'unknown'`. Le journal enregistre `type: 'fixture'` et le contrat
+  `next-dev-version-metadata-unavailable`. Ce refus synthétique de métadonnées
+  ne constitue pas une réponse 5xx de l'application.
 - Supabase password : POST token?grant_type=password refuse les identifiants avec
   HTTP 400 invalid_credentials ; aucun token, utilisateur ou session n'est créé.
 - OAuth : la demande Google retourne un refus local 403, sans Location externe.
@@ -88,9 +95,11 @@ et rend la qualification négative.
   ni faux limiteur n'est ajouté pour le masquer.
 
 Le transport fetch de test redirige uniquement les deux GET publics connus et
-préserve les métadonnées Request. Il refuse et journalise tout autre fetch
-externe. Le namespace ferme aussi les autres transports du serveur et du
-navigateur. Après readiness, toute erreur du proxy ou réponse applicative 5xx
+préserve les métadonnées Request. Le contrat Next ci-dessus est traité localement,
+sans redirection ni transport. Toute autre requête externe, y compris une variante
+non prévue de ce contrat, est refusée et journalisée `unexpected-external-fetch`.
+Le namespace ferme aussi les autres transports du serveur et du navigateur.
+Après readiness, toute erreur du proxy ou réponse applicative 5xx
 rend le bilan négatif, même si une ancienne assertion l'accepte.
 
 ## Fontes, provenance et licence
