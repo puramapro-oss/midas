@@ -87,6 +87,8 @@ jobs:
           test ! -e "$auth_dir" && test ! -L "$auth_dir"
       - name: Run dependency lifecycle scripts without repository credentials
         run: npm rebuild --no-audit --no-fund
+      - name: Verify corrected dependency behavior with loopback-only transports
+        run: node --test scripts/test-production-dependencies-20261111.mjs
       - name: Verify isolated HTTP and rejection contracts
         run: node --test scripts/e2e/isolation.test.mjs
       - name: Prepare exact public font assets before network isolation

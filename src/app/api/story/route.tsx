@@ -1,4 +1,4 @@
-import { ImageResponse } from '@vercel/og';
+import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
@@ -138,7 +138,7 @@ export async function GET(request: NextRequest) {
             marginTop: 60,
           }}
         >
-          @{username}
+          {`@${username}`}
         </div>
 
         {/* Glass card stats */}
@@ -177,7 +177,7 @@ export async function GET(request: NextRequest) {
               color: 'rgba(245,158,11,0.6)',
             }}
           >
-            midas.purama.dev/go/{ref}
+            {`midas.purama.dev/go/${ref}`}
           </div>
         )}
 
@@ -194,6 +194,14 @@ export async function GET(request: NextRequest) {
         </div>
       </div>
     ),
-    { width: 1080, height: 1920 }
+    {
+      width: 1080,
+      height: 1920,
+      headers: {
+        'cache-control': process.env.NODE_ENV === 'development'
+          ? 'no-cache, no-store'
+          : 'public, immutable, no-transform, max-age=31536000',
+      },
+    }
   );
 }
