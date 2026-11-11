@@ -1,10 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { installationEnvironment, installFromLock } from './install-private-dependencies.mjs';
+import { installationEnvironment, installFromLock, sshInstallationEnvironment } from './install-private-dependencies.mjs';
+
+function effectiveSshSettings(env) {
+  // -G only evaluates local SSH configuration. No connection or key generation.
+  const result = spawnSync('/bin/sh', ['-c', `${env.GIT_SSH_COMMAND} -G git@github.com`], { env, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  return new Map(result.stdout.trim().split('\n').map(line => {
+    const split = line.indexOf(' ');
+    return [line.slice(0, split), line.slice(split + 1)];
+  }));
+}
 
 test('real Git scopes the synthetic authorization header to the exact SMARANA repository only', async t => {
   const cwd = await mkdtemp(path.join(tmpdir(), 'midas-git-scope-'));
@@ -42,4 +54,104 @@ test('locked npm installation has no lifecycle execution, audit transmission, sh
 test('missing/invalid credentials or unsuccessful installation fail without leaking the input', () => {
   for (const token of ['', undefined, 'bad\nvalue']) assert.throws(() => installationEnvironment({}, token), /read-only access is required/);
   assert.throws(() => installFromLock({ token: 'synthetic-test-token', run: () => ({ status: 128 }) }), /verify private read access/);
+});
+
+test('SSH installation uses a single temporary identity, verified host key and no inherited credentials', () => {
+  const sshKey = 'synthetic-nonfunctional-test-key';
+  const original = {
+    PATH: process.env.PATH, SMARANA_READ_SSH_KEY: sshKey,
+    PURAMA_PACKAGES_READ_SSH_KEY: 'unrelated-key', SMARANA_READ_TOKEN: 'unused-token',
+    PURAMA_PACKAGES_READ_TOKEN: 'unused-packages-token', GH_TOKEN: 'unused-admin', GITHUB_TOKEN: 'unused-actions',
+    SSH_AUTH_SOCK: '/untrusted/agent', SSH_ASKPASS: '/untrusted/askpass',
+    GIT_TRACE: '1', GIT_CONFIG_VALUE_99: 'untrusted', GIT_SSH_COMMAND: 'untrusted-ssh',
+  };
+  const before = { ...original };
+  let directory;
+  let calls = 0;
+  installFromLock({ sshKey, env: original, run: (command, args, options) => {
+    calls++;
+    assert.equal(command, 'npm');
+    assert.deepEqual(args, ['ci', '--ignore-scripts', '--no-audit', '--no-fund']);
+    assert.equal(options.shell, false);
+    const settings = effectiveSshSettings(options.env);
+    const keyFile = settings.get('identityfile');
+    const knownHostsFile = settings.get('userknownhostsfile');
+    directory = path.dirname(keyFile);
+    assert.equal(statSync(directory).mode & 0o777, 0o700);
+    assert.equal(statSync(keyFile).mode & 0o777, 0o600);
+    assert.equal(statSync(knownHostsFile).mode & 0o777, 0o600);
+    assert.equal(readFileSync(keyFile, 'utf8'), `${sshKey}\n`);
+    const host = readFileSync(knownHostsFile, 'utf8').trim().split(/\s+/);
+    assert.deepEqual(host.slice(0, 2), ['github.com', 'ssh-ed25519']);
+    const fingerprint = createHash('sha256').update(Buffer.from(host[2], 'base64')).digest('base64').replace(/=+$/, '');
+    assert.equal(fingerprint, '+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU');
+    for (const [key, value] of Object.entries({
+      batchmode: 'yes', identitiesonly: 'yes', identityagent: 'none',
+      stricthostkeychecking: 'true', hostkeyalgorithms: 'ssh-ed25519',
+      globalknownhostsfile: '/dev/null', passwordauthentication: 'no',
+      kbdinteractiveauthentication: 'no', clearallforwardings: 'yes',
+      connecttimeout: '10', connectionattempts: '1',
+    })) assert.equal(settings.get(key), value, key);
+    for (const key of Object.keys(original).filter(key => key !== 'PATH')) {
+      if (key !== 'GIT_SSH_COMMAND') assert.equal(options.env[key], undefined, key);
+    }
+    assert.equal(Object.values(options.env).some(value => String(value).includes(sshKey)), false);
+    assert.equal(options.env.GIT_CONFIG_GLOBAL, '/dev/null');
+    assert.equal(options.env.GIT_CONFIG_NOSYSTEM, '1');
+    assert.equal(options.env.GIT_TERMINAL_PROMPT, '0');
+    assert.equal(options.env.GIT_ALLOW_PROTOCOL, 'https:ssh');
+    const url = 'ssh://git@github.com/puramapro-oss/purama-smarana.git';
+    const resolution = spawnSync('git', ['ls-remote', '--get-url', url], { env: options.env, encoding: 'utf8' });
+    assert.equal(resolution.status, 0, resolution.stderr);
+    assert.equal(resolution.stdout.trim(), url);
+    return { status: 0 };
+  } });
+  assert.equal(calls, 1);
+  assert.deepEqual(original, before);
+  assert.equal(existsSync(directory), false);
+});
+
+for (const [scenario, outcome, message] of [
+  ['Git/npm failure', () => ({ status: 128 }), /verify private read access/],
+  ['spawn error', () => ({ error: new Error('synthetic-spawn-error') }), /Could not start/],
+  ['timeout result', () => ({ status: null, error: Object.assign(new Error('synthetic-timeout'), { code: 'ETIMEDOUT' }) }), /Could not start/],
+  ['thrown execution error', () => { throw new Error('synthetic-execution-error'); }, /synthetic-execution-error/],
+]) {
+  test(`SSH temporary files are removed after ${scenario}`, () => {
+    let directory;
+    assert.throws(() => installFromLock({
+      sshKey: 'synthetic-nonfunctional-test-key', env: { PATH: process.env.PATH },
+      run: (_command, _args, options) => {
+        directory = path.dirname(effectiveSshSettings(options.env).get('identityfile'));
+        assert.equal(existsSync(directory), true);
+        return outcome();
+      },
+    }), message);
+    assert.equal(existsSync(directory), false);
+  });
+}
+
+test('SSH paths with spaces, quotes and shell syntax stay literal', async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'midas-ssh-path-test-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const identity = path.join(directory, "identity'$(printf injected) with spaces");
+  const knownHosts = path.join(directory, "hosts'$(printf injected) with spaces");
+  writeFileSync(identity, 'synthetic-nonfunctional-test-key', { mode: 0o600 });
+  writeFileSync(knownHosts, '', { mode: 0o600 });
+  const settings = effectiveSshSettings(sshInstallationEnvironment({ PATH: process.env.PATH }, identity, knownHosts));
+  assert.equal(settings.get('identityfile'), identity);
+  assert.equal(settings.get('userknownhostsfile'), knownHosts);
+});
+
+test('SSH invalid inputs and ambiguous transports fail before npm without exposing values', () => {
+  let calls = 0;
+  const run = () => { calls++; return { status: 0 }; };
+  for (const sshKey of ['', '  ', null, 42, 'synthetic\0bad', 'x'.repeat(32769)]) {
+    assert.throws(() => installFromLock({ sshKey, run }), /^Error: SMARANA_READ_SSH_KEY with read-only access is required\.$/);
+  }
+  assert.throws(() => installFromLock({ token: 'synthetic-token', sshKey: 'synthetic-key', run }), /Choose one private read credential transport/);
+  for (const file of ['relative', '/tmp/bad\npath', '/tmp/bad\0path']) {
+    assert.throws(() => sshInstallationEnvironment({}, file, '/tmp/known_hosts'), /absolute temporary SSH file path/);
+  }
+  assert.equal(calls, 0);
 });

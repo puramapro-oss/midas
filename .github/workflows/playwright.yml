@@ -26,23 +26,41 @@ jobs:
         run: node scripts/bootstrap-shared-packages.mjs --github-output
       - name: Check required private read credentials
         env:
-          PACKAGE_SOURCE_TOKEN: ${{ secrets.PURAMA_PACKAGES_READ_TOKEN || secrets.SMARANA_READ_TOKEN }}
-          SMARANA_READ_TOKEN: ${{ secrets.SMARANA_READ_TOKEN }}
+          PACKAGE_SOURCE_KEY_PRESENT: ${{ secrets.PURAMA_PACKAGES_READ_SSH_KEY != '' }}
+          SMARANA_KEY_PRESENT: ${{ secrets.SMARANA_READ_SSH_KEY != '' }}
         run: |
-          if [ -z "$PACKAGE_SOURCE_TOKEN" ]; then
-            echo '::error::A read-only PURAMA_PACKAGES_READ_TOKEN (or SMARANA_READ_TOKEN with access to both repositories) is required for purama-master.'
+          if [ "$PACKAGE_SOURCE_KEY_PRESENT" != true ]; then
+            echo '::error::A dedicated read-only PURAMA_PACKAGES_READ_SSH_KEY is required for purama-master.'
             exit 1
           fi
-          if [ -z "$SMARANA_READ_TOKEN" ]; then
-            echo '::error::SMARANA_READ_TOKEN with read-only access to purama-smarana is required.'
+          if [ "$SMARANA_KEY_PRESENT" != true ]; then
+            echo '::error::A separate read-only SMARANA_READ_SSH_KEY is required for purama-smarana.'
             exit 1
           fi
+      - name: Snapshot temporary checkout authentication metadata
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = fs.realpathSync(process.env.RUNNER_TEMP);
+          const pattern = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}(?:_known_hosts)?$/i;
+          const names = fs.readdirSync(root);
+          if (names.length > 4096) throw new Error('Temporary checkout inventory exceeds its bound.');
+          const records = {};
+          for (const name of names.filter(name => pattern.test(name))) {
+            const s = fs.lstatSync(path.join(root, name), { bigint: true });
+            records[name] = [s.dev, s.ino, s.mode, s.size, s.mtimeNs, s.ctimeNs].map(String);
+          }
+          const file = path.join(root, `midas-checkout-before-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}.json`);
+          fs.writeFileSync(file, JSON.stringify({ root, records }), { mode: 0o600, flag: 'wx' });
+          NODE
       - name: Retrieve only the pinned private package directories
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: puramapro-oss/purama-master
           ref: ${{ steps.shared.outputs.commit }}
-          token: ${{ secrets.PURAMA_PACKAGES_READ_TOKEN || secrets.SMARANA_READ_TOKEN }}
+          ssh-key: ${{ secrets.PURAMA_PACKAGES_READ_SSH_KEY }}
+          ssh-strict: true
           persist-credentials: false
           path: shared-source
           sparse-checkout-cone-mode: false
@@ -51,12 +69,73 @@ jobs:
             /packages/purama-entraide/
             /packages/purama-retention/
             /packages/eslint-config-purama/
+      - name: Reject retained private checkout authentication
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { spawnSync } = require('node:child_process');
+          const root = fs.realpathSync(process.env.RUNNER_TEMP);
+          const beforeFile = path.join(root, `midas-checkout-before-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}.json`);
+          const before = JSON.parse(fs.readFileSync(beforeFile, 'utf8'));
+          if (before.root !== root) throw new Error('Temporary checkout inventory identity changed.');
+          const pattern = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}(?:_known_hosts)?$/i;
+          const names = fs.readdirSync(root);
+          if (names.length > 4096) throw new Error('Temporary checkout inventory exceeds its bound.');
+          const temporaryConfigs = [];
+          let residues = 0;
+          for (const name of names.filter(name => pattern.test(name))) {
+            const location = path.join(root, name);
+            const s = fs.lstatSync(location, { bigint: true });
+            const record = [s.dev, s.ino, s.mode, s.size, s.mtimeNs, s.ctimeNs].map(String);
+            if (!s.isDirectory() && JSON.stringify(record) !== JSON.stringify(before.records[name])) residues++;
+            if (s.isDirectory()) {
+              const config = path.join(location, '.gitconfig');
+              if (fs.existsSync(config)) {
+                if (!fs.lstatSync(config).isFile()) throw new Error('Temporary Git configuration cannot be verified.');
+                temporaryConfigs.push(['--file', config]);
+              }
+            }
+          }
+          if (residues) throw new Error('Private checkout left temporary SSH authentication files.');
+          const configs = [
+            ['-C', path.join(process.env.GITHUB_WORKSPACE, 'midas'), 'config', '--local'],
+            ['-C', path.join(process.env.GITHUB_WORKSPACE, 'shared-source'), 'config', '--local'],
+            ...temporaryConfigs.map(options => ['config', ...options]),
+          ];
+          const env = { ...process.env };
+          for (const key of Object.keys(env)) if (key.startsWith('GIT_')) delete env[key];
+          Object.assign(env, { GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' });
+          const deadline = Date.now() + 15000;
+          for (const args of configs) {
+            const remaining = deadline - Date.now();
+            if (remaining <= 0) throw new Error('Checkout authentication inspection exceeded its bound.');
+            const result = spawnSync('git', [...args, '--no-includes', '--name-only', '--get-regexp',
+              '^(core\\.sshcommand|http\\..*\\.extraheader|credential\\..*|url\\..*\\.insteadof|include\\.path|includeif\\..*\\.path)$'],
+              { env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: Math.min(5000, remaining), maxBuffer: 65536 });
+            if (result.error || result.status !== 1 || result.stdout.trim()) {
+              throw new Error('Persistent checkout authentication configuration remains or cannot be verified.');
+            }
+          }
+          fs.unlinkSync(beforeFile);
+          console.log(JSON.stringify({ checkoutAuthenticationAbsent: true, inspectedGitConfigs: configs.length }));
+          NODE
       - name: Verify every source digest and create the sibling package layout
         run: node scripts/bootstrap-shared-packages.mjs "$GITHUB_WORKSPACE/shared-source" "$GITHUB_WORKSPACE/packages"
       - name: Install the locked dependencies with repository-scoped credentials
         env:
-          SMARANA_READ_TOKEN: ${{ secrets.SMARANA_READ_TOKEN }}
-        run: node scripts/install-private-dependencies.mjs
+          SMARANA_READ_SSH_KEY: ${{ secrets.SMARANA_READ_SSH_KEY }}
+          TMPDIR: ${{ runner.temp }}/midas-private-install-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          mkdir -m 700 -- "$TMPDIR"
+          node scripts/install-private-dependencies.mjs
+          git diff --exit-code -- package.json package-lock.json tooling/shared-packages.lock.json
+      - name: Remove temporary private installation authentication
+        if: always()
+        run: |
+          auth_dir="$RUNNER_TEMP/midas-private-install-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          rm -rf -- "$auth_dir"
+          test ! -e "$auth_dir"
       - name: Run dependency lifecycle scripts without repository credentials
         run: npm rebuild --no-audit --no-fund
       - run: npx playwright install --with-deps chromium webkit
