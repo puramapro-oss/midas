@@ -87,11 +87,24 @@ jobs:
           test ! -e "$auth_dir" && test ! -L "$auth_dir"
       - name: Run dependency lifecycle scripts without repository credentials
         run: npm rebuild --no-audit --no-fund
+      - name: Verify isolated HTTP and rejection contracts
+        run: node --test scripts/e2e/isolation.test.mjs
+      - name: Prepare exact public font assets before network isolation
+        run: node scripts/e2e/prepare-fonts.mjs "$RUNNER_TEMP/midas-e2e-fonts-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
       - run: npx playwright install --with-deps chromium webkit
-      - run: npx playwright test
+      - name: Prove isolation and readiness before the existing browser campaign
+        run: node scripts/e2e/run-isolated.mjs "$RUNNER_TEMP/midas-e2e-fonts-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+      - name: Remove only the owned temporary public font assets
+        if: always()
+        run: |
+          font_dir="$RUNNER_TEMP/midas-e2e-fonts-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          rm -rf -- "$font_dir"
+          test ! -e "$font_dir" && test ! -L "$font_dir"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: playwright-report
-          path: midas/playwright-report/
+          path: |
+            midas/playwright-report/
+            midas/test-results/e2e-isolation/
           retention-days: 7

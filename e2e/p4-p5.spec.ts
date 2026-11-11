@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { expectJsonResponse } from './helpers';
 
 test.describe('P4 — Admin Pages', () => {
   test('/admin redirects to /login when not authenticated', async ({ page }) => {
@@ -50,59 +51,42 @@ test.describe('P4 — FAQ Page', () => {
 });
 
 test.describe('P4 — API Routes', () => {
-  test('POST /api/contact with valid data returns success', async ({ request }) => {
+  test('POST /api/contact returns success with the local database dependency fixture', async ({ request }) => {
     const res = await request.post('/api/contact', {
-      data: {
-        name: 'Test User',
-        email: 'test@example.com',
-        subject: 'Test Subject',
-        message: 'Ceci est un message de test.',
-      },
+      data: { name: 'Test User', email: 'test@example.com', subject: 'Test Subject', message: 'Ceci est un message de test.' },
     });
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      // Either success or DB error (table might not exist in test env)
-      expect(body.success || body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 200);
+    expect(body.success || body.error).toBeTruthy();
+    expect(body.success).toBe(true);
+    expect(body).toEqual({ success: true });
   });
 
   test('POST /api/contact with invalid data returns 400', async ({ request }) => {
     const res = await request.post('/api/contact', {
       data: { name: '' },
     });
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 400, 'Le nom est requis');
+    expect(body.error).toBeTruthy();
   });
 
-  test('GET /api/faq returns articles', async ({ request }) => {
+  test('GET /api/faq returns the isolated empty public collection', async ({ request }) => {
     const res = await request.get('/api/faq');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.articles || body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 200);
+    expect(body.articles || body.error).toBeTruthy();
+    expect(Array.isArray(body.articles)).toBe(true);
+    expect(body.articles).toEqual([]);
   });
 
   test('GET /api/admin/monitoring without auth returns error', async ({ request }) => {
     const res = await request.get('/api/admin/monitoring');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorise');
+    expect(body.error).toBeTruthy();
   });
 
   test('GET /api/admin/financement without auth returns error', async ({ request }) => {
     const res = await request.get('/api/admin/financement');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorise');
+    expect(body.error).toBeTruthy();
   });
 });
 
