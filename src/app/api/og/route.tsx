@@ -5,10 +5,11 @@ export const runtime = "edge";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const title = searchParams.get("title") || "MIDAS";
+  const title =
+    searchParams.get("title") || "Information et simulation éducative";
   const description =
     searchParams.get("description") ||
-    "Trading IA — Signaux, analyses et strategies automatisees";
+    "Comprendre les marchés financiers, sans ordre réel ni connexion à un exchange.";
 
   return new ImageResponse(
     (
