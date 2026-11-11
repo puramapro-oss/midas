@@ -24,11 +24,37 @@ deux moteurs `jev` et `midas`.
 Depuis la racine du dépôt, avec Node 24 ou une version compatible :
 
 ```sh
-node --experimental-strip-types --test tests/shared-account-risk/adapter.test.mjs
-SHARED_RISK_PG_RUNTIME=/chemin/runtime-postgres \
-SHARED_RISK_EVIDENCE=/chemin/dossier-preuves-existant \
-node --experimental-strip-types tests/shared-account-risk/native-contract.mjs
+npm ci --prefix tests/shared-account-risk/runtime --ignore-scripts --no-audit --no-fund
+node tests/shared-account-risk/runtime/node_modules/@embedded-postgres/linux-x64/scripts/hydrate-symlinks.js
+npm run test:shared-risk
 ```
+
+Ce runtime de test minimal, verrouillé séparément, cible Linux x64 et ne demande
+aucune dépendance applicative privée ni clé. `test:shared-risk` exécute les tests
+d'adaptateur puis la recette native complète ; `test:all` inclut maintenant ce
+contrôle obligatoire. Le workflow de cœur conserve les tests existants et ajoute
+un job PostgreSQL jetable. Les deux workflows de PR couvrent aussi les branches
+servant de base aux PR empilées.
+
+L'installation désactive les scripts automatiques des paquets. La commande
+explicite suivante restaure uniquement les liens locaux des bibliothèques du
+paquet PostgreSQL verrouillé, à partir de son manifeste ; elle ne télécharge
+rien. Sans cette restauration, une installation neuve ne peut pas démarrer le
+binaire PostgreSQL. Le contrôle natif vérifie ensuite son fonctionnement réel.
+
+Pour réutiliser un runtime déjà installé et un emplacement de preuves explicite :
+
+```sh
+SHARED_RISK_PG_RUNTIME=/chemin/runtime-postgres \
+SHARED_RISK_EVIDENCE=/chemin/dossier-preuves \
+npm run test:shared-risk
+```
+
+Le lanceur crée un sous-dossier de preuves neuf à chaque invocation, par défaut
+sous `test-results/shared-account-risk/`. Il refuse `SHARED_RISK_TEST_FILTER`,
+vérifie l'absence de scénario ignoré et exige les preuves d'arrêt et de suppression
+du cluster. Un runtime absent fait échouer le contrôle ; il n'est ni téléchargé
+automatiquement ni remplacé par une simulation.
 
 Le runtime isolé doit fournir `pg` et
 `node_modules/@embedded-postgres/linux-x64/native/bin/{postgres,initdb,pg_ctl}`.
@@ -38,6 +64,11 @@ synthétiques. Il refuse une identité système root et les variables PostgreSQL
 externes ; il n'accepte aucune URL de base de données de production. Le cluster
 est arrêté et supprimé à la fin. Les deux fichiers JSON de preuve conservent les
 scénarios, les empreintes, les paramètres de durabilité et le nettoyage.
+
+Le script `native-contract.mjs` reste disponible directement pour les diagnostics
+filtrés. Ces diagnostics ne satisfont pas la recette complète et ne sont pas
+comptés comme une validation globale. La CI conserve les reçus natifs en artefact,
+y compris après un échec.
 
 ## Conditions conservées
 
