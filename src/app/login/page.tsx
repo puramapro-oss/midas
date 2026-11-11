@@ -8,6 +8,7 @@ import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { z } from 'zod/v4'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
+import { getSafeReturnPath } from '@/lib/auth/return-path'
 
 const loginSchema = z.object({
   email: z.email('Adresse email invalide'),
@@ -27,10 +28,7 @@ function LoginContent() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [rememberMe, setRememberMe] = useState(false)
 
-  // Anti open-redirect : n'accepter qu'un chemin relatif interne (« /x », pas
-  // « //evil.com » ni URL absolue).
-  const rawNext = searchParams.get('next') ?? '/dashboard'
-  const nextUrl = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard'
+  const nextUrl = getSafeReturnPath(searchParams.get('next'))
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
