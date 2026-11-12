@@ -31,6 +31,13 @@ function createFetchTransport(originalFetch, journal, origin = ORIGIN) {
     const url = new URL(typeof input === 'string' || input instanceof URL ? input : input.url);
     const method = (init?.method ?? input?.method ?? 'GET').toUpperCase();
     const rewrite = target => originalFetch(new Request(target, new Request(input, init)), init);
+    // Next 16.4.5 HMR probes this exact URL even with telemetry disabled.
+    // Keep metadata explicitly unknown offline; do not invent a current version.
+    if (method === 'GET' && url.href === 'https://registry.npmjs.org/-/package/next/dist-tags'
+      && init?.body == null && (!(input instanceof Request) || input.body === null)) {
+      record(journal, { type: 'fixture', contract: 'next-dev-version-metadata-unavailable', status: 503 });
+      return Promise.resolve(new Response(null, { status: 503, headers: { 'cache-control': 'no-store' } }));
+    }
     if (method === 'GET' && url.href === MARKET_URL) {
       return rewrite(origin + '/__e2e/coingecko' + url.pathname + url.search);
     }
