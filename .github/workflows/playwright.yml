@@ -144,6 +144,8 @@ jobs:
         run: node --test scripts/test-production-dependencies-20261111.mjs
       - name: Verify isolated HTTP and rejection contracts
         run: node --test scripts/e2e/isolation.test.mjs
+      - name: Verify fail-closed quotas with the locked SDK and loopback fixture
+        run: node --experimental-strip-types --test scripts/rate-limit.test.mjs scripts/e2e/rate-limit-fixture.test.mjs
       - name: Prepare exact public font assets before network isolation
         run: node scripts/e2e/prepare-fonts.mjs "$RUNNER_TEMP/midas-e2e-fonts-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
       - run: npx playwright install --with-deps chromium webkit

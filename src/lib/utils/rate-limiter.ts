@@ -10,9 +10,12 @@ import type { MidasPlan } from '@/types/stripe';
 // --- Redis Client ---
 
 function getRedis() {
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+  if (!url || !token) throw new Error('Rate limit storage is not configured');
   return new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL ?? '',
-    token: process.env.UPSTASH_REDIS_REST_TOKEN ?? '',
+    url,
+    token,
   });
 }
 
@@ -100,6 +103,13 @@ export interface RateLimitResult {
   reset: number;
 }
 
+function unavailableRateLimit(limit: number): RateLimitResult {
+  // A short retry delay is not a claim that the user's quota was reset.
+  // Never include provider errors, URLs or credentials in this log.
+  console.error('[rate-limit] Stockage indisponible, requête refusée temporairement');
+  return { allowed: false, limit, remaining: 0, reset: Date.now() + 5_000 };
+}
+
 /**
  * Verifie le rate limit global pour un utilisateur selon son plan
  */
@@ -107,17 +117,18 @@ export async function checkRateLimit(
   userId: string,
   plan: MidasPlan
 ): Promise<RateLimitResult> {
+  if (!Object.hasOwn(PLAN_RATE_LIMITS, plan)) return unavailableRateLimit(0);
   const config = PLAN_RATE_LIMITS[plan];
-  const limiter = getLimiter(`midas:rl:global:${plan}`, config);
   let result;
   try {
+    const limiter = getLimiter(`midas:rl:global:${plan}`, config);
     result = await limiter.limit(userId);
-  } catch (error) {
-    // Fail-open : une indisponibilité Upstash (URL/token absents, Redis down)
-    // ne doit pas transformer chaque requête en 500. Log + laisser passer.
-    console.error('[rate-limit] Upstash indisponible, requête autorisée —', error instanceof Error ? error.message : error);
-    return { allowed: true, limit: config.requests, remaining: config.requests, reset: 0 };
+  } catch {
+    return unavailableRateLimit(config.requests);
   }
+  // The SDK deliberately returns success:true on timeout. No quota admission
+  // was confirmed, so that fallback must not authorize a paid or write action.
+  if (result.reason === 'timeout') return unavailableRateLimit(config.requests);
 
   return {
     allowed: result.success,
@@ -135,13 +146,14 @@ export async function checkRouteRateLimit(
   route: string,
   plan: MidasPlan
 ): Promise<RateLimitResult> {
-  const routeConfig = ROUTE_LIMITS[route];
+  const routeConfig = Object.hasOwn(ROUTE_LIMITS, route) ? ROUTE_LIMITS[route] : undefined;
 
   // Pas de config specifique pour cette route => utiliser le global
   if (!routeConfig) {
     return checkRateLimit(userId, plan);
   }
 
+  if (!Object.hasOwn(PLAN_RATE_LIMITS, plan)) return unavailableRateLimit(0);
   const planConfig = routeConfig[plan];
 
   // 0 requests = fonctionnalite non disponible pour ce plan
@@ -154,15 +166,14 @@ export async function checkRouteRateLimit(
     };
   }
 
-  const limiter = getLimiter(routeConfig.prefix, planConfig);
   let result;
   try {
+    const limiter = getLimiter(routeConfig.prefix, planConfig);
     result = await limiter.limit(userId);
-  } catch (error) {
-    // Fail-open — cf. checkRateLimit : indispo Upstash loggée, jamais 500.
-    console.error('[rate-limit] Upstash indisponible, requête autorisée —', error instanceof Error ? error.message : error);
-    return { allowed: true, limit: planConfig.requests, remaining: planConfig.requests, reset: 0 };
+  } catch {
+    return unavailableRateLimit(planConfig.requests);
   }
+  if (result.reason === 'timeout') return unavailableRateLimit(planConfig.requests);
 
   return {
     allowed: result.success,
@@ -176,10 +187,13 @@ export async function checkRouteRateLimit(
  * Retourne les headers HTTP de rate limit
  */
 export function rateLimitHeaders(result: RateLimitResult): Record<string, string> {
+  const retryAfter = Number.isFinite(result.reset)
+    ? Math.max(0, Math.ceil((result.reset - Date.now()) / 1000))
+    : 0;
   return {
     'X-RateLimit-Limit': String(result.limit),
     'X-RateLimit-Remaining': String(result.remaining),
     'X-RateLimit-Reset': String(result.reset),
-    ...(result.allowed ? {} : { 'Retry-After': String(Math.ceil((result.reset - Date.now()) / 1000)) }),
+    ...(result.allowed ? {} : { 'Retry-After': String(retryAfter) }),
   };
 }

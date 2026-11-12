@@ -8,6 +8,7 @@ const path = require('node:path');
 const ORIGIN = 'http://127.0.0.1:3000';
 const ANON_KEY = 'midas-e2e-anon-no-authority';
 const SERVICE_KEY = 'midas-e2e-service-no-authority';
+const REDIS_KEY = 'midas-e2e-redis-no-authority';
 const COIN_IDS = ['bitcoin', 'ethereum', 'solana', 'cardano', 'polkadot', 'chainlink', 'avalanche-2', 'polygon'];
 const PRICE_QUERY = new URLSearchParams({
   ids: COIN_IDS.join(','), vs_currencies: 'usd', include_24hr_change: 'true', include_24hr_vol: 'true',
@@ -82,6 +83,7 @@ function validateFonts(directory, manifest) {
 
 function createFixtureServer({ journal, fonts = new Map(), appPort = 3001 }) {
   const sockets = new Set();
+  const contactQuota = new Map();
   let contacts = 0;
   let ready = false;
   const server = createServer(async (request, response) => {
@@ -106,6 +108,44 @@ function createFixtureServer({ journal, fonts = new Map(), appPort = 3001 }) {
       return;
     }
     try {
+      if (request.method === 'POST' && url.pathname === '/__e2e/redis/pipeline' && !url.search
+        && request.headers.authorization === 'Bearer ' + REDIS_KEY) {
+        const commands = await body(request);
+        // Exact HTTP contract of the locked SDK, for anonymous contact tests
+        // only. This in-memory fixture does not execute Lua or qualify Redis.
+        const quotaKey = /^midas:rl:global:free:contact:[A-Za-z0-9:.%-]+:\d+$/;
+        const valid = Array.isArray(commands) && commands.length > 0 && commands.length <= 10
+          && commands.every(command => Array.isArray(command) && (
+            (command.length === 10 && command[0] === 'evalsha'
+              && command[1] === '977fb636fb5ceb7e98a96d1b3a1272ba018efdae' && command[2] === 3
+              && quotaKey.test(command[3]) && quotaKey.test(command[4]) && command[5] === ''
+              && command[6] === 30 && Number.isSafeInteger(command[7])
+              && Math.abs(command[7] - Date.now()) < 5000 && command[8] === 60000 && command[9] === 1
+              && command[3].endsWith(':' + Math.floor(command[7] / 60000))
+              && command[4] === command[3].slice(0, command[3].lastIndexOf(':') + 1)
+                + (Math.floor(command[7] / 60000) - 1))
+            || (command.length === 4 && command[0] === 'zincrby'
+              && /^midas:rl:global:free:events:\d+$/.test(command[1]) && command[2] === 1
+              && typeof command[3] === 'string' && command[3].length < 512
+              && (() => {
+                try {
+                  const event = JSON.parse(command[3]);
+                  return Object.keys(event).sort().join(',') === 'identifier,success'
+                    && /^contact:[A-Za-z0-9:.%-]+$/.test(event.identifier) && typeof event.success === 'boolean';
+                } catch { return false; }
+              })())
+          ));
+        if (valid) {
+          const results = commands.map(command => {
+            if (command[0] === 'zincrby') return { result: 1 };
+            const used = (contactQuota.get(command[3]) ?? 0) + 1;
+            contactQuota.set(command[3], used);
+            return { result: [30 - used, 30] };
+          });
+          record(journal, { type: 'fixture', contract: 'synthetic-contact-quota', status: 200 });
+          return json(response, 200, results);
+        }
+      }
       if (request.method === 'GET' && !url.search && fonts.has(url.pathname)) {
         record(journal, { type: 'fixture', contract: 'pinned-woff2', pathname: url.pathname });
         response.writeHead(200, { 'content-type': 'font/woff2', 'cache-control': 'public, max-age=31536000, immutable' });
@@ -196,4 +236,4 @@ function createFixtureServer({ journal, fonts = new Map(), appPort = 3001 }) {
     await new Promise(resolve => server.close(resolve));
   }};
 }
-module.exports = { ORIGIN, ANON_KEY, SERVICE_KEY, PRICE_QUERY, MARKET_URL, PRICES, record, validateFonts, createFixtureServer, createFetchTransport };
+module.exports = { ORIGIN, ANON_KEY, SERVICE_KEY, REDIS_KEY, PRICE_QUERY, MARKET_URL, PRICES, record, validateFonts, createFixtureServer, createFetchTransport };

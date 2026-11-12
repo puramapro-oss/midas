@@ -11,7 +11,7 @@ import fixtures from './fixtures.cjs';
 import { loadPreparedFonts, assertFontRuntime, fontGate } from './prepare-fonts.mjs';
 export { snapshotChildPids, observeNewOwnedChild, inspectNewOwnedChildren } from './prepare-fonts.mjs';
 
-const { ORIGIN, ANON_KEY, SERVICE_KEY, createFixtureServer } = fixtures;
+const { ORIGIN, ANON_KEY, SERVICE_KEY, REDIS_KEY, createFixtureServer } = fixtures;
 const script = fileURLToPath(import.meta.url);
 const root = path.resolve(path.dirname(script), '../..');
 const reportDirectory = path.join(root, 'test-results/e2e-isolation');
@@ -160,6 +160,7 @@ async function inside(args) {
     MIDAS_E2E_ISOLATED: '1', MIDAS_E2E_JOURNAL: journal,
     NEXT_PUBLIC_SUPABASE_URL: ORIGIN + '/__e2e/supabase',
     NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON_KEY, SUPABASE_SERVICE_ROLE_KEY: SERVICE_KEY,
+    UPSTASH_REDIS_REST_URL: ORIGIN + '/__e2e/redis', UPSTASH_REDIS_REST_TOKEN: REDIS_KEY,
     STRIPE_SECRET_KEY: 'sk_test_midas_fixture_no_authority',
     STRIPE_WEBHOOK_SECRET: 'whsec_midas_fixture_invalid_signatures_only',
     PLAYWRIGHT_BROWSERS_PATH: browserDirectory,
