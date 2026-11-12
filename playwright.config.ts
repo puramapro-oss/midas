@@ -24,7 +24,7 @@ export default defineConfig({
   projects: [
     {
       name: 'Desktop Chrome',
-      use: { ...devices['Desktop Chrome'], launchOptions: { chromiumSandbox: true } },
+      use: { ...devices['Desktop Chrome'], channel: 'chrome', launchOptions: { chromiumSandbox: true } },
     },
     {
       name: 'iPhone 14',

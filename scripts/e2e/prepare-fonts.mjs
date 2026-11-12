@@ -114,6 +114,34 @@ export function observeNewOwnedChild(before, allowedExecutables) {
   try { return inspectNewOwnedChildren(snapshotChildPids().filter(pid => !before.includes(pid)), allowedExecutables); }
   catch { return { status: 'NON OBSERVÉ', reason: 'owned_child_snapshot_unavailable' }; }
 }
+const installedChromePath = '/opt/google/chrome/chrome';
+const installedChromeProfile = '/etc/apparmor.d/chrome';
+const installedChromeFiles = [
+  ['/', 'directory'], ['/opt', 'directory'], ['/opt/google', 'directory'], ['/opt/google/chrome', 'directory'],
+  [installedChromePath, 'file'], ['/etc', 'directory'], ['/etc/apparmor.d', 'directory'], [installedChromeProfile, 'file'],
+];
+export function assertInstalledChromeMetadata(entries) {
+  assert.deepEqual(entries.map(entry => [entry.path, entry.type]), installedChromeFiles, 'The installed Chrome paths must be exact');
+  for (const entry of entries) {
+    assert.equal(entry.realpath, entry.path, 'The installed Chrome paths must not resolve to substitutes');
+    assert.equal(entry.uid, 0, 'The installed Chrome paths must remain root-owned');
+    assert.equal(entry.mode & 0o022, 0, 'The installed Chrome paths must not be writable by the runner');
+    assert.equal(entry.mode & 0o6000, 0, 'The observed Chrome paths must not require setuid or setgid');
+  }
+  return installedChromePath;
+}
+function inspectInstalledChrome() {
+  const entries = installedChromeFiles.map(([filename]) => {
+    const info = lstatSync(filename);
+    return { path: filename, realpath: realpathSync(filename), uid: info.uid, mode: info.mode,
+      type: info.isFile() ? 'file' : info.isDirectory() ? 'directory' : 'other' };
+  });
+  const executable = assertInstalledChromeMetadata(entries);
+  const profile = boundedProcFile(installedChromeProfile, 65536);
+  assert(profile.includes(installedChromePath) && /^\s*userns\s*,/m.test(profile), 'The pre-existing Chrome user namespace profile must be present');
+  return { executable, paths: entries, profilePath: installedChromeProfile, profileSha256: sha256(profile),
+    profileEvidence: 'Existing root-owned profile file observed; active kernel policy is not inferred from this file alone' };
+}
 export async function fontGate(manifest, env, browserDirectory) {
   const originalBrowsers = process.env.PLAYWRIGHT_BROWSERS_PATH;
   process.env.PLAYWRIGHT_BROWSERS_PATH = browserDirectory;
@@ -125,28 +153,22 @@ export async function fontGate(manifest, env, browserDirectory) {
 }
 async function verifyFontRendering(manifest, env) {
   const { chromium } = require('playwright');
+  const installation = inspectInstalledChrome();
   let previousChildren;
   try { previousChildren = snapshotChildPids(); } catch { previousChildren = null; }
-  const browser = await chromium.launch({ env, chromiumSandbox: true });
+  const browser = await chromium.launch({ env, channel: 'chrome', chromiumSandbox: true });
   try {
     let observation = { status: 'NON OBSERVÉ', reason: 'owned_child_snapshot_unavailable' };
     if (previousChildren) {
       try {
-        const registry = JSON.parse(readFileSync(path.join(path.dirname(require.resolve('playwright-core/package.json')), 'browsers.json'), 'utf8'));
-        const headless = registry.browsers.find(item => item.name === 'chromium-headless-shell');
-        const allowedExecutables = [chromium.executablePath()];
-        if (process.platform === 'linux' && process.arch === 'x64' && /^\d+$/.test(headless?.revision ?? '')) {
-          allowedExecutables.push(path.join(env.PLAYWRIGHT_BROWSERS_PATH, 'chromium_headless_shell-' + headless.revision,
-            'chrome-headless-shell-linux64/chrome-headless-shell'));
-        }
-        observation = observeNewOwnedChild(previousChildren, allowedExecutables);
+        observation = observeNewOwnedChild(previousChildren, [installation.executable]);
       } catch { observation = { status: 'NON OBSERVÉ', reason: 'registered_executable_metadata_unavailable' }; }
     }
     assert.equal(observation.status, 'OBSERVÉ', 'Owned Chromium command-line observation required: ' + (observation.reason ?? 'unknown'));
     assert.equal(observation.identityVerified, true, 'Owned Chromium identity must be verified');
     assert(!observation.sandboxFlags.includes('--no-sandbox'), 'The protected browser must not disable its sandbox');
     const browserPolicy = {
-      version: browser.version(), chromiumSandboxOption: true, noSandboxFlagAbsent: true,
+      version: browser.version(), channel: 'chrome', installation, chromiumSandboxOption: true, noSandboxFlagAbsent: true,
       observation,
       internalBrowserSandboxQualification: 'Launch option and verified owned-process flags only; not a full internal sandbox attestation',
     };

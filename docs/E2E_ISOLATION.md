@@ -1,5 +1,42 @@
 # Qualification navigateur isolée
 
+## Navigateur préinstallé et sandbox — 12 novembre 2026
+
+Le run `43127472435`, sur Ubuntu 26.04.1 / image `20261101.186.1`, a qualifié
+l'isolation réseau et les quatre portes HTTP, puis s'est arrêté au lancement du
+headless shell Chromium : `No usable sandbox!`. Aucune assertion de la campagne
+navigateur n'a été exécutée. Le message générique AppArmor ne démontre pas, à lui
+seul, le mécanisme hôte responsable.
+
+Le préflight de fontes et le seul projet Desktop Chrome utilisent désormais le
+canal Playwright `chrome`, déjà fourni par cette image. Le manifeste officiel de
+l'image annonce Google Chrome 156.0.8078.79 ; le reçu doit conserver la version
+effectivement lancée. WebKit et les assertions restent inchangés. Il n'existe
+aucun repli vers un navigateur sans sandbox ou un autre exécutable.
+
+Avant le lancement, le banc exige le fichier régulier canonique
+`/opt/google/chrome/chrome`, son profil existant `/etc/apparmor.d/chrome` et leurs
+répertoires parents : chemins sans substitution par lien, propriétaires root,
+absence d'écriture groupe/autres et absence de bit setuid/setgid sur ces chemins.
+Le profil doit désigner ce chemin Chrome et contenir l'autorisation `userns` ;
+son empreinte est conservée sans modifier le fichier. Cette lecture ne prouve
+pas à elle seule la politique chargée dans le noyau.
+
+Le lancement conserve `chromiumSandbox: true`, UID non privilégié, capacités
+nulles, `NoNewPrivs`, namespace réseau fermé et observation bornée du nouvel
+enfant. Sa liste d'exécutables autorisés contient uniquement le chemin Chrome
+canonique. PPID, UID, namespace, exécutable et identité de commande sont encore
+vérifiés, et `--no-sandbox` reste interdit. Une présence ou une observation non
+prouvée arrête la qualification. Aucun profil, sysctl, AppArmor, noyau, helper
+SUID ou réglage de sécurité de l'hôte n'est modifié.
+
+Sources : [documentation Chromium](https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md),
+[canaux Playwright](https://playwright.dev/docs/browsers#google-chrome--microsoft-edge),
+[manifeste de l'image exécutée](https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md).
+
+La qualification de ce changement exige une nouvelle CI sur son arbre exact.
+Les résultats ci-dessous et des anciens runs restent attachés à leurs contenus.
+
 La CI Playwright prépare un environnement anonyme et synthétique. Elle vérifie
 l'application éducative et ses refus, sans compte fournisseur, session réelle,
 ordre financier, email envoyé ou déploiement. Les restrictions du middleware
@@ -35,7 +72,7 @@ chaînes de test sans autorité. Leur présence ne qualifie aucun fournisseur.
 Le préflight de fontes et le projet Desktop Chrome exigent explicitement
 `chromiumSandbox: true`. Le préflight observe uniquement le nouvel enfant qu'il
 vient de lancer : lectures `/proc` bornées, parent, UID, namespace et exécutable
-Chromium enregistré vérifiés. Il exige une observation `OBSERVÉ`, une identité
+Chrome canonique vérifiés. Il exige une observation `OBSERVÉ`, une identité
 vérifiée et l'absence de `--no-sandbox` avant de poursuivre. Une observation
 indisponible reste un échec. Le reçu ne conserve que les noms des arguments de
 sandbox, sans PID ni arguments arbitraires. Cette observation qualifie la

@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import fixtures from './fixtures.cjs';
 import { assertIsolatedState, verifyHttpGates, snapshotChildPids, observeNewOwnedChild, inspectNewOwnedChildren } from './run-isolated.mjs';
+import { assertInstalledChromeMetadata } from './prepare-fonts.mjs';
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -264,4 +265,20 @@ test('owned process observation verifies a real child and refuses ambiguity or a
     for (const child of children) assert.throws(() => readFileSync('/proc/' + child.pid + '/status'), { code: 'ENOENT' }, 'Owned probe child must be reaped');
   }
   // Node children exercise safe observation only, not actual Chromium sandbox behavior.
+});
+test('installed Chrome metadata refuses substituted, writable, unowned or privileged paths', () => {
+  const expected = [
+    ['/', 'directory'], ['/opt', 'directory'], ['/opt/google', 'directory'], ['/opt/google/chrome', 'directory'],
+    ['/opt/google/chrome/chrome', 'file'], ['/etc', 'directory'], ['/etc/apparmor.d', 'directory'], ['/etc/apparmor.d/chrome', 'file'],
+  ];
+  const entries = expected.map(([filename, type]) => ({ path: filename, realpath: filename, uid: 0, mode: 0o755, type }));
+  assert.equal(assertInstalledChromeMetadata(entries), '/opt/google/chrome/chrome');
+  assert.throws(() => assertInstalledChromeMetadata(entries.slice(0, -1)));
+  for (let index = 0; index < entries.length; index++) {
+    for (const changed of [{ realpath: '/tmp/substitute' }, { uid: 1001 }, { mode: 0o775 }, { mode: 0o757 }, { mode: 0o4755 }, { mode: 0o2755 }, { type: 'other' }]) {
+      const modified = entries.map((entry, i) => i === index ? { ...entry, ...changed } : entry);
+      assert.throws(() => assertInstalledChromeMetadata(modified));
+    }
+  }
+  // Synthetic metadata tests this guard only. CI must observe the real installed files and owned browser.
 });
