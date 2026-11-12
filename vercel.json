@@ -1,5 +1,6 @@
 {
   "framework": "nextjs",
+  "git": { "deploymentEnabled": { "audit/midas-precise-cost-risk-20261112": false } },
   "functions": {
     "src/app/api/chat/route.ts": {
       "maxDuration": 120
