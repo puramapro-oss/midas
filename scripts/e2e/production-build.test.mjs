@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { createRequire } from 'node:module';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, symlinkSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -20,6 +21,25 @@ function inputs(root) {
   json(path.join(root, 'package.json'), { scripts: { build: 'next build' } });
   writeFileSync(path.join(root, 'next.config.ts'), 'export default {};');
 }
+
+test('locked Next keeps an alternate tsconfig in an unfiltered runtime manifest', () => {
+  const require = createRequire(import.meta.url);
+  const lock = JSON.parse(readFileSync(new URL('../../package-lock.json', import.meta.url), 'utf8'));
+  assert.equal(require('next/package.json').version, lock.packages['node_modules/next'].version);
+  const { defaultConfig, getNextConfigRuntime } = require('next/dist/server/config-shared');
+  assert.equal(defaultConfig.typescript.tsconfigPath, undefined);
+  assert.equal(Boolean(defaultConfig.experimental.runtimeServerDeploymentId), false);
+  for (const project of [undefined, 'tsconfig.json', 'tsconfig.relaxed.json']) {
+    const config = { ...defaultConfig, typescript: { ...defaultConfig.typescript, tsconfigPath: project } };
+    const runtime = getNextConfigRuntime(config);
+    assert.equal(runtime, config, 'The non-filtered runtime must preserve the exact config');
+    const manifest = JSON.parse(JSON.stringify({ config: { ...runtime } }));
+    assert.equal(manifest.config.typescript.tsconfigPath, project);
+  }
+  const filtered = getNextConfigRuntime({ ...defaultConfig,
+    experimental: { ...defaultConfig.experimental, runtimeServerDeploymentId: true } });
+  assert.equal(filtered.typescript, undefined, 'The filtered case is distinct and cannot attest TypeScript');
+});
 
 test('build refuses production env files, dangling env symlinks, stale output and filtered build commands', async () => {
   await owned(async root => {
@@ -107,6 +127,21 @@ test('successful command exit cannot replace complete production artifacts or di
       writeFileSync(path.join(next, 'server', filename), '// synthetic test artifact, never Next output');
     }
     assert.equal(assertProductionOutput(root).compiledAppRoutes, 4);
+    // Next 16.4.5 defaults tsconfigPath to undefined; JSON omits it. The
+    // verifier must accept that exact default, not arbitrary alternate values.
+    delete config.typescript.tsconfigPath;
+    json(path.join(next, 'required-server-files.json'), { config });
+    assert.equal(assertProductionOutput(root).typeScriptProject, 'tsconfig.json');
+    for (const invalid of ['tsconfig.relaxed.json', '', null]) {
+      config.typescript.tsconfigPath = invalid;
+      json(path.join(next, 'required-server-files.json'), { config });
+      assert.throws(() => assertProductionOutput(root), /TypeScript project must remain canonical/);
+    }
+    config.typescript.tsconfigPath = 'tsconfig.json';
+    config.experimental = { runtimeServerDeploymentId: true };
+    json(path.join(next, 'required-server-files.json'), { config });
+    assert.throws(() => assertProductionOutput(root), /filtered runtime config/);
+    config.experimental.runtimeServerDeploymentId = false;
     config.typescript.ignoreBuildErrors = true;
     json(path.join(next, 'required-server-files.json'), { config });
     assert.throws(() => assertProductionOutput(root), /must remain enabled/);

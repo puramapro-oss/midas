@@ -130,8 +130,14 @@ export function assertProductionOutput(root) {
   }
   assert(readFileSync(path.join(next, 'BUILD_ID'), 'utf8').trim(), 'Production BUILD_ID must not be empty');
   const server = JSON.parse(readFileSync(path.join(next, 'required-server-files.json'), 'utf8'));
+  assert(!server.config.experimental?.runtimeServerDeploymentId,
+    'A filtered runtime config cannot attest production TypeScript settings');
   assert.equal(server.config.typescript.ignoreBuildErrors, false, 'Build type checking must remain enabled');
-  assert.equal(server.config.typescript.tsconfigPath, 'tsconfig.json');
+  // Next 16.4.5 config-shared defaults this to undefined, which JSON omits.
+  // verify-typescript-setup resolves that default to the canonical project.
+  const typeScriptProject = server.config.typescript.tsconfigPath === undefined
+    ? 'tsconfig.json' : server.config.typescript.tsconfigPath;
+  assert.equal(typeScriptProject, 'tsconfig.json', 'The effective production TypeScript project must remain canonical');
   assert.equal(server.config.distDir, '.next');
   const routes = JSON.parse(readFileSync(path.join(next, 'server/app-paths-manifest.json'), 'utf8'));
   for (const route of ['/login/page', '/api/chat/route', '/api/trade/execute/route', '/api/signals/generate/route']) {
@@ -140,7 +146,7 @@ export function assertProductionOutput(root) {
     assert(filename.startsWith(path.join(next, 'server') + path.sep), 'Compiled route escaped the build');
     assert(lstatSync(filename).isFile(), 'Compiled route must be a regular file');
   }
-  return { hashes, compiledAppRoutes: Object.keys(routes).length, typeCheckingEnabled: true };
+  return { hashes, compiledAppRoutes: Object.keys(routes).length, typeCheckingEnabled: true, typeScriptProject };
 }
 
 export function assertProductionJournal(journal) {
@@ -155,7 +161,7 @@ export function assertProductionJournal(journal) {
 export async function runProductionQualification({ root, fontDirectory, temporaryHome, reportDirectory, verifyHttpGates }) {
   const journal = path.join(reportDirectory, 'requests.jsonl');
   const result = { status: 'FAIL', scope: 'synthetic-production-build-not-a-deployment', deployableArtifact: false,
-    phase: 'preflight', stages: Object.fromEntries(['typegen', 'tsc', 'build', 'start', 'smoke'].map(name => [name, { status: 'NON TESTÉ' }])) };
+    phase: 'preflight', stages: Object.fromEntries(['typegen', 'tsc', 'build', 'artifacts', 'start', 'smoke'].map(name => [name, { status: 'NON TESTÉ' }])) };
   const children = new Set();
   const cancellation = new AbortController();
   let fixture;
@@ -204,10 +210,12 @@ export async function runProductionQualification({ root, fontDirectory, temporar
       generatedRouteFiles: parsed.fileNames.filter(file => file.startsWith(path.join(root, '.next/types') + path.sep)).length };
     await run('tsc', process.execPath, ['node_modules/typescript/bin/tsc', '--project', 'tsconfig.json', '--noEmit', '--incremental', 'false', '--pretty', 'false'], 180000);
     await run('build', 'npm', ['run', 'build'], 600000);
+    result.phase = 'artifacts';
     result.output = assertProductionOutput(root);
     assert.deepEqual(Object.fromEntries(inputNames.map(name => [name, hash(readFileSync(path.join(root, name)))])), result.inputs,
       'Build must not change canonical config, manifests or dependency locks');
     result.network = assertProductionJournal(journal);
+    result.stages.artifacts = { status: 'PASS' };
     result.phase = 'start';
     const next = start(process.execPath, ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '3001'],
       { cwd: root, env, log: path.join(reportDirectory, 'start.log') });
