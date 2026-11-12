@@ -125,7 +125,8 @@ export function assertInstalledChromeMetadata(entries) {
   for (const entry of entries) {
     assert.equal(entry.realpath, entry.path, 'The installed Chrome paths must not resolve to substitutes');
     assert.equal(entry.uid, 0, 'The installed Chrome paths must remain root-owned');
-    assert.equal(entry.mode & 0o022, 0, 'The installed Chrome paths must not be writable by the runner');
+    assert.equal(entry.mode & 0o022, 0, 'The installed Chrome paths must not be writable by the runner: ' +
+      entry.path + ' (mode 0' + (entry.mode & 0o7777).toString(8) + ')');
     assert.equal(entry.mode & 0o6000, 0, 'The observed Chrome paths must not require setuid or setgid');
   }
   return installedChromePath;

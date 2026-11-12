@@ -277,7 +277,13 @@ test('installed Chrome metadata refuses substituted, writable, unowned or privil
   for (let index = 0; index < entries.length; index++) {
     for (const changed of [{ realpath: '/tmp/substitute' }, { uid: 1001 }, { mode: 0o775 }, { mode: 0o757 }, { mode: 0o4755 }, { mode: 0o2755 }, { type: 'other' }]) {
       const modified = entries.map((entry, i) => i === index ? { ...entry, ...changed } : entry);
-      assert.throws(() => assertInstalledChromeMetadata(modified));
+      assert.throws(() => assertInstalledChromeMetadata(modified), error => {
+        if (changed.mode !== undefined && (changed.mode & 0o022) !== 0) {
+          assert.equal(error.message.split('\n')[0], 'The installed Chrome paths must not be writable by the runner: ' +
+            entries[index].path + ' (mode 0' + changed.mode.toString(8) + ')');
+        }
+        return true;
+      });
     }
   }
   // Synthetic metadata tests this guard only. CI must observe the real installed files and owned browser.
