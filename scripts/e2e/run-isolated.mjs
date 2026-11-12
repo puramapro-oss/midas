@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
 import fixtures from './fixtures.cjs';
 import { loadPreparedFonts, assertFontRuntime, fontGate } from './prepare-fonts.mjs';
+import { runProductionQualification } from './production-build.mjs';
 export { snapshotChildPids, observeNewOwnedChild, inspectNewOwnedChildren } from './prepare-fonts.mjs';
 
 const { ORIGIN, ANON_KEY, SERVICE_KEY, REDIS_KEY, createFixtureServer } = fixtures;
@@ -18,9 +19,9 @@ const reportDirectory = path.join(root, 'test-results/e2e-isolation');
 const journal = path.join(reportDirectory, 'requests.jsonl');
 const systemPath = '/usr/sbin:/usr/bin:/sbin:/bin';
 
-function receipt(name, value) {
-  mkdirSync(reportDirectory, { recursive: true });
-  writeFileSync(path.join(reportDirectory, name), JSON.stringify({ at: new Date().toISOString(), ...value }, null, 2) + '\n');
+function receipt(name, value, directory = reportDirectory) {
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(path.join(directory, name), JSON.stringify({ at: new Date().toISOString(), ...value }, null, 2) + '\n');
 }
 function currentState() {
   const status = Object.fromEntries(readFileSync('/proc/self/status', 'utf8').split('\n')
@@ -138,7 +139,8 @@ async function stopGroup(processInfo) {
   }
   throw new Error('An owned child process group still exists after cleanup');
 }
-async function inside(args) {
+async function inside(args, { productionBuild = false } = {}) {
+  const directory = productionBuild ? path.join(root, 'test-results/production-build') : reportDirectory;
   const [parentNamespace, fontDirectory, temporaryHome, browserDirectory, uid, gid] = args;
   const state = currentState();
   assertIsolatedState(state, { parentNamespace, uid: Number(uid), gid: Number(gid) });
@@ -148,8 +150,12 @@ async function inside(args) {
     uid: state.uid, effectiveUid: state.effectiveUid, gid: state.gid,
     capabilities: Object.fromEntries(['CapEff', 'CapPrm', 'CapBnd', 'CapInh', 'CapAmb', 'NoNewPrivs'].map(key => [key, state.status[key]])),
     interfaces: state.interfaces, ipv4Routes: state.ipv4Routes, ipv6Routes: state.ipv6Routes,
-    loopbackNonceEcho: 'PASS', noEgress, servicesStartedBeforeProof: 0 });
+    loopbackNonceEcho: 'PASS', noEgress, servicesStartedBeforeProof: 0 }, directory);
   console.log(JSON.stringify({ isolation: 'PASS', uid: state.uid, namespace: state.namespace, noEgress }));
+  if (productionBuild) {
+    await runProductionQualification({ root, fontDirectory, temporaryHome, reportDirectory: directory, verifyHttpGates });
+    return;
+  }
   const { manifest, fonts } = loadPreparedFonts(fontDirectory);
   assertFontRuntime(manifest);
   const fontResponses = path.join(fontDirectory, 'responses.cjs');
@@ -250,20 +256,22 @@ async function inside(args) {
     assert.equal(interrupted, null, 'Interrupted qualification cannot exit successfully');
   }
 }
-async function outside(fontDirectory) {
+async function outside(fontDirectory, { productionBuild = false } = {}) {
+  const directory = productionBuild ? path.join(root, 'test-results/production-build') : reportDirectory;
   assert.equal(process.platform, 'linux', 'This launcher requires a Linux CI runner');
   assert.notEqual(process.getuid(), 0, 'Start the launcher as the ordinary runner user');
   const fonts = realpathSync(fontDirectory);
   assert.equal(JSON.parse(readFileSync(path.join(fonts, 'prepared.json'), 'utf8')).status, 'PASS');
-  const browserDirectory = realpathSync(process.env.PLAYWRIGHT_BROWSERS_PATH || path.join(process.env.HOME, '.cache/ms-playwright'));
-  const temporaryHome = mkdtempSync(path.join(process.env.RUNNER_TEMP || tmpdir(), 'midas-e2e-home-'));
+  const browserDirectory = productionBuild ? ''
+    : realpathSync(process.env.PLAYWRIGHT_BROWSERS_PATH || path.join(process.env.HOME, '.cache/ms-playwright'));
+  const temporaryHome = mkdtempSync(path.join(process.env.RUNNER_TEMP || tmpdir(), productionBuild ? 'midas-build-home-' : 'midas-e2e-home-'));
   const parentNamespace = readlinkSync('/proc/self/ns/net');
-  mkdirSync(reportDirectory, { recursive: true });
+  mkdirSync(directory, { recursive: true });
   const command = [
     'set -eu',
     'test "$(readlink /proc/self/ns/net)" != "$1"',
     '/usr/sbin/ip link set dev lo up',
-    'exec /usr/bin/setpriv --reuid "$2" --regid "$3" --clear-groups --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs "$4" "$5" --inside "$1" "$6" "$7" "$8" "$2" "$3"',
+    'exec /usr/bin/setpriv --reuid "$2" --regid "$3" --clear-groups --bounding-set=-all --inh-caps=-all --ambient-caps=-all --no-new-privs "$4" "$5" "$9" "$1" "$6" "$7" "$8" "$2" "$3"',
   ].join('\n');
   let outcome;
   let child;
@@ -275,7 +283,7 @@ async function outside(fontDirectory) {
   try {
     child = spawn('/usr/bin/sudo', ['-n', '--', '/usr/bin/unshare', '--net', '--',
       '/bin/sh', '-c', command, 'midas-e2e', parentNamespace, String(process.getuid()), String(process.getgid()),
-      process.execPath, script, fonts, temporaryHome, browserDirectory],
+      process.execPath, script, fonts, temporaryHome, browserDirectory, productionBuild ? '--inside-production-build' : '--inside'],
     { cwd: root, env: { PATH: systemPath, LANG: 'C.UTF-8' }, stdio: 'inherit' });
     outcome = await new Promise((resolve, reject) => {
       child.once('error', reject); child.once('exit', (code, signal) => resolve({ code, signal }));
@@ -286,16 +294,20 @@ async function outside(fontDirectory) {
     process.removeListener('SIGINT', onInt);
     rmSync(temporaryHome, { recursive: true, force: true });
     receipt('launcher.json', { status: interrupted ? 'PARTIEL' : outcome?.code === 0 ? 'PASS' : 'FAIL', outcome, interruptedBy: interrupted,
-      parentNamespace, privateHomeRemoved: true, productionConfigurationInherited: false });
+      parentNamespace, privateHomeRemoved: true, productionConfigurationInherited: false }, directory);
     assert.equal(interrupted, null, 'Interrupted launcher cannot exit successfully');
   }
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === script) {
   try {
-    if (process.argv[2] === '--inside') await inside(process.argv.slice(3));
+    if (process.argv[2] === '--inside-production-build') await inside(process.argv.slice(3), { productionBuild: true });
+    else if (process.argv[2] === '--production-build') await outside(process.argv[3], { productionBuild: true });
+    else if (process.argv[2] === '--inside') await inside(process.argv.slice(3));
     else await outside(process.argv[2]);
   } catch (error) {
-    receipt('fatal.json', { status: 'FAIL', message: error.message });
+    receipt('fatal.json', { status: 'FAIL', message: error.message },
+      ['--production-build', '--inside-production-build'].includes(process.argv[2])
+        ? path.join(root, 'test-results/production-build') : reportDirectory);
     console.error(error.message);
     process.exitCode = 1;
   }

@@ -9,7 +9,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: midas
@@ -146,10 +146,23 @@ jobs:
         run: node --test scripts/e2e/isolation.test.mjs
       - name: Verify fail-closed quotas with the locked SDK and loopback fixture
         run: node --experimental-strip-types --test scripts/rate-limit.test.mjs scripts/e2e/rate-limit-fixture.test.mjs
+      - name: Verify production qualification guards and failure propagation
+        run: node --test scripts/e2e/production-build.test.mjs
       - name: Prepare exact public font assets before network isolation
+        id: production_fonts
         run: node scripts/e2e/prepare-fonts.mjs "$RUNNER_TEMP/midas-e2e-fonts-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-      - run: npx playwright install --with-deps chromium webkit
+      - name: Qualify full production types, build and compiled HTTP contracts without egress
+        id: production_build
+        timeout-minutes: 20
+        run: node scripts/e2e/run-isolated.mjs --production-build "$RUNNER_TEMP/midas-e2e-fonts-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+      # Preserve the existing campaign after a production-only failure. The
+      # failed production step still fails the job; no continue-on-error.
+      - name: Install the locked browsers after successful dependency and font preparation
+        id: browser_install
+        if: ${{ !cancelled() && steps.production_fonts.outcome == 'success' && (steps.production_build.outcome == 'success' || steps.production_build.outcome == 'failure') }}
+        run: npx playwright install --with-deps chromium webkit
       - name: Prove isolation and readiness before the existing browser campaign
+        if: ${{ !cancelled() && steps.production_fonts.outcome == 'success' && (steps.production_build.outcome == 'success' || steps.production_build.outcome == 'failure') && steps.browser_install.outcome == 'success' }}
         run: node scripts/e2e/run-isolated.mjs "$RUNNER_TEMP/midas-e2e-fonts-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
       - name: Remove only the owned temporary public font assets
         if: always()
@@ -164,4 +177,5 @@ jobs:
           path: |
             midas/playwright-report/
             midas/test-results/e2e-isolation/
+            midas/test-results/production-build/
           retention-days: 7
