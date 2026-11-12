@@ -19,6 +19,12 @@ const MID_CAP_PAIRS = new Set([
 const TAKER_FEE_PCT = 0.1;
 const MAKER_FEE_PCT = 0.075;
 
+// Précision sub-centime : ne jamais masquer les coûts sur un petit capital.
+// Hypothèses génériques crypto : ni frais ni liquidité garantis par le courtier.
+function roundRiskCostUsd(value: number): number {
+  return Math.ceil(value * 1_000_000) / 1_000_000;
+}
+
 export interface SlippageEstimate {
   estimatedSlippagePct: number;
   estimatedFees: number;
@@ -59,7 +65,11 @@ export function estimateSlippage(
   currentPrice: number,
   avgVolume24h: number
 ): SlippageEstimate {
-  if (orderSize <= 0 || currentPrice <= 0) {
+  if (
+    typeof pair !== 'string' || pair.trim().length === 0 ||
+    [orderSize, currentPrice, avgVolume24h].some((value) => !Number.isFinite(value)) ||
+    orderSize <= 0 || currentPrice <= 0 || avgVolume24h < 0
+  ) {
     return {
       estimatedSlippagePct: 0,
       estimatedFees: 0,
@@ -97,13 +107,11 @@ export function estimateSlippage(
   );
 
   // Fees (taker fee for market orders)
-  const estimatedFees = parseFloat((orderSize * (TAKER_FEE_PCT / 100)).toFixed(2));
+  const estimatedFees = roundRiskCostUsd(orderSize * (TAKER_FEE_PCT / 100));
 
-  // Slippage cost in USD
-  const slippageCost = parseFloat((orderSize * (estimatedSlippagePct / 100)).toFixed(2));
-
-  // Total execution cost
-  const totalCost = parseFloat((estimatedFees + slippageCost).toFixed(2));
+  // Ne pas arrondir les frais à 0,00 USD avant d'évaluer le risque.
+  const slippageCost = roundRiskCostUsd(orderSize * (estimatedSlippagePct / 100));
+  const totalCost = roundRiskCostUsd(estimatedFees + slippageCost);
 
   return {
     estimatedSlippagePct,
@@ -134,25 +142,34 @@ export function estimateSlippageWithProfitCheck(
   riskRewardRatio: number
 ): SlippageEstimate {
   const base = estimateSlippage(pair, orderSize, currentPrice, avgVolume24h);
+  const validSize = typeof pair === 'string' && pair.trim().length > 0 &&
+    [orderSize, currentPrice, avgVolume24h].every(Number.isFinite) &&
+    orderSize > 0 && currentPrice > 0 && avgVolume24h >= 0;
+  // Liquidité inconnue ou paramètres invalides : aucun verdict de rentabilité positif.
+  const reliable = validSize && avgVolume24h > 0 &&
+    Number.isFinite(expectedProfitPct) && expectedProfitPct > 0 &&
+    Number.isFinite(riskRewardRatio) && riskRewardRatio > 0;
 
-  // Total cost percentage (entry slippage + exit slippage + 2x fees)
-  const totalCostPct = base.estimatedSlippagePct * 2 + (TAKER_FEE_PCT * 2);
-  const totalCostUsd = parseFloat((orderSize * (totalCostPct / 100)).toFixed(2));
+  // Aller-retour conservateur (deux exécutions au marché).
+  // Hypothèses crypto génériques, pas les frais réels Vantage/MT4.
+  const totalCostPct = base.estimatedSlippagePct * 2 + TAKER_FEE_PCT * 2;
+  const totalCostUsd = validSize ? roundRiskCostUsd(orderSize * totalCostPct / 100) : 0;
+  const expectedProfitUsd = reliable ? orderSize * expectedProfitPct / 100 : 0;
+  const isProfitable = reliable && expectedProfitUsd > totalCostUsd;
 
-  const expectedProfitUsd = orderSize * (expectedProfitPct / 100);
-  const isProfitable = expectedProfitUsd > totalCostUsd;
-
-  // Adjusted risk/reward: reduce the reward by execution costs
-  const adjustedRewardPct = expectedProfitPct - totalCostPct;
-  const riskPct = riskRewardRatio > 0 ? expectedProfitPct / riskRewardRatio : expectedProfitPct;
-  const adjustedRR = riskPct > 0 ? adjustedRewardPct / riskPct : 0;
+  // Les frais réduisent les gains ET amplifient la perte au stop.
+  const grossRiskPct = reliable ? expectedProfitPct / riskRewardRatio : 0;
+  const netRewardPct = reliable ? expectedProfitPct - totalCostPct : 0;
+  const adjustedRR = netRewardPct > 0 && grossRiskPct > 0
+    ? netRewardPct / (grossRiskPct + totalCostPct) : 0;
 
   return {
     estimatedSlippagePct: base.estimatedSlippagePct,
-    estimatedFees: parseFloat((base.estimatedFees * 2).toFixed(2)), // Round-trip fees
+    estimatedFees: validSize ? roundRiskCostUsd(base.estimatedFees * 2) : 0,
     totalCost: totalCostUsd,
     isProfitableAfterCosts: isProfitable,
-    adjustedRiskReward: parseFloat(Math.max(0, adjustedRR).toFixed(2)),
+    adjustedRiskReward: Number.isFinite(adjustedRR)
+      ? parseFloat(Math.max(0, adjustedRR).toFixed(2)) : 0,
   };
 }
 
@@ -168,7 +185,8 @@ export function recommendExecutionMethod(
   reason: string;
   estimatedSaving: number;
 } {
-  if (avgVolume24h <= 0) {
+  if (!Number.isFinite(orderSize) || orderSize <= 0 ||
+      !Number.isFinite(avgVolume24h) || avgVolume24h <= 0) {
     return {
       method: 'limit',
       reason: 'No volume data — use limit order for price protection',
