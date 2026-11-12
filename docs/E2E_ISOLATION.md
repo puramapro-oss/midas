@@ -1,5 +1,54 @@
 # Qualification navigateur isolée
 
+## Réduction bornée des permissions du runner jetable
+
+Le diagnostic du run `43130291739` a identifié `/opt` en mode `0777` avant
+tout lancement Chrome. Le garde a refusé ce parent modifiable et la campagne
+navigateur n'a pas commencé. Le script officiel
+[configure-system.sh du tag de l'image exécutée](https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/scripts/build/configure-system.sh)
+applique un `chmod -R 777 /opt` à la construction. Cette preuve ne détermine pas
+le mécanisme responsable du premier échec `No usable sandbox!`.
+
+La préparation de ce job retire désormais **uniquement les bits `0o022`** de
+`/opt`, de `/opt/google` et de l'arborescence réelle `/opt/google/chrome`, y compris
+ses bibliothèques et ressources. Les deux parents sont des cibles de métadonnées
+seules : aucun autre sous-arbre de `/opt`, ni `/usr/share`, n'est parcouru ou modifié.
+Le propriétaire, le groupe, les octets, les bits de lecture/exécution et les bits
+spéciaux doivent rester identiques. Aucun objet SUID/SGID ne reçoit de chmod : un
+helper déjà protégé est constaté inchangé ; s'il exige aussi un retrait d'écriture,
+la préparation refuse avant la première mutation. Aucun bit SUID/SGID n'est activé.
+
+Le helper exige Linux/root et n'accepte aucun argument de cible. Il ouvre des
+descripteurs sans suivi de liens, exige des propriétaires root et des types
+attendus, refuse les symlinks, fichiers à plusieurs liens durs, objets spéciaux,
+substitutions d'inodes et changements de contenu. Il inventorie et valide tout
+le périmètre avant de réduire les permissions, d'abord celles des répertoires
+parents, puis celles des fichiers. Les tailles, nombres d'entrées, profondeurs,
+longueurs de chemins, lectures de mountinfo et durées d'itération sont bornés.
+Les montages entrants et les alias sortants recouvrant une cible sont refusés ;
+le montage canonique ordinaire est permis, comme un alias d'un enfant de `/opt`
+étranger au périmètre Chrome.
+
+Le workflow appelle `/usr/bin/python3 -I -S -B` avec sudo non interactif immédiatement après le checkout,
+avant setup-node, les identités privées, l'installation et les lifecycle scripts.
+Le helper root écrit uniquement les modes autorisés et émet son JSON sur stdout.
+Le shell runner crée le reçu avec refus d'existence/symlink et `noclobber` ; le
+helper n'ouvre aucun chemin de sortie en root. Le reçu conserve les modes,
+UID/GID et SHA256 avant/après, ainsi que les empreintes de mountinfo. Il ne promet
+pas des atime/ctime invariants : lectures et chmod peuvent les modifier.
+
+Un échec ferme le job et conserve le reçu, y compris si seule une partie des
+permissions a déjà été réduite. Il n'y a aucun rétablissement vers `0777`. Les
+contre-épreuves utilisent uniquement des fixtures temporaires possédées, sans
+sudo, montage, chown ni bit SUID/SGID réel. Elles ne qualifient pas l'installation
+Chrome du runner. Une nouvelle CI complète, son reçu de durcissement et un vrai
+lancement protégé restent nécessaires.
+
+Ce renforcement des permissions de fichiers est distinct des politiques du
+système et de la sandbox : aucun profil AppArmor, sysctl, noyau, canal navigateur,
+namespace, capacité ou oracle n'est modifié. Les gardes d'identité et de lancement
+restent exigées après cette préparation. Les refus antérieurs sont conservés.
+
 ## Navigateur préinstallé et sandbox — 12 novembre 2026
 
 Le run `43127472435`, sur Ubuntu 26.04.1 / image `20261101.186.1`, a qualifié
@@ -27,8 +76,9 @@ nulles, `NoNewPrivs`, namespace réseau fermé et observation bornée du nouvel
 enfant. Sa liste d'exécutables autorisés contient uniquement le chemin Chrome
 canonique. PPID, UID, namespace, exécutable et identité de commande sont encore
 vérifiés, et `--no-sandbox` reste interdit. Une présence ou une observation non
-prouvée arrête la qualification. Aucun profil, sysctl, AppArmor, noyau, helper
-SUID ou réglage de sécurité de l'hôte n'est modifié.
+prouvée arrête la qualification. Aucun profil AppArmor, sysctl, noyau ou politique
+de sandbox n'est modifié. La seule réduction de permissions est bornée par la
+préparation ci-dessus ; aucun helper SUID/SGID n'est chmoddé ou activé.
 
 Sources : [documentation Chromium](https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md),
 [canaux Playwright](https://playwright.dev/docs/browsers#google-chrome--microsoft-edge),

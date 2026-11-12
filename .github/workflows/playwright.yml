@@ -18,6 +18,15 @@ jobs:
         with:
           path: midas
           persist-credentials: false
+      - name: Harden only installed Chrome write permissions before code or private credentials
+        run: |
+          mkdir -p -- test-results/e2e-isolation
+          receipt=test-results/e2e-isolation/chrome-permissions.json
+          test ! -e "$receipt" && test ! -L "$receipt"
+          set -o noclobber
+          sudo -n -- /usr/bin/python3 -I -S -B scripts/e2e/harden-installed-chrome.py > "$receipt"
+      - name: Verify Chrome permission boundaries on disposable owned fixtures
+        run: /usr/bin/python3 -I -S -B scripts/e2e/harden-installed-chrome.test.py
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
