@@ -1,0 +1,23 @@
+name: MIDAS execution-cost safety
+on:
+  pull_request:
+    paths:
+      - 'src/lib/trading/slippage-estimator.ts'
+      - 'src/lib/trading/slippage-estimator.test.ts'
+      - '.github/workflows/midas-cost-safety.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cost-safety:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify fee and liquidity invariants without keys or external services
+        run: node --experimental-strip-types --test src/lib/trading/slippage-estimator.test.ts
