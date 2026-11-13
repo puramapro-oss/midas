@@ -20,8 +20,12 @@ export function level1PositionSizing(
     return { passed: true, message: '' };
   }
 
-  const maxRiskPct = config.max_position_size_pct;
   const riskPct = decision.position_size_pct;
+  const riskPercentages = [config.max_position_size_pct, profile.max_position_size_pct, riskPct];
+  if (!riskPercentages.every((value) => Number.isFinite(value) && value > 0 && value <= 100)) {
+    return { passed: false, message: '[L1 Position Sizing] Invalid position size or risk limit' };
+  }
+  const maxRiskPct = Math.min(config.max_position_size_pct, profile.max_position_size_pct);
 
   if (riskPct > maxRiskPct) {
     return {
@@ -112,6 +116,10 @@ export function level3TrailingStopReady(
   }
 
   const rrr = decision.risk_reward_ratio;
+  const rewardInputs = [rrr, config.min_risk_reward, decision.entry_price, decision.stop_loss, decision.take_profit];
+  if (!rewardInputs.every((value) => Number.isFinite(value) && value > 0)) {
+    return { passed: false, message: '[L3 Trailing Stop] Invalid price or risk/reward input' };
+  }
 
   if (rrr < config.min_risk_reward) {
     return {
@@ -120,19 +128,16 @@ export function level3TrailingStopReady(
     };
   }
 
-  if (decision.take_profit !== null && decision.stop_loss !== null && decision.entry_price > 0) {
-    const potentialGain = Math.abs(decision.take_profit - decision.entry_price);
-    const potentialLoss = Math.abs(decision.entry_price - decision.stop_loss);
-
-    if (potentialLoss > 0) {
-      const computedRRR = potentialGain / potentialLoss;
-      if (computedRRR < config.min_risk_reward) {
-        return {
-          passed: false,
-          message: `[L3 Trailing Stop] Computed RRR ${computedRRR.toFixed(2)} is below minimum ${config.min_risk_reward}`,
-        };
-      }
-    }
+  const potentialGain = decision.action === 'sell'
+    ? decision.entry_price - decision.take_profit
+    : decision.take_profit - decision.entry_price;
+  const potentialLoss = Math.abs(decision.entry_price - decision.stop_loss);
+  const computedRRR = potentialGain / potentialLoss;
+  if (!Number.isFinite(computedRRR) || computedRRR < config.min_risk_reward) {
+    return {
+      passed: false,
+      message: `[L3 Trailing Stop] Computed RRR ${computedRRR.toFixed(2)} is invalid or below minimum ${config.min_risk_reward}`,
+    };
   }
 
   return { passed: true, message: '' };
@@ -249,57 +254,4 @@ export function level6CheckDiversification(
   return { passed: true, message: '' };
 }
 
-export function level7CheckUserLimits(
-  decision: CoordinatorDecision,
-  profile: UserProfile,
-  recentTrades: TradeHistory[],
-  config: ShieldConfig
-): LevelResult {
-  if (decision.action === 'hold') {
-    return { passed: true, message: '' };
-  }
-
-  const now = Date.now();
-  const dayAgo = now - 24 * 60 * 60 * 1000;
-  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
-  const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
-
-  const sumLosses = (sinceTimestamp: number): number =>
-    recentTrades
-      .filter((t) => t.closed_at >= sinceTimestamp && t.pnl < 0)
-      .reduce((sum, t) => sum + t.pnl, 0);
-
-  const dailyLoss = sumLosses(dayAgo);
-  const weeklyLoss = sumLosses(weekAgo);
-  const monthlyLoss = sumLosses(monthAgo);
-
-  if (profile.daily_loss_limit_usd > 0 && Math.abs(dailyLoss) >= profile.daily_loss_limit_usd) {
-    return {
-      passed: false,
-      message: `[L7 User Limits] Daily loss $${Math.abs(dailyLoss).toFixed(2)} reached limit $${profile.daily_loss_limit_usd}`,
-    };
-  }
-
-  if (profile.weekly_loss_limit_usd > 0 && Math.abs(weeklyLoss) >= profile.weekly_loss_limit_usd) {
-    return {
-      passed: false,
-      message: `[L7 User Limits] Weekly loss $${Math.abs(weeklyLoss).toFixed(2)} reached limit $${profile.weekly_loss_limit_usd}`,
-    };
-  }
-
-  if (profile.monthly_loss_limit_usd > 0 && Math.abs(monthlyLoss) >= profile.monthly_loss_limit_usd) {
-    return {
-      passed: false,
-      message: `[L7 User Limits] Monthly loss $${Math.abs(monthlyLoss).toFixed(2)} reached limit $${profile.monthly_loss_limit_usd}`,
-    };
-  }
-
-  if (decision.confidence < config.min_confidence) {
-    return {
-      passed: false,
-      message: `[L7 User Limits] Confidence ${(decision.confidence * 100).toFixed(1)}% below minimum ${(config.min_confidence * 100).toFixed(1)}%`,
-    };
-  }
-
-  return { passed: true, message: '' };
-}
+export { level7CheckUserLimits } from './risk-user-limits.ts';

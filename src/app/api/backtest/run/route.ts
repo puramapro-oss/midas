@@ -14,19 +14,21 @@ import { PLAN_LIMITS } from '@/lib/utils/constants';
 import type { MidasPlan } from '@/types/stripe';
 import type { Candle, BacktestConfig } from '@/types/trading';
 import type { BaseStrategy } from '@/lib/trading/strategies/base-strategy';
-import { fetchKlinesWithSource } from '@/lib/exchange/binance-public';
+import { fetchHistoricalKlines } from '@/lib/exchange/binance-public';
+import { historicalWindow } from '@/lib/exchange/candle-contract';
+import { BACKTEST_STRATEGIES, BACKTEST_TIMEFRAMES, backtestWarmup } from '@/lib/trading/backtest-contract';
 import { checkRateLimit } from '@/lib/utils/rate-limiter';
 
 const bodySchema = z.object({
-  pair: z.string().min(1).max(30),
+  pair: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{1,15}\/[A-Z0-9]{1,15}$/),
   startDate: z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
   endDate: z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
-  strategy: z.string().min(1).max(50),
+  strategy: z.enum(BACKTEST_STRATEGIES),
   capital: z.number().positive().max(10000000).default(10000),
   stopLossPct: z.number().min(0.1).max(50).default(3),
   takeProfitPct: z.number().min(0.1).max(100).default(6),
-  timeframe: z.enum(['1m', '5m', '15m', '1h', '4h', '1d']).default('4h'),
-  leverage: z.number().min(1).max(125).default(1),
+  timeframe: z.enum(BACKTEST_TIMEFRAMES).default('4h'),
+  leverage: z.literal(1).default(1),
 });
 
 async function getAuthUser() {
@@ -69,7 +71,7 @@ function createStrategy(strategyName: string, pair: string, timeframe: string, c
     case 'smart_entry':
       return new SmartEntryStrategy(config);
     default:
-      return new MomentumStrategy(config);
+      throw new Error('Unsupported backtest strategy');
   }
 }
 
@@ -85,7 +87,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Trop de requêtes, réessaie dans un instant.' }, { status: 429 });
     }
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: 'Donnees invalides', details: parsed.error.flatten() }, { status: 400 });
@@ -118,19 +120,23 @@ export async function POST(request: Request) {
     // Validate date range
     const startMs = new Date(startDate).getTime();
     const endMs = new Date(endDate).getTime();
-    if (endMs <= startMs) {
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs || endMs > Date.now() ||
+        new Date(startMs).toISOString().slice(0, 10) !== startDate.slice(0, 10) ||
+        new Date(endMs).toISOString().slice(0, 10) !== endDate.slice(0, 10)) {
       return NextResponse.json({ error: 'La date de fin doit etre posterieure a la date de debut' }, { status: 400 });
     }
 
-    const maxRangeMs = 365 * 24 * 60 * 60 * 1000; // 1 year max
+    const maxRangeMs = 732 * 24 * 60 * 60 * 1000;
     if (endMs - startMs > maxRangeMs) {
-      return NextResponse.json({ error: 'La plage de dates ne peut pas depasser 1 an' }, { status: 400 });
+      return NextResponse.json({ error: 'La plage de dates ne peut pas depasser 2 ans' }, { status: 400 });
     }
 
-    const marketData = await fetchKlinesWithSource(pair, timeframe, 1000);
-    const candles = marketData.candles.filter((candle) => candle.timestamp >= startMs && candle.timestamp <= endMs) as Candle[];
+    try { historicalWindow(startMs, endMs, timeframe); }
+    catch { return NextResponse.json({ error: 'Choisis une periode plus courte ou des bougies plus longues (5000 bougies maximum).' }, { status: 400 }); }
+    const marketData = await fetchHistoricalKlines(pair, timeframe, startMs, endMs);
+    const candles = marketData.candles as Candle[];
 
-    if (candles.length < 50) {
+    if (!marketData.complete || candles.length < backtestWarmup(strategy) + 2) {
       return NextResponse.json({ error: 'Historique reel insuffisant pour cette periode; aucun backtest synthetique genere' }, { status: 503 });
     }
 
@@ -144,11 +150,11 @@ export async function POST(request: Request) {
       initial_capital: capital,
       leverage,
       fee_rate: 0.001,
-      slippage_pct: 0.0005,
-      take_profit_pct: takeProfitPct / 100,
-      stop_loss_pct: stopLossPct / 100,
+      slippage_pct: 0.05,
+      take_profit_pct: takeProfitPct,
+      stop_loss_pct: stopLossPct,
       trailing_stop: false,
-      trailing_stop_pct: 0.02,
+      trailing_stop_pct: 1,
       max_concurrent_positions: 1,
       use_ai_signals: false,
       custom_params: {},
@@ -160,7 +166,9 @@ export async function POST(request: Request) {
     // Run backtest
     const result = await runBacktest(config, candles, strategyInstance);
 
-    return NextResponse.json({ result, market_data_source: marketData.source });
+    return NextResponse.json({ result, market_data_source: marketData.sources.join(', '),
+      coverage: { complete: true, first_open_time: marketData.first, end_exclusive: marketData.endExclusive,
+        candles: candles.length, warmup_candles: backtestWarmup(strategy) } });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur interne';
     return NextResponse.json({ error: message }, { status: 500 });

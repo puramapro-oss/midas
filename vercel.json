@@ -1,6 +1,17 @@
 {
   "framework": "nextjs",
-  "git": { "deploymentEnabled": { "audit/midas-precise-cost-risk-20261112": false } },
+  "git": {
+    "deploymentEnabled": {
+      "audit/l7-global-daily-loss-20261109": false,
+      "repair/midas-execution-contract-20261109": false,
+      "audit/midas-ovh-contracts-priority": false,
+      "audit/midas-shared-risk-gates-20261111": false,
+      "audit/midas-production-dependencies-20261111": false,
+      "audit/midas-educational-metadata-20261111": false,
+      "codex/midas-rate-limit-fail-closed-20261112": false,
+      "audit/midas-precise-cost-risk-20261112": false
+    }
+  },
   "functions": {
     "src/app/api/chat/route.ts": {
       "maxDuration": 120

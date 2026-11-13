@@ -1,9 +1,8 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { DollarSign, Target, TrendingUp, Link2 } from 'lucide-react';
+import { DollarSign, Target, TrendingUp } from 'lucide-react';
 import { usePerformance } from '@/hooks/usePerformance';
-import { useExchange } from '@/hooks/useExchange';
 
 const cardVariants = {
   hidden: { opacity: 0, y: 20, scale: 0.95 } as const,
@@ -22,72 +21,38 @@ const cardVariants = {
 
 export default function PortfolioOverview() {
   const perf = usePerformance();
-  const { connected, balance } = useExchange();
-
-  if (!connected) {
-    return (
-      <motion.div
-        data-testid="portfolio-overview"
-        initial={{ opacity: 0, scale: 0.96 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ type: 'spring', stiffness: 280, damping: 24 }}
-      >
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm p-8 text-center">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 15, delay: 0.15 }}
-            className="w-12 h-12 rounded-xl bg-[#FFD700]/10 flex items-center justify-center mx-auto mb-4"
-          >
-            <Link2 className="w-6 h-6 text-[#FFD700]" />
-          </motion.div>
-          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-            Connecte ton exchange
-          </h3>
-          <p className="text-sm text-[var(--text-tertiary)] mb-4 max-w-md mx-auto">
-            Pour voir ton solde, tes positions et tes performances, connecte ton exchange dans les parametres.
-          </p>
-          <motion.a
-            href="/dashboard/settings/exchanges"
-            whileHover={{ scale: 1.04, boxShadow: '0 0 24px rgba(255,215,0,0.2)' }}
-            whileTap={{ scale: 0.97 }}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#FFD700]/10 border border-[#FFD700]/20 text-[#FFD700] text-sm font-semibold hover:bg-[#FFD700]/20 transition-colors"
-          >
-            Connecter un exchange
-          </motion.a>
-        </div>
-      </motion.div>
-    );
-  }
+  if (perf.loading) return <p role="status">Chargement des performances simulées…</p>;
+  if (perf.error) return <div role="alert" className="text-red-400">
+    <p>{perf.error}</p><button onClick={() => void perf.refresh()} className="underline">Réessayer</button>
+  </div>;
 
   const stats = [
     {
-      label: 'Balance',
-      value: `$${balance.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}`,
+      label: 'Frais simulés',
+      value: `${perf.totalFees.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} USDT`,
       icon: DollarSign,
       color: 'var(--gold-primary)',
       glow: 'rgba(255,215,0,0.15)',
     },
     {
-      label: 'P&L Total',
+      label: 'P&L simulé net',
       value: perf.totalPnl >= 0
-        ? `+$${perf.totalPnl.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}`
-        : `-$${Math.abs(perf.totalPnl).toLocaleString('fr-FR', { minimumFractionDigits: 2 })}`,
-      change: perf.totalTrades > 0 ? `${perf.totalPnl >= 0 ? '+' : ''}${((perf.totalPnl / Math.max(balance, 1)) * 100).toFixed(1)}%` : null,
+        ? `+${perf.totalPnl.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} USDT`
+        : `-${Math.abs(perf.totalPnl).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} USDT`,
       positive: perf.totalPnl >= 0,
       icon: TrendingUp,
       color: perf.totalPnl >= 0 ? '#10B981' : '#EF4444',
       glow: perf.totalPnl >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
     },
     {
-      label: 'Win Rate',
+      label: 'Trades gagnants',
       value: perf.totalTrades > 0 ? `${perf.winRate.toFixed(1)}%` : '0%',
       icon: Target,
       color: '#06B6D4',
       glow: 'rgba(6,182,212,0.12)',
     },
     {
-      label: 'Trades',
+      label: 'Simulations clôturées',
       value: perf.totalTrades.toString(),
       icon: TrendingUp,
       color: 'var(--gold-primary)',
@@ -133,11 +98,7 @@ export default function PortfolioOverview() {
               <p className="text-xl font-bold text-[var(--text-primary)]" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
                 {stat.value}
               </p>
-              {'change' in stat && stat.change && (
-                <span className={`text-xs font-medium ${stat.positive ? 'text-emerald-400' : 'text-red-400'}`} style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
-                  {stat.change}
-                </span>
-              )}
+
             </div>
           </motion.div>
         ))}

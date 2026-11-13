@@ -2,23 +2,180 @@ name: Playwright Tests
 on:
   push:
     branches: [main]
+  # Stacked pull requests must also receive the browser qualification.
   pull_request:
-    branches: [main]
+permissions:
+  contents: read
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: midas
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          node-version: 20
-      - run: npm ci
-      - run: npx playwright install chromium
-      - run: npx playwright test
-      - uses: actions/upload-artifact@v4
+          path: midas
+          persist-credentials: false
+      - name: Harden only installed Chrome write permissions before code or private credentials
+        run: |
+          mkdir -p -- test-results/e2e-isolation
+          receipt=test-results/e2e-isolation/chrome-permissions.json
+          test ! -e "$receipt" && test ! -L "$receipt"
+          set -o noclobber
+          sudo -n -- /usr/bin/python3 -I -S -B scripts/e2e/harden-installed-chrome.py > "$receipt"
+      - name: Verify Chrome permission boundaries on disposable owned fixtures
+        run: /usr/bin/python3 -I -S -B scripts/e2e/harden-installed-chrome.test.py
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - name: Read immutable shared package revision
+        id: shared
+        run: node scripts/bootstrap-shared-packages.mjs --github-output
+      - name: Check required private read credentials
+        env:
+          PACKAGE_SOURCE_KEY_PRESENT: ${{ secrets.PURAMA_PACKAGES_READ_SSH_KEY != '' }}
+          SMARANA_KEY_PRESENT: ${{ secrets.SMARANA_READ_SSH_KEY != '' }}
+        run: |
+          if [ "$PACKAGE_SOURCE_KEY_PRESENT" != true ]; then
+            echo '::error::A dedicated read-only PURAMA_PACKAGES_READ_SSH_KEY is required for purama-master.'
+            exit 1
+          fi
+          if [ "$SMARANA_KEY_PRESENT" != true ]; then
+            echo '::error::A separate read-only SMARANA_READ_SSH_KEY is required for purama-smarana.'
+            exit 1
+          fi
+      - name: Retrieve only manifest-listed private source files
+        env:
+          PURAMA_PACKAGES_READ_SSH_KEY: ${{ secrets.PURAMA_PACKAGES_READ_SSH_KEY }}
+          TMPDIR: ${{ runner.temp }}/midas-shared-source-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          mkdir -m 700 -- "$TMPDIR"
+          node scripts/install-private-dependencies.mjs --shared-source "$GITHUB_WORKSPACE/shared-source"
+      - name: Remove and verify temporary source authentication
+        if: always()
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { spawnSync } = require('node:child_process');
+          const root = fs.realpathSync(process.env.RUNNER_TEMP);
+          if (!/^\d+$/.test(process.env.GITHUB_RUN_ID) || !/^\d+$/.test(process.env.GITHUB_RUN_ATTEMPT)) throw new Error('Invalid owned cleanup identity.');
+          const directory = path.join(root, `midas-shared-source-${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_RUN_ATTEMPT}`);
+          fs.rmSync(directory, { recursive: true, force: true });
+          try {
+            fs.lstatSync(directory);
+            throw new Error('Temporary shared source authentication remains.');
+          } catch (error) { if (error.code !== 'ENOENT') throw error; }
+          const env = { ...process.env };
+          for (const key of Object.keys(env)) if (key.startsWith('GIT_')) delete env[key];
+          Object.assign(env, { GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' });
+          const result = spawnSync('git', ['-C', path.join(process.env.GITHUB_WORKSPACE, 'midas'), 'config', '--local',
+            '--no-includes', '--name-only', '--get-regexp',
+            '^(core\\.sshcommand|http\\..*\\.extraheader|credential\\..*|url\\..*\\.insteadof|include\\.path|includeif\\..*\\.path)$'],
+            { env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 5000, maxBuffer: 65536 });
+          if (result.error || result.status !== 1 || result.stdout.trim()) throw new Error('Persistent checkout authentication remains or cannot be verified.');
+          console.log(JSON.stringify({ sharedSourceTemporaryDirectoryAbsent: true, checkoutAuthenticationConfigAbsent: true }));
+          NODE
+      - name: Verify every source digest and create the sibling package layout
+        run: node scripts/bootstrap-shared-packages.mjs "$GITHUB_WORKSPACE/shared-source" "$GITHUB_WORKSPACE/packages"
+      - name: Install the locked dependencies with repository-scoped credentials
+        env:
+          SMARANA_READ_SSH_KEY: ${{ secrets.SMARANA_READ_SSH_KEY }}
+          TMPDIR: ${{ runner.temp }}/midas-private-install-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          mkdir -m 700 -- "$TMPDIR"
+          node scripts/install-private-dependencies.mjs
+          git diff --exit-code -- package.json package-lock.json tooling/shared-packages.lock.json
+      - name: Remove temporary private installation authentication
+        if: always()
+        run: |
+          auth_dir="$RUNNER_TEMP/midas-private-install-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          rm -rf -- "$auth_dir"
+          test ! -e "$auth_dir" && test ! -L "$auth_dir"
+      - name: Run dependency lifecycle scripts without repository credentials
+        run: npm rebuild --no-audit --no-fund
+      - name: Lint only the changed image routes and dependency regressions
+        run: >-
+          node node_modules/eslint/bin/eslint.js --max-warnings 0
+          src/app/api/og/route.tsx src/app/api/story/route.tsx
+          e2e/edge-image-api.spec.ts scripts/test-production-dependencies-20261111.mjs
+      - name: Typecheck only the image routes and their API regression
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { randomUUID } = require('node:crypto');
+          const { spawnSync } = require('node:child_process');
+          const assert = require('node:assert/strict');
+          const ts = require('typescript');
+          const root = process.cwd();
+          const files = ['src/app/api/og/route.tsx', 'src/app/api/story/route.tsx', 'e2e/edge-image-api.spec.ts'];
+          if (fs.existsSync('next-env.d.ts')) files.push('next-env.d.ts');
+          const config = path.join(root, `.midas-image-quality-${randomUUID()}.json`);
+          try {
+            fs.writeFileSync(config, JSON.stringify({
+              extends: './tsconfig.json',
+              compilerOptions: { incremental: false, noEmit: true },
+              files,
+              include: [],
+            }), { flag: 'wx', mode: 0o600 });
+            const parsed = ts.getParsedCommandLineOfConfigFile(config, {}, {
+              ...ts.sys,
+              onUnRecoverableConfigFileDiagnostic(error) { throw new Error(ts.flattenDiagnosticMessageText(error.messageText, '\n')); },
+            });
+            assert(parsed && parsed.errors.length === 0, 'The targeted TypeScript configuration must parse.');
+            assert.deepEqual(parsed.fileNames.map(file => path.relative(root, file)).sort(), [...files].sort());
+            assert.equal(parsed.options.strict, true);
+            assert.equal(parsed.options.skipLibCheck, true); // Unchanged canonical setting.
+            const checked = spawnSync(process.execPath, ['node_modules/typescript/bin/tsc', '--project', config, '--pretty', 'false'], {
+              stdio: 'inherit', timeout: 60000,
+            });
+            if (checked.error) throw checked.error;
+            assert.equal(checked.signal, null);
+            process.exitCode = checked.status === 0 ? 0 : 1;
+          } finally {
+            fs.rmSync(config, { force: true });
+            assert.equal(fs.existsSync(config), false, 'The owned temporary TypeScript config must be removed.');
+          }
+          NODE
+      - name: Verify corrected dependency behavior with loopback-only transports
+        run: node --test scripts/test-production-dependencies-20261111.mjs
+      - name: Verify isolated HTTP and rejection contracts
+        run: node --test scripts/e2e/isolation.test.mjs
+      - name: Verify fail-closed quotas with the locked SDK and loopback fixture
+        run: node --experimental-strip-types --test scripts/rate-limit.test.mjs scripts/e2e/rate-limit-fixture.test.mjs
+      - name: Verify production qualification guards and failure propagation
+        run: node --test scripts/e2e/production-build.test.mjs
+      - name: Prepare exact public font assets before network isolation
+        id: production_fonts
+        run: node scripts/e2e/prepare-fonts.mjs "$RUNNER_TEMP/midas-e2e-fonts-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+      - name: Qualify full production types, build and compiled HTTP contracts without egress
+        id: production_build
+        timeout-minutes: 20
+        run: node scripts/e2e/run-isolated.mjs --production-build "$RUNNER_TEMP/midas-e2e-fonts-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+      # Preserve the existing campaign after a production-only failure. The
+      # failed production step still fails the job; no continue-on-error.
+      - name: Install the locked browsers after successful dependency and font preparation
+        id: browser_install
+        if: ${{ !cancelled() && steps.production_fonts.outcome == 'success' && (steps.production_build.outcome == 'success' || steps.production_build.outcome == 'failure') }}
+        run: npx playwright install --with-deps chromium webkit
+      - name: Prove isolation and readiness before the existing browser campaign
+        if: ${{ !cancelled() && steps.production_fonts.outcome == 'success' && (steps.production_build.outcome == 'success' || steps.production_build.outcome == 'failure') && steps.browser_install.outcome == 'success' }}
+        run: node scripts/e2e/run-isolated.mjs "$RUNNER_TEMP/midas-e2e-fonts-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+      - name: Remove only the owned temporary public font assets
+        if: always()
+        run: |
+          font_dir="$RUNNER_TEMP/midas-e2e-fonts-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          rm -rf -- "$font_dir"
+          test ! -e "$font_dir" && test ! -L "$font_dir"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: playwright-report
-          path: playwright-report/
+          path: |
+            midas/playwright-report/
+            midas/test-results/e2e-isolation/
+            midas/test-results/production-build/
           retention-days: 7

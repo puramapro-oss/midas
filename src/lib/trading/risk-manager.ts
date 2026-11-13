@@ -5,6 +5,7 @@
 
 import type { CoordinatorDecision } from '@/lib/agents/types';
 import type { ShieldConfig } from '@/types/trading';
+import type { PaperRiskExposure } from './paper-risk';
 import {
   level1PositionSizing,
   level2ValidateStopLoss,
@@ -13,7 +14,7 @@ import {
   level5CheckCrashProtection,
   level6CheckDiversification,
   level7CheckUserLimits,
-} from './risk-levels';
+} from './risk-levels.ts';
 
 export interface UserProfile {
   id: string;
@@ -33,6 +34,9 @@ export interface OpenPosition {
   entry_price: number;
   current_price: number;
   quantity: number;
+  quote_amount: number;
+  stop_loss: number;
+  fees: number;
   unrealized_pnl: number;
   leverage: number;
   allocation_pct: number;
@@ -50,7 +54,7 @@ export interface ShieldCheckResult {
 }
 
 const DEFAULT_SHIELD_CONFIG: ShieldConfig = {
-  max_daily_loss_pct: 5,
+  max_daily_loss_pct: 1,
   max_daily_loss_usd: 500,
   max_position_size_pct: 2,
   max_leverage: 10,
@@ -85,7 +89,8 @@ export class RiskManager {
   checkAllLevels(
     decision: CoordinatorDecision,
     profile: UserProfile,
-    openPositions: OpenPosition[]
+    openPositions: OpenPosition[],
+    paperExposure?: PaperRiskExposure,
   ): ShieldCheckResult {
     const failures: string[] = [];
 
@@ -96,7 +101,7 @@ export class RiskManager {
       level4CheckCircuitBreaker(this.recentTrades, this.shieldConfig),
       level5CheckCrashProtection(this.btcPriceHistory, this.shieldConfig),
       level6CheckDiversification(decision, openPositions, profile, this.shieldConfig),
-      level7CheckUserLimits(decision, profile, this.recentTrades, this.shieldConfig),
+      level7CheckUserLimits(decision, profile, this.recentTrades, this.shieldConfig, paperExposure),
     ];
 
     for (const check of checks) {

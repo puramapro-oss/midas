@@ -10,6 +10,7 @@ export interface ActivePosition {
   side: 'buy' | 'sell';
   entryPrice: number;
   quantity: number;
+  entryFee: number;
   stopLoss: number;
   takeProfit: number;
   trailingStopHighest: number;
@@ -35,16 +36,31 @@ export function openTrade(
   candle: Candle,
   config: BacktestConfig
 ): void {
+  if (state.position || (signal.action !== 'buy' && signal.action !== 'sell') ||
+      !Number.isFinite(state.capital) || state.capital <= 0 ||
+      !Number.isFinite(config.fee_rate) || config.fee_rate < 0 || config.fee_rate >= 1 ||
+      !Number.isFinite(config.slippage_pct) || config.slippage_pct < 0 || config.slippage_pct >= 100 ||
+      !Number.isFinite(candle.timestamp) || !Number.isFinite(new Date(candle.timestamp).getTime()) ||
+      !Number.isFinite(candle.close) || candle.close <= 0 ||
+      !Number.isFinite(signal.stop_loss) || signal.stop_loss <= 0 ||
+      !Number.isFinite(signal.take_profit) || signal.take_profit <= 0) return;
   const entryPrice = candle.close * (1 + config.slippage_pct / 100 * (signal.action === 'buy' ? 1 : -1));
+  const direction = signal.action === 'buy' ? 1 : -1;
+  const stopLoss = config.stop_loss_pct === undefined ? signal.stop_loss : entryPrice * (1 - direction * config.stop_loss_pct / 100);
+  const takeProfit = config.take_profit_pct === undefined ? signal.take_profit : entryPrice * (1 + direction * config.take_profit_pct / 100);
+  if (![stopLoss, takeProfit].every(value => Number.isFinite(value) && value > 0)) return;
+  if (signal.action === 'buy'
+    ? !(stopLoss < entryPrice && takeProfit > entryPrice)
+    : !(stopLoss > entryPrice && takeProfit < entryPrice)) return;
   const riskPerTrade = state.capital * 0.02;
-  const priceDiff = Math.abs(entryPrice - signal.stop_loss);
+  const priceDiff = Math.abs(entryPrice - stopLoss);
 
   if (priceDiff === 0) return;
 
-  const quantity = riskPerTrade / priceDiff;
+  const quantity = Math.min(riskPerTrade / priceDiff, state.capital / (entryPrice * (1 + config.fee_rate)));
   const fee = quantity * entryPrice * config.fee_rate;
 
-  if (quantity * entryPrice > state.capital - fee) return;
+  if (!Number.isFinite(quantity) || !Number.isFinite(fee) || quantity <= 0 || quantity * entryPrice + fee > state.capital * (1 + 1e-12)) return;
 
   state.capital -= fee;
   state.totalFees += fee;
@@ -53,8 +69,9 @@ export function openTrade(
     side: signal.action === 'buy' ? 'buy' : 'sell',
     entryPrice,
     quantity,
-    stopLoss: signal.stop_loss,
-    takeProfit: signal.take_profit,
+    entryFee: fee,
+    stopLoss,
+    takeProfit,
     trailingStopHighest: entryPrice,
     trailingStopLowest: entryPrice,
     entryDate: new Date(candle.timestamp).toISOString(),
@@ -67,36 +84,30 @@ export function checkPositionClose(
   candle: Candle,
   config: BacktestConfig
 ): { exitPrice: number; reason: BacktestTrade['exit_reason'] } | null {
-  if (position.side === 'buy') {
-    if (candle.low <= position.stopLoss) {
-      return { exitPrice: position.stopLoss, reason: 'stop_loss' };
-    }
-    if (candle.high >= position.takeProfit) {
-      return { exitPrice: position.takeProfit, reason: 'take_profit' };
-    }
-    if (config.trailing_stop && config.trailing_stop_pct > 0) {
-      const newHigh = Math.max(position.trailingStopHighest, candle.high);
-      position.trailingStopHighest = newHigh;
-      const trailLevel = newHigh * (1 - config.trailing_stop_pct / 100);
-      if (candle.low <= trailLevel && trailLevel > position.entryPrice) {
-        return { exitPrice: trailLevel, reason: 'trailing_stop' };
-      }
-    }
-  } else {
-    if (candle.high >= position.stopLoss) {
-      return { exitPrice: position.stopLoss, reason: 'stop_loss' };
-    }
-    if (candle.low <= position.takeProfit) {
-      return { exitPrice: position.takeProfit, reason: 'take_profit' };
-    }
-    if (config.trailing_stop && config.trailing_stop_pct > 0) {
-      const newLow = Math.min(position.trailingStopLowest, candle.low);
-      position.trailingStopLowest = newLow;
-      const trailLevel = newLow * (1 + config.trailing_stop_pct / 100);
-      if (candle.high >= trailLevel && trailLevel < position.entryPrice) {
-        return { exitPrice: trailLevel, reason: 'trailing_stop' };
-      }
-    }
+  const trailing = config.trailing_stop && config.trailing_stop_pct > 0;
+  const long = position.side === 'buy';
+  const trailLevel = long
+    ? position.trailingStopHighest * (1 - config.trailing_stop_pct / 100)
+    : position.trailingStopLowest * (1 + config.trailing_stop_pct / 100);
+  const useTrailing = trailing && (long
+    ? trailLevel > Math.max(position.entryPrice, position.stopLoss)
+    : trailLevel < Math.min(position.entryPrice, position.stopLoss));
+  const stop = useTrailing ? trailLevel : position.stopLoss;
+  const reason = useTrailing ? 'trailing_stop' : 'stop_loss';
+
+  // Opening is observed before the intrabar range. Favorable target gaps use
+  // the limit price conservatively; adverse stop gaps use the actual opening.
+  if (long ? candle.open <= stop : candle.open >= stop) return { exitPrice: candle.open, reason };
+  if (long ? candle.open >= position.takeProfit : candle.open <= position.takeProfit)
+    return { exitPrice: position.takeProfit, reason: 'take_profit' };
+  // Unknown intrabar order: stop before target. Only a previously known
+  // trailing level can execute; this bar's extremes update the following bar.
+  if (long ? candle.low <= stop : candle.high >= stop) return { exitPrice: stop, reason };
+  if (long ? candle.high >= position.takeProfit : candle.low <= position.takeProfit)
+    return { exitPrice: position.takeProfit, reason: 'take_profit' };
+  if (trailing) {
+    position.trailingStopHighest = Math.max(position.trailingStopHighest, candle.high);
+    position.trailingStopLowest = Math.min(position.trailingStopLowest, candle.low);
   }
 
   return null;
@@ -113,6 +124,11 @@ export function closeTrade(
 
   const pos = state.position;
   const slippageAdjusted = exitPrice * (1 + config.slippage_pct / 100 * (pos.side === 'buy' ? -1 : 1));
+  if (!Number.isFinite(slippageAdjusted) || slippageAdjusted <= 0 ||
+      !Number.isFinite(candle.timestamp) || !Number.isFinite(new Date(candle.timestamp).getTime()) ||
+      !Number.isFinite(config.fee_rate) || config.fee_rate < 0 || config.fee_rate >= 1) {
+    throw new Error('Invalid backtest closing price, date or fees');
+  }
   const fee = pos.quantity * slippageAdjusted * config.fee_rate;
 
   const rawPnl =
@@ -120,20 +136,24 @@ export function closeTrade(
       ? (slippageAdjusted - pos.entryPrice) * pos.quantity
       : (pos.entryPrice - slippageAdjusted) * pos.quantity;
 
-  const netPnl = rawPnl - fee;
-  const pnlPct = pos.entryPrice > 0 ? (rawPnl / (pos.entryPrice * pos.quantity)) * 100 : 0;
+  const netPnl = rawPnl - pos.entryFee - fee;
+  const pnlPct = (netPnl / (pos.entryPrice * pos.quantity)) * 100;
 
-  state.capital += netPnl + pos.quantity * pos.entryPrice;
+  // Capital already includes the principal; the entry fee was debited on open.
+  state.capital += rawPnl - fee;
   state.totalFees += fee;
 
   if (netPnl > 0) {
     state.consecutiveWins++;
     state.consecutiveLosses = 0;
     state.maxConsecutiveWins = Math.max(state.maxConsecutiveWins, state.consecutiveWins);
-  } else {
+  } else if (netPnl < 0) {
     state.consecutiveLosses++;
     state.consecutiveWins = 0;
     state.maxConsecutiveLosses = Math.max(state.maxConsecutiveLosses, state.consecutiveLosses);
+  } else {
+    state.consecutiveWins = 0;
+    state.consecutiveLosses = 0;
   }
 
   state.trades.push({
@@ -145,7 +165,7 @@ export function closeTrade(
     quantity: pos.quantity,
     pnl: netPnl,
     pnl_pct: pnlPct,
-    fees: fee,
+    fees: pos.entryFee + fee,
     signal_confidence: pos.confidence,
     exit_reason: reason,
   });

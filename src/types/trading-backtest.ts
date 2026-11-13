@@ -34,14 +34,15 @@ export interface BacktestSummary {
   total_trades: number;
   winning_trades: number;
   losing_trades: number;
+  breakeven_trades: number;
   win_rate: number;
   total_pnl: number;
   total_pnl_pct: number;
   max_drawdown: number;
   max_drawdown_pct: number;
-  sharpe_ratio: number;
-  sortino_ratio: number;
-  profit_factor: number;
+  sharpe_ratio: number | null;
+  sortino_ratio: number | null;
+  profit_factor: number | null;
   avg_win: number;
   avg_loss: number;
   best_trade: number;
@@ -50,8 +51,19 @@ export interface BacktestSummary {
   max_consecutive_wins: number;
   max_consecutive_losses: number;
   total_fees: number;
-  calmar_ratio: number;
-  recovery_factor: number;
+  calmar_ratio: number | null;
+  recovery_factor: number | null;
+  annualized_return_pct: number | null;
+  metric_basis: {
+    returns: 'portfolio_equity_per_bar';
+    period_ms: number;
+    periods_per_year: number;
+    sample_count: number;
+    risk_free_rate_annual: number;
+    minimum_acceptable_return_annual: number;
+    annualization: 'sqrt_time_assumes_uncorrelated_returns';
+  };
+  metric_warnings: string[];
 }
 
 export interface BacktestTrade {
