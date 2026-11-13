@@ -1,0 +1,230 @@
+{
+  "scope": "Synthetic native PostgreSQL contract; no broker, no production migration or authentication",
+  "initial_native_checks": {
+    "startedAt": "2026-11-10T21:43:14.013Z",
+    "finishedAt": "2026-11-10T21:43:15.914Z",
+    "checks": [
+      {
+        "name": "actual migration compiles on native PostgreSQL",
+        "status": "PASS",
+        "milliseconds": 31
+      },
+      {
+        "name": "default admission stays locked despite a complete observation",
+        "status": "PASS",
+        "milliseconds": 19
+      },
+      {
+        "name": "1 percent per position and shared daily budget use equity excluding credit once",
+        "status": "PASS",
+        "milliseconds": 23
+      },
+      {
+        "name": "both existing positions and pending orders consume allowance and margin",
+        "status": "PASS",
+        "milliseconds": 43
+      },
+      {
+        "name": "deposits and profits do not enlarge or replenish the daily loss budget",
+        "status": "PASS",
+        "milliseconds": 14
+      },
+      {
+        "name": "idempotent replay and permanent logical intent claim survive release",
+        "status": "PASS",
+        "milliseconds": 15
+      },
+      {
+        "name": "invalid evidence never becomes zero risk and invalidates the previous observation",
+        "status": "PASS",
+        "milliseconds": 48
+      },
+      {
+        "name": "all-in ticket risk includes costs exactly once and cannot omit them",
+        "status": "PASS",
+        "milliseconds": 26
+      },
+      {
+        "name": "an incomplete, duplicate or unexpected writer enrollment stays closed",
+        "status": "PASS",
+        "milliseconds": 52
+      },
+      {
+        "name": "actual TypeScript adapter calls the native PostgreSQL RPC contract",
+        "status": "PASS",
+        "milliseconds": 23
+      },
+      {
+        "name": "anonymous and authenticated clients cannot call or modify capacity state",
+        "status": "PASS",
+        "milliseconds": 48
+      },
+      {
+        "name": "real 12-session concurrency admits only the shared decimal capacity",
+        "status": "PASS",
+        "milliseconds": 103
+      },
+      {
+        "name": "simultaneous exact retry claims one operation and one permanent intent",
+        "status": "PASS",
+        "milliseconds": 38
+      },
+      {
+        "name": "waiting writer sees rollback with a real PostgreSQL row lock",
+        "status": "PASS",
+        "milliseconds": 67
+      },
+      {
+        "name": "repeatable-read snapshots are refused before admission and transition",
+        "status": "PASS",
+        "milliseconds": 31
+      },
+      {
+        "name": "submitted and unknown reservations cannot expire or release on a timeout",
+        "status": "PASS",
+        "milliseconds": 12
+      },
+      {
+        "name": "reconciliation requires a complete newer observation and accounted ticket or terminal proof",
+        "status": "PASS",
+        "milliseconds": 24
+      },
+      {
+        "name": "SUBMITTING revalidates reduced capital and never frees a denied reservation",
+        "status": "PASS",
+        "milliseconds": 7
+      },
+      {
+        "name": "committed submission and permanent intent survive an immediate PostgreSQL restart",
+        "status": "PASS",
+        "milliseconds": 271
+      }
+    ],
+    "metrics": {
+      "concurrentSessions": 12,
+      "admitted": 6,
+      "denied": 6,
+      "lockWaitObserved": true,
+      "immediateRestartVerified": true
+    },
+    "migrationSha256": "0671c1d700211ad5dfbf653b9ebb81a6e1fefeec49803d5be8325edfe92c594b",
+    "scope": "Synthetic native PostgreSQL; no broker, no hosted migration, no production authentication qualification"
+  },
+  "final_targeted_checks": {
+    "startedAt": "2026-11-10T21:54:21.889Z",
+    "finishedAt": "2026-11-10T21:54:23.112Z",
+    "checks": [
+      {
+        "name": "actual migration compiles on native PostgreSQL",
+        "status": "PASS",
+        "milliseconds": 25
+      },
+      {
+        "name": "canonical physical account binding cannot be enrolled under a second budget",
+        "status": "PASS",
+        "milliseconds": 25
+      },
+      {
+        "name": "deposits and profits do not enlarge or replenish the daily loss budget",
+        "status": "PASS",
+        "milliseconds": 23
+      },
+      {
+        "name": "reconciliation requires a complete newer observation and accounted ticket or terminal proof",
+        "status": "PASS",
+        "milliseconds": 44
+      },
+      {
+        "name": "partial reconciliation cannot release an unknown unproven remainder",
+        "status": "PASS",
+        "milliseconds": 13
+      },
+      {
+        "name": "partial reconciliation rejects incomplete, foreign, contradictory or out-of-window execution proofs",
+        "status": "PASS",
+        "milliseconds": 200
+      },
+      {
+        "name": "partial reconciliation releases only after proved terminal remainder and accounts for remaining position risk",
+        "status": "PASS",
+        "milliseconds": 18
+      },
+      {
+        "name": "terminal reconciliation requires complete closed fills and retains realized losses",
+        "status": "PASS",
+        "milliseconds": 10
+      },
+      {
+        "name": "realized high-water survives regression while latent risk can decrease",
+        "status": "PASS",
+        "milliseconds": 7
+      }
+    ],
+    "metrics": {
+      "duplicatePhysicalAccountEnrollmentRejected": true,
+      "persistedRealizedLoss": "0.7",
+      "partialReconciliation": {
+        "observationStatus": "BLOCKED",
+        "heldState": "UNKNOWN",
+        "heldLoss": "0.8",
+        "newRiskAdmitted": false
+      },
+      "rejectedIncompleteExecutionProofCases": 18,
+      "provedTerminalRemainderCases": 3,
+      "realizedVersusLatent": {
+        "existing_risk": "0.1",
+        "daily_loss": "0.3",
+        "realized_loss": "0.3"
+      }
+    },
+    "filter": "^(partial reconciliation|terminal reconciliation|reconciliation requires|deposits and profits|realized high-water|canonical physical)",
+    "skipped": [
+      "default admission stays locked despite a complete observation",
+      "1 percent per position and shared daily budget use equity excluding credit once",
+      "both existing positions and pending orders consume allowance and margin",
+      "idempotent replay and permanent logical intent claim survive release",
+      "invalid evidence never becomes zero risk and invalidates the previous observation",
+      "all-in ticket risk includes costs exactly once and cannot omit them",
+      "an incomplete, duplicate or unexpected writer enrollment stays closed",
+      "actual TypeScript adapter calls the native PostgreSQL RPC contract",
+      "anonymous and authenticated clients cannot call or modify capacity state",
+      "real 12-session concurrency admits only the shared decimal capacity",
+      "simultaneous exact retry claims one operation and one permanent intent",
+      "waiting writer sees rollback with a real PostgreSQL row lock",
+      "repeatable-read snapshots are refused before admission and transition",
+      "submitted and unknown reservations cannot expire or release on a timeout",
+      "SUBMITTING revalidates reduced capital and never frees a denied reservation",
+      "committed submission and permanent intent survive an immediate PostgreSQL restart"
+    ],
+    "migrationSha256": "27df625b37b3072936141393073070c207d968d9e24fc80d323c56aa6c54dede",
+    "scope": "Synthetic native PostgreSQL; no broker, no hosted migration, no production authentication qualification"
+  },
+  "initial_cases_not_wholly_replayed_after_correction": true,
+  "adapter_tests": {
+    "typescript_passed": 8
+  },
+  "final_runtime": {
+    "version": "postgres (PostgreSQL) 18.6",
+    "bind": "127.0.0.1",
+    "started": true,
+    "stopped": true,
+    "removed": true,
+    "binaries": {
+      "postgres": "6bd248f43ab209b191e8c952ac479ba7c109d39b09c3ee7d595cc1809c8bc27a",
+      "initdb": "c9ec4f12ac8a8b247918c48ac2b32dc92e268244a2858a3b6d65ca0a39c277d6",
+      "pg_ctl": "780b3ba2dcd3e979993c6283ad6ddd0c1044c1df048579bfeff3a9155ab4d349"
+    }
+  },
+  "source_sha256": {
+    "supabase/migrations/20261110190000_shared_account_risk.sql": "27df625b37b3072936141393073070c207d968d9e24fc80d323c56aa6c54dede",
+    "src/lib/trading/shared-account-risk.ts": "d1cd22f36e5b5510600061503fa878ee17860830402ea002a6d68795c484c2f4",
+    "tests/shared-account-risk/adapter.test.mjs": "a3601d272174c3e74ba429bda24bcdd69981e1343a4a34fccd26cbb5dd9d7944",
+    "tests/shared-account-risk/native-contract.mjs": "519af2597fb8bd657d65c318773af00d5e2ab87a1f2a1df5871db6c8b1ef42ec",
+    "tests/shared-account-risk/private-postgres.mjs": "7aae407ad951250a3429f39c1d692dcd8bd1a60d49d94af9368d3525ac6de4c4"
+  },
+  "production_migration_applied": false,
+  "real_accounts_enabled": 0,
+  "real_orders_sent": 0,
+  "paper_engines_connected": false,
+  "live_release": "LOCKED"
+}

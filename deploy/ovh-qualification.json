@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "application": "midas",
+  "minimumHostingerReservePercent": 20,
+  "expectedVersions": {
+    "app": null,
+    "watchdog": null,
+    "live-worker": null,
+    "analysis-worker": null
+  }
+}

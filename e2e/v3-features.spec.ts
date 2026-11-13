@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { expectJsonResponse } from './helpers';
 
 test.describe('V3 Features — Public Pages', () => {
   test('Landing page loads and displays hero', async ({ page }) => {
@@ -19,7 +20,7 @@ test.describe('V3 Features — Public Pages', () => {
 
   test('/login page loads', async ({ page }) => {
     await page.goto('/login');
-    await expect(page.locator('input')).toBeTruthy();
+    await expect(page.locator('input').first()).toBeVisible();
   });
 
   test('/register page loads', async ({ page }) => {
@@ -69,73 +70,59 @@ test.describe('V3 Features — Dashboard Auth Guard', () => {
 test.describe('V3 Features — API Routes Auth', () => {
   test('GET /api/points without auth returns 401', async ({ request }) => {
     const res = await request.get('/api/points');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorisé');
+    expect(body.error).toBeTruthy();
+
   });
 
   test('GET /api/daily-gift without auth returns 401', async ({ request }) => {
     const res = await request.get('/api/daily-gift');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorisé');
+    expect(body.error).toBeTruthy();
+
   });
 
-  test('GET /api/boutique returns items (public)', async ({ request }) => {
+  test('GET /api/boutique refuses anonymous access (401)', async ({ request }) => {
     const res = await request.get('/api/boutique');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      // Either items array or auth error
-      expect(body.items || body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorisé');
+    expect(body.items || body.error).toBeTruthy();
+
   });
 
-  test('GET /api/achievements returns data', async ({ request }) => {
+  test('GET /api/achievements refuses anonymous access (401)', async ({ request }) => {
     const res = await request.get('/api/achievements');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.achievements || body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorisé');
+    expect(body.achievements || body.error).toBeTruthy();
+
   });
 
-  test('GET /api/lottery returns data', async ({ request }) => {
+  test('GET /api/lottery refuses anonymous access (401)', async ({ request }) => {
     const res = await request.get('/api/lottery');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.draws || body.current_draw || body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorisé');
+    expect(body.draws || body.current_draw || body.error).toBeTruthy();
+
   });
 
-  test('GET /api/cross-promo returns apps', async ({ request }) => {
+  test('GET /api/cross-promo refuses anonymous access (401)', async ({ request }) => {
     const res = await request.get('/api/cross-promo');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.apps || body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorisé');
+    expect(body.apps || body.error).toBeTruthy();
+
   });
 
   test('POST /api/feedback without auth returns error', async ({ request }) => {
     const res = await request.post('/api/feedback', {
       data: { rating: 5, comment: 'test' },
     });
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorisé');
+    expect(body.error).toBeTruthy();
+
   });
 
-  test('GET /api/market/prices returns data', async ({ request }) => {
+  test('GET /api/market/prices transforms the synthetic market dependency', async ({ request }) => {
     const res = await request.get('/api/market/prices');
-    expect([200, 307]).toContain(res.status());
+    const body = await expectJsonResponse(res, 200);
+    expect(body.prices.bitcoin).toEqual({ usd: 100, usd_24h_change: -3, usd_24h_vol: 1000 });
   });
 });
 

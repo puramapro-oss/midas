@@ -1,4 +1,13 @@
-import type { Page } from '@playwright/test';
+import { expect, type APIResponse, type Page } from '@playwright/test';
+
+/** A server error or HTML page is never evidence of an anonymous JSON contract. */
+export async function expectJsonResponse(response: APIResponse, status: number, error?: string) {
+  expect(response.status()).toBe(status);
+  expect(response.headers()['content-type'] ?? '').toContain('application/json');
+  const body = await response.json();
+  if (error !== undefined) expect(body).toEqual({ error });
+  return body;
+}
 
 /**
  * Dismiss cookie banner by pre-setting consent in localStorage

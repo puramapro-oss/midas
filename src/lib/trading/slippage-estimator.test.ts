@@ -57,3 +57,38 @@ test('invalid order data yields a zero-cost estimate, never a negative one', () 
   assert.equal(zero.totalCost, 0);
   assert.equal(zero.isProfitableAfterCosts, false);
 });
+
+test('small positions preserve sub-cent fees instead of appearing free', () => {
+  const one = estimateSlippage('BTC/USDT', 0.05, 100, 1_000_000);
+  assert.ok(one.estimatedFees > 0 && one.estimatedFees < 0.01);
+  assert.ok(one.totalCost >= one.estimatedFees);
+  const roundTrip = estimateSlippageWithProfitCheck('BTC/USDT', 0.05, 100, 1_000_000, 0.1, 2);
+  assert.ok(roundTrip.totalCost > 0);
+  assert.equal(roundTrip.isProfitableAfterCosts, false);
+});
+
+test('unknown liquidity never yields a positive profitability verdict', () => {
+  const estimate = estimateSlippageWithProfitCheck('BTC/USDT', 1000, 100, 0, 50, 2);
+  assert.equal(estimate.isProfitableAfterCosts, false);
+  assert.ok(estimate.totalCost > 0);
+});
+
+test('non-finite prices, sizes, volumes and strategy inputs fail closed', () => {
+  for (const value of [NaN, Infinity, -Infinity]) {
+    assert.equal(estimateSlippage('BTC/USDT', value, 100, 1000).isProfitableAfterCosts, false);
+    assert.equal(estimateSlippage('BTC/USDT', 100, value, 1000).totalCost, 0);
+    assert.equal(estimateSlippage('BTC/USDT', 100, 100, value).totalCost, 0);
+    const r = estimateSlippageWithProfitCheck('BTC/USDT', 100, 100, 1000, value, 2);
+    assert.equal(r.isProfitableAfterCosts, false);
+    assert.ok(Number.isFinite(r.adjustedRiskReward));
+  }
+  assert.equal(estimateSlippageWithProfitCheck('BTC/USDT', 100, 100, 1000, 2, 0).isProfitableAfterCosts, false);
+  assert.equal(estimateSlippage('', 100, 100, 1000).totalCost, 0);
+  assert.equal(recommendExecutionMethod(100, NaN, 'high').method, 'limit');
+});
+
+test('net risk/reward accounts for exit friction on a losing trade too', () => {
+  const estimate = estimateSlippageWithProfitCheck('BTC/USDT', 1000, 100, 1_000_000_000, 3, 2);
+  assert.equal(estimate.isProfitableAfterCosts, true);
+  assert.ok(estimate.adjustedRiskReward > 0 && estimate.adjustedRiskReward < 2);
+});

@@ -1,0 +1,63 @@
+{
+  "baseline_commit": "5a90a8b69ee68672d1aeaf6957b29003344ce275",
+  "scope": "Changed status routes, status parser and supplied four-component inventory contract",
+  "status_route_and_parser_tests": {
+    "passed": 15,
+    "log_sha256": "ea1d311afc7b1848489d3bf60ec46f12ee451fbb3465740e23cad02a8d524f71",
+    "provider_transport": "substituted",
+    "framework_response_constructor": "substituted"
+  },
+  "additional_outage_priority_test": {
+    "passed": 1,
+    "old_cases_not_replayed": true
+  },
+  "ovh_inventory_contract_tests": {
+    "passed": 15
+  },
+  "current_ovh_gate": {
+    "status": "BLOCKED",
+    "exit_code": 2,
+    "migrationAuthorized": false,
+    "effective_versions_retrieved": false
+  },
+  "source_files": [
+    {
+      "path": "src/app/api/status/route.ts",
+      "sha256": "12a7956fc87c911a30b36d7e1f8855b774fa3900ed67d3810bf518b6c9e707a0"
+    },
+    {
+      "path": "src/app/api/cron/health-check/route.ts",
+      "sha256": "281b96ba46630695eccb24fdeb406c3eb7a0f5b4bffb0189ea7f9e8ada85a362"
+    },
+    {
+      "path": "src/app/status/page.tsx",
+      "sha256": "4209fb700dc0a074ce1d661032ffb32db0f0f2487ae443fdcaa4fc15128bf0da"
+    },
+    {
+      "path": "src/lib/status-contract.ts",
+      "sha256": "74ac8a894159c9e02721031aa8bce67c091757666c5db52b056e05826d319261"
+    },
+    {
+      "path": "scripts/status-contract.test.mjs",
+      "sha256": "a6aae84ab2e8ddc114d12aab9d8da7173f91978d3b5ba996a6388e19e7eb9624"
+    },
+    {
+      "path": "scripts/qualify-ovh.mjs",
+      "sha256": "e546b3f45cf5d6f0c1c876d0914b5b77a78432fd3a3de2028a9e9d66928471b8"
+    },
+    {
+      "path": "scripts/qualify-ovh.test.mjs",
+      "sha256": "496cc78b62b46191758eb8a743de05383feab84d61d48edaf24489a8241cc5c7"
+    },
+    {
+      "path": "deploy/ovh-qualification.json",
+      "sha256": "047dc33586f37d1317ad488327303a38ad39f7eaffce71fa68ef4ef7694c0f21"
+    },
+    {
+      "path": "deploy/README.md",
+      "sha256": "b21a95616818acd8b4b1e18eb4a23498428049471515e59cbb87ba8f056b2d73"
+    }
+  ],
+  "installed": false,
+  "live_qualification": false
+}

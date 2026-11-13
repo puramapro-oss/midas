@@ -1,14 +1,15 @@
-import { ImageResponse } from "@vercel/og";
+import { ImageResponse } from "next/og";
 import { NextRequest } from "next/server";
 
 export const runtime = "edge";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const title = searchParams.get("title") || "MIDAS";
+  const title =
+    searchParams.get("title") || "Information et simulation éducative";
   const description =
     searchParams.get("description") ||
-    "Trading IA — Signaux, analyses et strategies automatisees";
+    "Comprendre les marchés financiers, sans ordre réel ni connexion à un exchange.";
 
   return new ImageResponse(
     (
@@ -136,6 +137,11 @@ export async function GET(req: NextRequest) {
     {
       width: 1200,
       height: 630,
+      headers: {
+        "cache-control": process.env.NODE_ENV === "development"
+          ? "no-cache, no-store"
+          : "public, immutable, no-transform, max-age=31536000",
+      },
     },
   );
 }
