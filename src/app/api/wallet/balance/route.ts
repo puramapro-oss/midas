@@ -62,9 +62,10 @@ export async function GET() {
     }
 
     return NextResponse.json({
+      user_id: user.id,
       balance_eur: Number(data ?? 0),
       currency: 'EUR',
-    });
+    }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur serveur';
     return NextResponse.json({ error: message }, { status: 500 });

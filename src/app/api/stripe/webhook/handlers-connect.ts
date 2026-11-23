@@ -1,6 +1,7 @@
 import Stripe from 'stripe';
 import { syncConnectAccount } from '@/lib/stripe/connect';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { readWithdrawalReceipt, readWithdrawalTransfer } from '@/lib/stripe/withdrawal-receipt';
 
 type AdminSupabase = SupabaseClient;
 
@@ -75,6 +76,7 @@ export async function handleTransferCreated(
   transfer: Stripe.Transfer,
   adminSupabase: AdminSupabase
 ) {
+  await reconcileWithdrawalTransfer(transfer, adminSupabase);
   const destinationAccountId = typeof transfer.destination === 'string'
     ? transfer.destination
     : transfer.destination?.id ?? null;
@@ -90,47 +92,37 @@ export async function handleTransferReversed(
   transfer: Stripe.Transfer,
   adminSupabase: AdminSupabase
 ) {
-  const transferId = transfer.id;
-  const userId = transfer.metadata?.user_id ?? null;
-  if (!transferId || !userId) return;
+  await reconcileWithdrawalTransfer(transfer, adminSupabase);
+}
 
-  try {
-    const { data: withdrawal } = await adminSupabase
-      .from('connect_withdrawals')
-      .select('id, amount_eur, status')
-      .eq('stripe_transfer_id', transferId)
-      .maybeSingle();
-
-    if (!withdrawal || withdrawal.status === 'reversed') {
-      return;
+async function reconcileWithdrawalTransfer(transfer: Stripe.Transfer, adminSupabase: AdminSupabase) {
+  if (transfer.metadata?.app !== 'midas' || transfer.metadata?.source !== 'connect_withdraw') return;
+  // A legacy MIDAS transfer without a linked admission cannot prove a debit.
+  // Parsing and persistence errors deliberately reach the existing webhook 500.
+  const observation = readWithdrawalTransfer(transfer);
+  const { data, error } = await adminSupabase.rpc('reconcile_connect_withdrawal', observation);
+  if (error) throw new Error('withdrawal_reconciliation_unavailable');
+  const receipt = readWithdrawalReceipt(data, {
+    userId: observation.p_user_id, withdrawalId: observation.p_withdrawal_id,
+    destination: observation.p_destination, amount: observation.p_amount, transferId: observation.p_transfer_id,
+  });
+  if (!receipt.provider_confirmed) throw new Error('withdrawal_receipt_unconfirmed');
+  if (receipt.credited_eur > 0) {
+    try {
+      await adminSupabase.from('notifications').insert({
+        user_id: receipt.user_id,
+        type: 'connect_withdrawal_reversed',
+        title: receipt.status === 'reversed' ? 'Transfert annulé' : 'Transfert partiellement annulé',
+        body: `${receipt.credited_eur.toFixed(2)}€ ont été recrédités sur ton wallet après l’annulation ${receipt.status === 'reversed' ? 'totale' : 'partielle'} du transfert Stripe.`,
+        data: {
+          transfer_id: receipt.stripe_transfer_id, withdrawal_id: receipt.id,
+          amount_eur: receipt.amount_eur, credited_eur: receipt.credited_eur,
+          reversed_amount_eur: receipt.credited_reversal_eur,
+        },
+      });
+    } catch {
+      // Advisory notification only; the receipt and credit already committed.
     }
-
-    await adminSupabase
-      .from('connect_withdrawals')
-      .update({
-        status: 'reversed',
-        completed_at: new Date().toISOString(),
-        error: 'transfer_reversed_by_stripe',
-      })
-      .eq('id', withdrawal.id);
-
-    await adminSupabase.rpc('credit_wallet_on_withdrawal_failure', {
-      p_user_id: userId,
-      p_amount: Number(withdrawal.amount_eur),
-    });
-
-    await adminSupabase.from('notifications').insert({
-      user_id: userId,
-      type: 'connect_withdrawal_reversed',
-      title: 'Retrait annulé par la banque',
-      body: `Ton retrait de ${Number(withdrawal.amount_eur).toFixed(2)}€ a été reversé par Stripe. Ton solde a été rétabli. Vérifie ton IBAN sur /compte/gestion.`,
-      data: {
-        transfer_id: transferId,
-        amount_eur: Number(withdrawal.amount_eur),
-      },
-    });
-  } catch {
-    /* best-effort */
   }
 }
 

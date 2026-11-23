@@ -96,6 +96,22 @@ jobs:
           test ! -e "$auth_dir" && test ! -L "$auth_dir"
       - name: Run dependency lifecycle scripts without repository credentials
         run: npm rebuild --no-audit --no-fund
+      - name: Verify actual withdrawal handlers with isolated provider and database fixtures
+        run: |
+          mkdir -p test-results/withdrawals-handlers
+          set -o pipefail
+          node --test --test-reporter=tap tests/withdrawals/handlers.test.mjs | tee test-results/withdrawals-handlers/candidate.tap
+      - name: Lint the withdrawal server and account consumer
+        run: >-
+          node node_modules/eslint/bin/eslint.js --max-warnings 0
+          src/app/api/connect/withdraw/route.ts src/app/api/admin/withdrawals/route.ts
+          src/app/api/stripe/webhook/handlers-connect.ts src/lib/stripe/withdrawal-receipt.ts
+          src/app/api/connect/status/route.ts src/app/api/wallet/balance/route.ts
+          src/components/connect/withdrawal-attempt.ts src/components/connect/WithdrawButton.tsx
+          src/app/compte/connect/page.tsx
+          src/app/api/wallet/withdraw/route.ts src/app/api/wallet/route.ts
+          src/lib/wallet-withdrawal.ts src/app/dashboard/wallet/page.tsx
+          src/app/dashboard/wallet/useWalletState.ts
       - name: Lint only the changed image routes and dependency regressions
         run: >-
           node node_modules/eslint/bin/eslint.js --max-warnings 0
@@ -164,6 +180,9 @@ jobs:
       - name: Prove isolation and readiness before the existing browser campaign
         if: ${{ !cancelled() && steps.production_fonts.outcome == 'success' && (steps.production_build.outcome == 'success' || steps.production_build.outcome == 'failure') && steps.browser_install.outcome == 'success' }}
         run: node scripts/e2e/run-isolated.mjs "$RUNNER_TEMP/midas-e2e-fonts-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+      - name: Verify withdrawal retries and account identity in the browser
+        if: ${{ !cancelled() && steps.production_fonts.outcome == 'success' && (steps.production_build.outcome == 'success' || steps.production_build.outcome == 'failure') && steps.browser_install.outcome == 'success' }}
+        run: node tests/withdrawals/browser.mjs
       - name: Remove only the owned temporary public font assets
         if: always()
         run: |
@@ -178,4 +197,6 @@ jobs:
             midas/playwright-report/
             midas/test-results/e2e-isolation/
             midas/test-results/production-build/
+            midas/test-results/withdrawals-handlers/
+            midas/test-results/withdrawals-browser/
           retention-days: 7

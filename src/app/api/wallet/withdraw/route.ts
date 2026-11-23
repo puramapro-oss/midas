@@ -3,14 +3,17 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
-import { isWithdrawalAvailable, isWithdrawalUnlocked, daysUntilWithdrawal } from '@/lib/phase';
-import { isValidIban } from '@/lib/iban';
+import { isWithdrawalAvailable } from '@/lib/phase';
+import { isValidIban, normalizeIban } from '@/lib/iban';
+import { readWalletWithdrawalReceipt, readWalletWithdrawalRejection } from '@/lib/wallet-withdrawal';
 
 const withdrawSchema = z.object({
-  amount: z.number().min(5, 'Minimum 5€'),
-  iban: z.string().regex(/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/, 'IBAN invalide')
-    .refine(isValidIban, 'IBAN invalide (clé de contrôle incorrecte).'),
-});
+  idempotencyKey: z.string().uuid().transform(value => value.toLowerCase()),
+  expectedUserId: z.string().uuid().transform(value => value.toLowerCase()),
+  amount: z.number().finite().min(5).max(9_999_999_999.99)
+    .refine(value => Math.round(value * 100) / 100 === value, 'Deux décimales maximum').optional(),
+  iban: z.string().transform(normalizeIban).refine(isValidIban, 'IBAN invalide').optional(),
+}).refine(value => (value.amount === undefined) === (value.iban === undefined), 'Montant et IBAN requis ensemble');
 
 async function getAuthClient() {
   const cookieStore = await cookies();
@@ -42,6 +45,9 @@ function getServiceClient() {
 }
 
 export async function POST(request: NextRequest) {
+  if (!isWithdrawalAvailable()) {
+    return NextResponse.json({ error: 'Les retraits monétaires ne sont pas activés.', code: 'PHASE_1_LOCKED' }, { status: 403 });
+  }
   try {
     const supabase = await getAuthClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -50,113 +56,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    // Brief V7 §27 — Phase 1 : retrait IBAN bloqué (carte Purama pas encore disponible).
-    if (!isWithdrawalAvailable()) {
-      return NextResponse.json(
-        {
-          error: 'Retrait IBAN bientôt disponible — la Purama Card arrive. Tes gains restent en wallet.',
-          code: 'PHASE_1_LOCKED',
-        },
-        { status: 403 }
-      );
+    let input: z.infer<typeof withdrawSchema>;
+    try { input = withdrawSchema.parse(await request.json()); }
+    catch { return NextResponse.json({ error: 'Montant, IBAN ou identifiant de demande invalide.', code: 'withdrawal_invalid_request' }, { status: 400 }); }
+    if (input.expectedUserId !== user.id) {
+      return NextResponse.json({ error: 'Le compte connecté a changé. Recharge ton wallet.', code: 'withdrawal_account_changed' }, { status: 409 });
     }
-
-    const body = await request.json();
-    const clean = { ...body, iban: typeof body.iban === 'string' ? body.iban.replace(/\s/g, '').toUpperCase() : '' };
-    const parsed = withdrawSchema.safeParse(clean);
-
-    if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-    }
-
-    const { amount, iban } = parsed.data;
-    const service = getServiceClient();
-
-    // Brief V7 §20 — Art. L221-28 : prime versée wallet, retrait bloqué 30j depuis souscription.
-    const { data: profile } = await service
-      .from('profiles')
-      .select('subscription_started_at')
-      .eq('id', user.id)
-      .single();
-
-    if (profile?.subscription_started_at && !isWithdrawalUnlocked(profile.subscription_started_at)) {
-      const days = daysUntilWithdrawal(profile.subscription_started_at);
-      return NextResponse.json(
-        {
-          error: `Retrait disponible dans ${days} jour${days > 1 ? 's' : ''} (article L221-28 — 30 jours après souscription).`,
-          code: 'WITHDRAWAL_LOCKED_30D',
-          days_left: days,
-        },
-        { status: 403 }
-      );
-    }
-
-    // Check wallet balance
-    const { data: wallet } = await service
-      .from('wallets')
-      .select('balance')
-      .eq('user_id', user.id)
-      .single();
-
-    if (!wallet || wallet.balance < amount) {
-      return NextResponse.json({ error: 'Solde insuffisant' }, { status: 400 });
-    }
-
-    // Check no pending withdrawal
-    const { data: pending } = await service
-      .from('withdrawal_requests')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('status', 'pending')
-      .limit(1);
-
-    if (pending && pending.length > 0) {
-      return NextResponse.json({ error: 'Un retrait est déjà en cours' }, { status: 400 });
-    }
-
-    // Debit wallet — verrou optimiste anti-course (2 retraits quasi-simultanés,
-    // cf task_plan.md P3) : n'écrit QUE si balance n'a pas bougé depuis la lecture.
-    const { data: debited } = await service
-      .from('wallets')
-      .update({ balance: wallet.balance - amount })
-      .eq('user_id', user.id)
-      .eq('balance', wallet.balance)
-      .select('balance')
-      .maybeSingle();
-
-    if (!debited) {
-      return NextResponse.json({ error: 'Le solde a changé entre-temps. Réessaie.' }, { status: 409 });
-    }
-
-    // Record transaction
-    await service.from('wallet_transactions').insert({
-      user_id: user.id,
-      type: 'debit',
-      amount,
-      source: 'withdrawal',
-      description: `Retrait vers ${iban.slice(0, 4)}****${iban.slice(-4)}`,
+    const { data, error } = await getServiceClient().rpc('admit_wallet_withdrawal', {
+      p_user_id: user.id, p_request_id: input.idempotencyKey, p_amount: input.amount ?? null, p_iban: input.iban ?? null,
     });
-
-    // Create withdrawal request
-    const { data: withdrawal, error } = await service
-      .from('withdrawal_requests')
-      .insert({ user_id: user.id, amount, iban })
-      .select()
-      .single();
-
     if (error) {
-      // Rollback wallet — recrédite depuis le solde réel post-débit (pas la valeur
-      // pré-débit lue plus haut, qui pourrait être périmée).
-      await service
-        .from('wallets')
-        .update({ balance: debited.balance + amount })
-        .eq('user_id', user.id);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      const code = error.message ?? '';
+      if (code.includes('withdrawal_request_not_found')) {
+        return NextResponse.json({ error: 'Cette demande n’est pas encore enregistrée. Tu peux la vérifier à nouveau ou ressaisir son IBAN original.', code: 'withdrawal_request_not_found' }, { status: 409 });
+      }
+      if (code.includes('withdrawal_idempotency_conflict')) {
+        return NextResponse.json({ error: 'Cette demande correspond déjà à un autre montant ou destinataire.', code: 'withdrawal_idempotency_conflict' }, { status: 409 });
+      }
+      if (code.includes('withdrawal_locked_30d')) {
+        return NextResponse.json({ error: 'Le délai de 30 jours après souscription n’est pas terminé.', code: 'withdrawal_locked_30d' }, { status: 403 });
+      }
+      if (code.includes('withdrawal_pending') || code.includes('insufficient_balance')) {
+        return NextResponse.json({ error: code.includes('withdrawal_pending') ? 'Une demande de retrait est déjà en cours.' : 'Solde insuffisant.', code: code.includes('withdrawal_pending') ? 'withdrawal_pending' : 'insufficient_balance' }, { status: 409 });
+      }
+      return NextResponse.json({ error: 'Le résultat de cette demande reste à confirmer. Conserve son identifiant.', code: 'withdrawal_reconciliation_required' }, { status: 409 });
     }
-
-    return NextResponse.json({ ok: true, withdrawal });
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Erreur inconnue';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    try {
+      const rejection = readWalletWithdrawalRejection(data, {
+        userId: user.id, requestId: input.idempotencyKey, amount: input.amount, iban: input.iban,
+      });
+      if (rejection) return NextResponse.json(rejection, {
+        status: rejection.code === 'withdrawal_locked_30d' ? 403 : rejection.code === 'insufficient_balance' ? 400 : 409,
+      });
+      return NextResponse.json(readWalletWithdrawalReceipt(data, {
+        userId: user.id, requestId: input.idempotencyKey, amount: input.amount, iban: input.iban,
+      }));
+    } catch {
+      return NextResponse.json({ error: 'Le reçu de cette demande reste à confirmer.', code: 'withdrawal_reconciliation_required' }, { status: 409 });
+    }
+  } catch {
+    return NextResponse.json({ error: 'Le service de retrait est indisponible.' }, { status: 503 });
   }
 }
