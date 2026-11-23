@@ -3,47 +3,19 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { CheckCircle, XCircle, AlertCircle, RefreshCw, ArrowLeft } from 'lucide-react'
-
-interface ServiceStatus {
-  name: string
-  status: 'operational' | 'degraded' | 'down'
-  latency?: number
-}
+import { parseStatusServices, summarizeStatusServices, type PublicServiceStatus } from '@/lib/status-contract'
 
 export default function StatusPage() {
-  const [services, setServices] = useState<ServiceStatus[]>([])
+  const [services, setServices] = useState<PublicServiceStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [lastChecked, setLastChecked] = useState<string>('')
 
   const checkStatus = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/status')
+      const res = await fetch('/api/status', { cache: 'no-store' })
       const data = await res.json()
-
-      const serviceList: ServiceStatus[] = []
-      if (data.services) {
-        for (const [name, info] of Object.entries(data.services)) {
-          const s = info as { status: string; latency?: number }
-          serviceList.push({
-            name: name.charAt(0).toUpperCase() + name.slice(1),
-            status: s.status === 'ok' ? 'operational' : s.status === 'degraded' ? 'degraded' : 'down',
-            latency: s.latency,
-          })
-        }
-      }
-
-      if (serviceList.length === 0) {
-        serviceList.push(
-          { name: 'API', status: data.status === 'ok' ? 'operational' : 'degraded' },
-          { name: 'Supabase', status: 'operational' },
-          { name: 'Binance', status: 'operational' },
-          { name: 'Stripe', status: 'operational' },
-          { name: 'Anthropic', status: 'operational' },
-        )
-      }
-
-      setServices(serviceList)
+      setServices(parseStatusServices(data))
       setLastChecked(new Date().toLocaleTimeString('fr-FR'))
     } catch {
       setServices([{ name: 'API', status: 'down' }])
@@ -57,13 +29,17 @@ export default function StatusPage() {
     queueMicrotask(() => checkStatus());
   }, [])
 
-  const allOperational = services.every((s) => s.status === 'operational')
-  const hasDegraded = services.some((s) => s.status === 'degraded')
+  const summary = summarizeStatusServices(services, loading)
+  const checking = summary === 'checking'
+  const allOperational = summary === 'operational'
+  const hasDegraded = summary === 'degraded'
+  const hasUnknown = summary === 'unknown'
 
   const statusConfig = {
     operational: { icon: CheckCircle, color: 'text-emerald-400', bg: 'bg-emerald-500/10', label: 'Operationnel' },
     degraded: { icon: AlertCircle, color: 'text-[#FFD700]', bg: 'bg-[#FFD700]/10', label: 'Degrade' },
     down: { icon: XCircle, color: 'text-red-400', bg: 'bg-red-500/10', label: 'Hors ligne' },
+    unknown: { icon: AlertCircle, color: 'text-white/60', bg: 'bg-white/5', label: 'Non vérifié' },
   }
 
   return (
@@ -79,21 +55,24 @@ export default function StatusPage() {
             Statut MIDAS
           </h1>
           <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
+            checking || hasUnknown ? 'bg-white/5 border border-white/10' :
             allOperational ? 'bg-emerald-500/10 border border-emerald-500/20' :
             hasDegraded ? 'bg-[#FFD700]/10 border border-[#FFD700]/20' :
             'bg-red-500/10 border border-red-500/20'
           }`}>
-            {allOperational ? (
+            {checking ? (
+              <RefreshCw className="h-4 w-4 text-white/60 animate-spin" />
+            ) : allOperational ? (
               <CheckCircle className="h-4 w-4 text-emerald-400" />
-            ) : hasDegraded ? (
-              <AlertCircle className="h-4 w-4 text-[#FFD700]" />
+            ) : hasDegraded || hasUnknown ? (
+              <AlertCircle className={`h-4 w-4 ${hasUnknown ? 'text-white/60' : 'text-[#FFD700]'}`} />
             ) : (
               <XCircle className="h-4 w-4 text-red-400" />
             )}
             <span className={`text-sm font-medium ${
-              allOperational ? 'text-emerald-400' : hasDegraded ? 'text-[#FFD700]' : 'text-red-400'
+              checking || hasUnknown ? 'text-white/60' : allOperational ? 'text-emerald-400' : hasDegraded ? 'text-[#FFD700]' : 'text-red-400'
             }`}>
-              {allOperational ? 'Tous les systemes sont operationnels' : hasDegraded ? 'Performance degradee' : 'Incident en cours'}
+              {checking ? 'Vérification en cours' : allOperational ? 'Services vérifiés opérationnels' : hasDegraded ? 'Service vérifié dégradé' : hasUnknown ? 'État non vérifié' : 'Incident en cours'}
             </span>
           </div>
         </div>

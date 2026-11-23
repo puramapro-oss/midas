@@ -1,98 +1,35 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useId } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wallet, ArrowUpRight, ArrowDownRight, Clock,
   CreditCard, X, Check, AlertTriangle, Loader2, RefreshCw,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import PrimeTracker from '@/components/wallet/PrimeTracker';
 import CardTeaser from '@/components/wallet/CardTeaser';
 import FiscalBanner from '@/components/fiscal/FiscalBanner';
 import { usePhase } from '@/hooks/usePhase';
 import { formatWalletAmount } from '@/lib/utils/formatters';
 import { SOURCE_LABELS, validateIban, rowFade } from './utils';
-
-interface Transaction {
-  id: string;
-  type: 'credit' | 'debit';
-  amount: number;
-  source: string;
-  description: string;
-  created_at: string;
-}
-
-interface WalletData {
-  balance: number;
-  currency: string;
-}
+import { useWalletState } from './useWalletState';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function WalletPage() {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 text-[#FFD700] animate-spin" /></div>;
+  if (!user) return <p role="alert" data-testid="wallet-error" className="p-8 text-white/60">Connecte-toi pour consulter ton wallet.</p>;
+  return <WalletController key={user.id} userId={user.id} />;
+}
+
+function WalletController({ userId }: { userId: string }) {
   const phase = usePhase();
-  const [wallet, setWallet] = useState<WalletData>({ balance: 0, currency: 'EUR' });
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showWithdraw, setShowWithdraw] = useState(false);
-  const [iban, setIban] = useState('');
-  const [amount, setAmount] = useState('');
-  const [withdrawing, setWithdrawing] = useState(false);
-
-  const fetchWallet = useCallback(async () => {
-    try {
-      const res = await fetch('/api/wallet');
-      if (!res.ok) return;
-      const data = await res.json();
-      setWallet(data.wallet ?? { balance: 0, currency: 'EUR' });
-      setTransactions(data.transactions ?? []);
-    } catch {
-      /* silent */
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { queueMicrotask(() => fetchWallet()); }, [fetchWallet]);
-
-  const handleWithdraw = async () => {
-    const cleanIban = iban.replace(/\s/g, '').toUpperCase();
-    if (!validateIban(cleanIban)) {
-      toast.error('IBAN invalide');
-      return;
-    }
-    const amt = parseFloat(amount);
-    if (isNaN(amt) || amt < 5) {
-      toast.error('Montant minimum : 5€');
-      return;
-    }
-    if (amt > wallet.balance) {
-      toast.error('Solde insuffisant');
-      return;
-    }
-
-    setWithdrawing(true);
-    try {
-      const res = await fetch('/api/wallet/withdraw', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: amt, iban: cleanIban }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error ?? 'Erreur lors du retrait');
-        return;
-      }
-      toast.success('Demande de retrait envoyée !');
-      setShowWithdraw(false);
-      setIban('');
-      setAmount('');
-      fetchWallet();
-    } catch {
-      toast.error('Erreur réseau');
-    } finally {
-      setWithdrawing(false);
-    }
-  };
+  const titleId = useId();
+  const {
+    wallet, transactions, loading, showWithdraw, iban, setIban, amount, setAmount,
+    withdrawing, loadError, requestError, storageReady, pending, balance,
+    fetchWallet, handleWithdraw, openWithdraw, closeWithdraw,
+  } = useWalletState(userId, phase.withdrawalAvailable);
 
   if (loading) return <div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 text-[#FFD700] animate-spin" /></div>;
 
@@ -112,6 +49,9 @@ export default function WalletPage() {
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
+
+      {loadError && <p role="alert" data-testid="wallet-error" className="text-sm text-red-300">{loadError}</p>}
+      {requestError && <p role="alert" data-testid="wallet-withdraw-error" className="text-sm text-red-300">{requestError}</p>}
 
       <FiscalBanner />
 
@@ -135,25 +75,25 @@ export default function WalletPage() {
             {phase.walletMode === 'points' ? 'POINTS' : 'EUR'}
           </span>
         </div>
-        <p className="text-4xl font-bold text-[#FFD700] mb-4" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
-          {formatWalletAmount(wallet.balance, phase.walletMode)}
+        <p data-testid="wallet-balance" className="text-4xl font-bold text-[#FFD700] mb-4" style={{ fontFamily: 'var(--font-jetbrains-mono)' }}>
+          {wallet ? formatWalletAmount(wallet.balance, phase.walletMode) : '—'}
         </p>
         <button
           type="button"
-          onClick={() => setShowWithdraw(true)}
-          disabled={wallet.balance < 5 || !phase.withdrawalAvailable}
+          onClick={openWithdraw}
+          disabled={!storageReady || !phase.withdrawalAvailable || (!pending && (!wallet || balance < 5))}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#FFD700] text-[#06080F] text-sm font-semibold hover:bg-[#FFD700]/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           data-testid="withdraw-button"
         >
           <CreditCard className="w-4 h-4" />
-          {phase.withdrawalAvailable ? 'Retirer vers mon compte' : 'Retrait — Bientôt disponible'}
+          {phase.withdrawalAvailable ? pending ? 'Vérifier ma demande en cours' : 'Retirer vers mon compte' : 'Retrait — Bientôt disponible'}
         </button>
         {!phase.withdrawalAvailable && (
           <p className="text-xs text-white/40 mt-2">
             Le retrait IBAN s&apos;activera avec la <span className="text-[#FFD700]">Purama Card</span>. Tes gains restent dans ton wallet en attendant.
           </p>
         )}
-        {phase.withdrawalAvailable && wallet.balance < 5 && (
+        {phase.withdrawalAvailable && wallet && !pending && balance < 5 && (
           <p className="text-xs text-white/30 mt-2">Minimum de retrait : 5€</p>
         )}
       </motion.div>
@@ -166,9 +106,12 @@ export default function WalletPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowWithdraw(false)}
+            onClick={closeWithdraw}
           >
             <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={titleId}
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -176,31 +119,35 @@ export default function WalletPage() {
               className="w-full max-w-md glass-gold rounded-2xl p-6"
             >
               <div className="flex items-center justify-between mb-5">
-                <h3 className="text-lg font-semibold text-white font-[family-name:var(--font-orbitron)]">Retrait</h3>
-                <button type="button" onClick={() => setShowWithdraw(false)} className="p-1 text-white/30 hover:text-white/60">
+                <h3 id={titleId} className="text-lg font-semibold text-white font-[family-name:var(--font-orbitron)]">Retrait</h3>
+                <button type="button" aria-label="Fermer le retrait" disabled={withdrawing} onClick={closeWithdraw} className="p-1 text-white/30 hover:text-white/60">
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs text-white/40 mb-1.5">Montant (minimum 5€)</label>
+                  <label htmlFor={`${titleId}-amount`} className="block text-xs text-white/40 mb-1.5">Montant (minimum 5€)</label>
                   <input
+                    id={`${titleId}-amount`}
                     type="number"
                     min="5"
                     step="0.01"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    placeholder={`Max ${wallet.balance.toFixed(2)}€`}
+                    disabled={withdrawing || pending !== null}
+                    placeholder={wallet ? `Max ${wallet.balance.toFixed(2)}€` : 'Solde indisponible'}
                     className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white text-sm outline-none focus:border-[#FFD700]/40"
                     data-testid="withdraw-amount"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-white/40 mb-1.5">IBAN (FR/EU)</label>
+                  <label htmlFor={`${titleId}-iban`} className="block text-xs text-white/40 mb-1.5">IBAN (FR/EU)</label>
                   <input
+                    id={`${titleId}-iban`}
                     type="text"
                     value={iban}
+                    disabled={withdrawing}
                     onChange={(e) => setIban(e.target.value.toUpperCase())}
                     placeholder="FR76 1234 5678 9012 3456 7890 123"
                     className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white text-sm outline-none focus:border-[#FFD700]/40 font-mono"
@@ -214,23 +161,26 @@ export default function WalletPage() {
                   )}
                 </div>
 
+                {pending && <p className="text-xs text-white/60">La même demande de {pending.amountEur.toFixed(2)}€ vers l’IBAN se terminant par {pending.ibanLast4} est conservée. Tu peux vérifier son résultat sans ressaisir l’IBAN. Si elle n’est pas encore enregistrée, ressaisis l’IBAN d’origine pour reprendre cette même demande.</p>}
+
                 <div className="pt-2 flex gap-2">
                   <button
                     type="button"
-                    onClick={() => setShowWithdraw(false)}
+                    disabled={withdrawing}
+                    onClick={closeWithdraw}
                     className="flex-1 py-2.5 rounded-xl border border-white/[0.08] text-white/60 text-sm hover:bg-white/[0.04] transition-colors"
                   >
-                    Annuler
+                    Fermer
                   </button>
                   <button
                     type="button"
                     onClick={handleWithdraw}
-                    disabled={withdrawing || !iban || !amount}
+                    disabled={withdrawing || !storageReady || (!pending && (!iban || !amount))}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#FFD700] text-[#06080F] text-sm font-semibold hover:bg-[#FFD700]/90 transition-colors disabled:opacity-40"
                     data-testid="confirm-withdraw"
                   >
                     {withdrawing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                    Retirer
+                    {pending ? 'Vérifier cette demande' : 'Retirer'}
                   </button>
                 </div>
               </div>

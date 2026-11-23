@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
+import { z } from 'zod';
+import { isWithdrawalAvailable } from '@/lib/phase';
 
 const SUPER_ADMIN_EMAIL = 'matiss.frasne@gmail.com';
 
@@ -58,11 +60,12 @@ export async function GET() {
     const service = getServiceClient();
 
     // All withdrawal requests with user info
-    const { data: withdrawals } = await service
+    const { data: withdrawals, error: withdrawalsError } = await service
       .from('withdrawal_requests')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(100);
+    if (withdrawalsError) return NextResponse.json({ error: 'Lecture des retraits indisponible.' }, { status: 503 });
 
     // Enrich with user email/name
     const enriched = [];
@@ -87,6 +90,9 @@ export async function GET() {
 }
 
 export async function PATCH(request: NextRequest) {
+  if (!isWithdrawalAvailable()) {
+    return NextResponse.json({ error: 'Les retraits monétaires ne sont pas activés.', code: 'PHASE_1_LOCKED' }, { status: 403 });
+  }
   try {
     const supabase = await getAuthClient();
     const admin = await checkAdmin(supabase);
@@ -94,60 +100,37 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
     }
 
-    const { id, action, note } = await request.json();
-    if (!id || !['processed', 'rejected'].includes(action)) {
+    let input: { id: string; action: 'processed' | 'rejected'; note?: string | null };
+    try {
+      input = z.object({ id: z.string().uuid().transform(value => value.toLowerCase()), action: z.enum(['processed','rejected']), note: z.string().max(2000).nullable().optional() }).parse(await request.json());
+    } catch {
       return NextResponse.json({ error: 'Paramètres invalides' }, { status: 400 });
     }
-
+    const { id, action, note } = input;
     const service = getServiceClient();
-
-    // Get withdrawal
-    const { data: withdrawal } = await service
-      .from('withdrawal_requests')
-      .select('*')
-      .eq('id', id)
-      .single();
-
-    if (!withdrawal || withdrawal.status !== 'pending') {
-      return NextResponse.json({ error: 'Retrait non trouvé ou déjà traité' }, { status: 404 });
-    }
-
-    // Update status
-    await service
-      .from('withdrawal_requests')
-      .update({
-        status: action,
-        admin_note: note ?? null,
-        processed_at: new Date().toISOString(),
-      })
-      .eq('id', id);
-
-    // If rejected, refund wallet
-    if (action === 'rejected') {
-      const { data: wallet } = await service
-        .from('wallets')
-        .select('balance')
-        .eq('user_id', withdrawal.user_id)
-        .single();
-
-      if (wallet) {
-        await service
-          .from('wallets')
-          .update({ balance: Number(wallet.balance) + Number(withdrawal.amount) })
-          .eq('user_id', withdrawal.user_id);
+    // This client uses schema midas; the transaction is deliberately defined in
+    // that schema, and operates only on the legacy IBAN wallet.
+    const { data, error } = await service.rpc('decide_wallet_withdrawal', {
+      p_admin_user_id: admin.id, p_withdrawal_id: id, p_action: action, p_note: note ?? null,
+    });
+    if (error) {
+      const message = error.message ?? '';
+      if (message.includes('withdrawal_not_found')) return NextResponse.json({ error: 'Retrait introuvable.' }, { status: 404 });
+      if (/withdrawal_(debit_proof_required|reconciliation_required|decision_conflict|not_admitted)/.test(message)) {
+        return NextResponse.json({ error: 'Ce retrait nécessite une réconciliation de son débit ou de sa décision.', code: 'withdrawal_reconciliation_required' }, { status: 409 });
       }
-
-      await service.from('wallet_transactions').insert({
-        user_id: withdrawal.user_id,
-        type: 'credit',
-        amount: withdrawal.amount,
-        source: 'manual',
-        description: 'Retrait rejeté — remboursement',
-        reference_id: id,
-      });
+      return NextResponse.json({ error: 'La décision de retrait n’est pas confirmée.' }, { status: 503 });
     }
-
-    return NextResponse.json({ ok: true });
+    const balance = data?.wallet_balance;
+    if (!data || data.id !== id || data.status !== action || typeof data.applied !== 'boolean' ||
+        data.debit_confirmed !== true || data.rejection_recorded !== false || data.admission_rejection !== null ||
+        data.refunded !== (action === 'rejected') ||
+        (typeof balance !== 'number' && (typeof balance !== 'string' || !/^\d+(?:\.\d{1,2})?$/.test(balance))) ||
+        !Number.isFinite(Number(balance)) || Number(balance) < 0 ||
+        Math.round(Number(balance) * 100) / 100 !== Number(balance)) {
+      return NextResponse.json({ error: 'Le reçu de décision est invalide.' }, { status: 503 });
+    }
+    return NextResponse.json({ ok: true, withdrawal_id: id, status: data.status, replayed: !data.applied });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Erreur';
     return NextResponse.json({ error: msg }, { status: 500 });

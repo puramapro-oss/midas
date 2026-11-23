@@ -34,25 +34,29 @@ export const viewport: Viewport = {
   themeColor: "#06080F",
 };
 
+const educationalTitle = "MIDAS — Information et simulation éducative";
+const educationalDescription =
+  "Informations générales et simulations éducatives pour comprendre les marchés financiers, sans ordre réel ni connexion à un exchange.";
+const educationalImage = `/api/og?${new URLSearchParams({
+  title: "Information et simulation éducative",
+  description:
+    "Comprendre les marchés financiers, sans ordre réel ni connexion à un exchange.",
+})}`;
+
 export const metadata: Metadata = {
   title: {
-    default: "MIDAS - Trading IA | Analyse de marches en temps reel",
+    default: educationalTitle,
     template: "%s | MIDAS",
   },
-  description:
-    "MIDAS est votre assistant de trading propulse par l'intelligence artificielle. Analyse technique, signaux en temps reel, gestion de portefeuille et strategies automatisees pour trader plus intelligemment.",
+  description: educationalDescription,
   keywords: [
-    "trading IA",
-    "analyse technique",
-    "signaux trading",
-    "intelligence artificielle",
+    "éducation financière",
+    "information générale",
+    "simulation éducative",
     "crypto",
-    "bourse",
-    "portefeuille",
     "MIDAS",
     "Purama",
-    "marches financiers",
-    "trading automatise",
+    "marchés financiers",
   ],
   authors: [{ name: "Purama" }],
   creator: "Purama",
@@ -66,24 +70,22 @@ export const metadata: Metadata = {
     locale: "fr_FR",
     url: "https://midas.purama.dev",
     siteName: "MIDAS",
-    title: "MIDAS - Trading IA | Analyse de marches en temps reel",
-    description:
-      "Assistant de trading IA : analyse technique, signaux en temps reel, gestion de portefeuille et strategies automatisees.",
+    title: educationalTitle,
+    description: educationalDescription,
     images: [
       {
-        url: "/api/og",
+        url: educationalImage,
         width: 1200,
         height: 630,
-        alt: "MIDAS - Trading IA",
+        alt: educationalTitle,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "MIDAS - Trading IA",
-    description:
-      "Assistant de trading IA : analyse technique, signaux en temps reel et strategies automatisees.",
-    images: ["/api/og"],
+    title: educationalTitle,
+    description: educationalDescription,
+    images: [educationalImage],
   },
   robots: {
     index: true,

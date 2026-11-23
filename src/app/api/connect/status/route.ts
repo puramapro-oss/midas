@@ -50,7 +50,7 @@ export async function GET() {
 
     const service = getServiceSupabase();
     const summary = await getConnectAccountSummary(service, user.id);
-    return NextResponse.json(summary);
+    return NextResponse.json({ ...summary, user_id: user.id }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     const message =
       error instanceof Error

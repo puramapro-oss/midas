@@ -1,0 +1,258 @@
+# Qualification navigateur isolée
+
+## Réduction bornée des permissions du runner jetable
+
+Le diagnostic du run `43130291739` a identifié `/opt` en mode `0777` avant
+tout lancement Chrome. Le garde a refusé ce parent modifiable et la campagne
+navigateur n'a pas commencé. Le script officiel
+[configure-system.sh du tag de l'image exécutée](https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/scripts/build/configure-system.sh)
+applique un `chmod -R 777 /opt` à la construction. Cette preuve ne détermine pas
+le mécanisme responsable du premier échec `No usable sandbox!`.
+
+La préparation de ce job retire désormais **uniquement les bits `0o022`** de
+`/opt`, de `/opt/google` et de l'arborescence réelle `/opt/google/chrome`, y compris
+ses bibliothèques et ressources. Les deux parents sont des cibles de métadonnées
+seules : aucun autre sous-arbre de `/opt`, ni `/usr/share`, n'est parcouru ou modifié.
+Le propriétaire, le groupe, les octets, les bits de lecture/exécution et les bits
+spéciaux doivent rester identiques. Aucun objet SUID/SGID ne reçoit de chmod : un
+helper déjà protégé est constaté inchangé ; s'il exige aussi un retrait d'écriture,
+la préparation refuse avant la première mutation. Aucun bit SUID/SGID n'est activé.
+
+Le helper exige Linux/root et n'accepte aucun argument de cible. Il ouvre des
+descripteurs sans suivi de liens, exige des propriétaires root et des types
+attendus, refuse les symlinks, fichiers à plusieurs liens durs, objets spéciaux,
+substitutions d'inodes et changements de contenu. Il inventorie et valide tout
+le périmètre avant de réduire les permissions, d'abord celles des répertoires
+parents, puis celles des fichiers. Les tailles, nombres d'entrées, profondeurs,
+longueurs de chemins, lectures de mountinfo et durées d'itération sont bornés.
+Les montages entrants et les alias sortants recouvrant une cible sont refusés ;
+le montage canonique ordinaire est permis, comme un alias d'un enfant de `/opt`
+étranger au périmètre Chrome.
+
+Le workflow appelle `/usr/bin/python3 -I -S -B` avec sudo non interactif immédiatement après le checkout,
+avant setup-node, les identités privées, l'installation et les lifecycle scripts.
+Le helper root écrit uniquement les modes autorisés et émet son JSON sur stdout.
+Le shell runner crée le reçu avec refus d'existence/symlink et `noclobber` ; le
+helper n'ouvre aucun chemin de sortie en root. Le reçu conserve les modes,
+UID/GID et SHA256 avant/après, ainsi que les empreintes de mountinfo. Il ne promet
+pas des atime/ctime invariants : lectures et chmod peuvent les modifier.
+
+Un échec ferme le job et conserve le reçu, y compris si seule une partie des
+permissions a déjà été réduite. Il n'y a aucun rétablissement vers `0777`. Les
+contre-épreuves utilisent uniquement des fixtures temporaires possédées, sans
+sudo, montage, chown ni bit SUID/SGID réel. Elles ne qualifient pas l'installation
+Chrome du runner. Une nouvelle CI complète, son reçu de durcissement et un vrai
+lancement protégé restent nécessaires.
+
+Ce renforcement des permissions de fichiers est distinct des politiques du
+système et de la sandbox : aucun profil AppArmor, sysctl, noyau, canal navigateur,
+namespace, capacité ou oracle n'est modifié. Les gardes d'identité et de lancement
+restent exigées après cette préparation. Les refus antérieurs sont conservés.
+
+## Navigateur préinstallé et sandbox — 12 novembre 2026
+
+Le run `43127472435`, sur Ubuntu 26.04.1 / image `20261101.186.1`, a qualifié
+l'isolation réseau et les quatre portes HTTP, puis s'est arrêté au lancement du
+headless shell Chromium : `No usable sandbox!`. Aucune assertion de la campagne
+navigateur n'a été exécutée. Le message générique AppArmor ne démontre pas, à lui
+seul, le mécanisme hôte responsable.
+
+Le préflight de fontes et le seul projet Desktop Chrome utilisent désormais le
+canal Playwright `chrome`, déjà fourni par cette image. Le manifeste officiel de
+l'image annonce Google Chrome 156.0.8078.79 ; le reçu doit conserver la version
+effectivement lancée. WebKit et les assertions restent inchangés. Il n'existe
+aucun repli vers un navigateur sans sandbox ou un autre exécutable.
+
+Avant le lancement, le banc exige le fichier régulier canonique
+`/opt/google/chrome/chrome`, son profil existant `/etc/apparmor.d/chrome` et leurs
+répertoires parents : chemins sans substitution par lien, propriétaires root,
+absence d'écriture groupe/autres et absence de bit setuid/setgid sur ces chemins.
+Le profil doit désigner ce chemin Chrome et contenir l'autorisation `userns` ;
+son empreinte est conservée sans modifier le fichier. Cette lecture ne prouve
+pas à elle seule la politique chargée dans le noyau.
+
+Le lancement conserve `chromiumSandbox: true`, UID non privilégié, capacités
+nulles, `NoNewPrivs`, namespace réseau fermé et observation bornée du nouvel
+enfant. Sa liste d'exécutables autorisés contient uniquement le chemin Chrome
+canonique. PPID, UID, namespace, exécutable et identité de commande sont encore
+vérifiés, et `--no-sandbox` reste interdit. Une présence ou une observation non
+prouvée arrête la qualification. Aucun profil AppArmor, sysctl, noyau ou politique
+de sandbox n'est modifié. La seule réduction de permissions est bornée par la
+préparation ci-dessus ; aucun helper SUID/SGID n'est chmoddé ou activé.
+
+Sources : [documentation Chromium](https://chromium.googlesource.com/chromium/src/+/main/docs/security/apparmor-userns-restrictions.md),
+[canaux Playwright](https://playwright.dev/docs/browsers#google-chrome--microsoft-edge),
+[manifeste de l'image exécutée](https://github.com/actions/runner-images/blob/ubuntu26/20261101.186/images/ubuntu/Ubuntu2604-Readme.md).
+
+La qualification de ce changement exige une nouvelle CI sur son arbre exact.
+Les résultats ci-dessous et des anciens runs restent attachés à leurs contenus.
+
+La CI Playwright prépare un environnement anonyme et synthétique. Elle vérifie
+l'application éducative et ses refus, sans compte fournisseur, session réelle,
+ordre financier, email envoyé ou déploiement. Les restrictions du middleware
+restent celles du produit.
+
+## Ordre et frontières
+
+Après acquisition des packages privés, vérification des 24 fichiers et suppression
+des deux authentifications temporaires, le workflow exécute les contrats locaux,
+prépare les neuf fichiers WOFF2 épinglés puis installe les navigateurs verrouillés.
+
+Le lanceur doit démarrer comme utilisateur ordinaire du runner Linux. Il crée un
+nouveau namespace réseau avec sudo/unshare, confirme qu'il diffère du namespace
+parent, et active uniquement son loopback. setpriv rend immédiatement les UID/GID
+au runner, vide toutes les capacités et active no_new_privs avant le code de test.
+Aucune interface, route, règle réseau ou configuration de sécurité de l'hôte
+n'est modifiée.
+
+Avant tout serveur de fixture, Next ou navigateur, le processus non privilégié
+vérifie l'identité du namespace, les UID, les capacités nulles, no_new_privs,
+l'interface loopback seule et les tables de routage. Il exige un écho TCP local
+avec nonce et un refus réseau immédiat vers des adresses réservées IPv4/IPv6.
+Une précondition absente arrête le job. Ce mécanisme doit être réellement qualifié
+sur le runner ; un contrôle de métadonnées synthétiques en test unitaire ne
+constitue pas cette preuve.
+
+Next écoute sur 127.0.0.1:3001, derrière un frontal de test sur 127.0.0.1:3000.
+Les fixtures et les navigateurs sont dans le même namespace. Les variables
+d'environnement des descendants sont construites par liste explicite ; elles ne
+reprennent aucun secret du runner. Les seules valeurs Supabase/Stripe sont des
+chaînes de test sans autorité. Leur présence ne qualifie aucun fournisseur.
+
+Le préflight de fontes et le projet Desktop Chrome exigent explicitement
+`chromiumSandbox: true`. Le préflight observe uniquement le nouvel enfant qu'il
+vient de lancer : lectures `/proc` bornées, parent, UID, namespace et exécutable
+Chrome canonique vérifiés. Il exige une observation `OBSERVÉ`, une identité
+vérifiée et l'absence de `--no-sandbox` avant de poursuivre. Une observation
+indisponible reste un échec. Le reçu ne conserve que les noms des arguments de
+sandbox, sans PID ni arguments arbitraires. Cette observation qualifie la
+configuration de lancement, sans attester tous les mécanismes internes de
+Chromium. Aucun repli sans sandbox, changement AppArmor, sysctl ou protection de
+l'hôte n'est autorisé par ce lanceur.
+
+L'observation et le contrôle de fontes partagent le module `prepare-fonts.mjs` ;
+le lanceur réexporte les trois fonctions attendues par le test amont. Ce groupe
+Node vérifie un enfant Node possédé, ses métadonnées et son nettoyage ; il ne
+qualifie ni un vrai lancement Chromium ni le décodage des polices.
+
+## Gardes avant la campagne
+
+La disponibilité TCP seule ne suffit plus. Le budget de démarrage reste de
+60 secondes. Le préflight exige /login HTTP 200, HTML et marqueurs du formulaire,
+puis trois réponses JSON exactes sans redirection :
+
+| Requête | Résultat |
+| --- | --- |
+| POST /api/chat anonyme | 401, Non autorise |
+| POST /api/trade/execute | 403, restriction éducative |
+| POST /api/signals/generate | 403, restriction éducative |
+
+La vérification de fontes charge les trois familles et leurs 15 couples
+famille/poids via les variables CSS et document.fonts. Elle décode également les
+neuf WOFF2 avec FontFace et refuse les erreurs de fontes/CSP et les requêtes
+externes observées.
+
+La suite existante reste ensuite exécutée avec ses deux projets, ses retries et
+ses délais. Les 25 fichiers historiquement désactivés avant NIYAMA restent
+désactivés ; un cas annoncé ou skipped n'est pas un cas validé. Le compte final
+vient du rapport réel, jamais d'une constante. Les anciens tests permissifs
+restants ne suffisent pas à qualifier chaque refus : le journal des erreurs
+applicatives fournit une garde globale complémentaire.
+
+Les oracles P4/P5, V3 et de l'audit final exigent désormais les statuts et corps
+JSON attendus : une page HTML ou une réponse 500 ne vaut jamais refus d'accès.
+Contact doit retourner `200/{success:true}` via l'insertion locale, et FAQ
+`200/{articles:[]}` via la collection vide de la fixture. Les contrôles marché
+utilisent ses valeurs synthétiques existantes (Bitcoin : variation `-3`). Le
+bouton Google doit atteindre le refus local `provider_disabled_for_fixture` au
+chemin `/__e2e/supabase/auth/v1/authorize` ; ce cas exige le profil isolé avant
+le clic et ne qualifie ni OAuth réel ni session connectée. Le limiteur Upstash
+du produit conserve son comportement d'indisponibilité ; ces succès locaux ne
+qualifient pas une persistance réelle ou l'efficacité de l'anti-abus.
+
+## Contrats de fixture
+
+Le préfixe /__e2e/ existe uniquement dans le frontal du lanceur, pas dans Next
+ou le déploiement produit. Toute requête sans contrat exact reçoit un refus
+et rend la qualification négative.
+
+- CoinGecko : un seul GET simple/price avec les quatre paramètres exacts, les
+  huit identifiants attendus et Accept JSON. Les nombres sont synthétiques.
+  La vraie route MIDAS restitue ces données ; une réponse fournisseur en échec
+  doit rester une erreur 502, jamais des prix valides.
+- Binance : GET api/v3/ping sans query, réponse synthétique vide. La vraie route
+  MIDAS construit son propre statut. Ce endpoint n'est pas la garde de readiness.
+- Métadonnées Next : seul le GET sans corps vers l'URL exacte
+  `https://registry.npmjs.org/-/package/next/dist-tags` reçoit localement un
+  HTTP 503 vide avec `Cache-Control: no-store`, sans appel réseau ni délégation
+  à `originalFetch`. Next 16.4.5 conserve sa version installée et l'état
+  `staleness: 'unknown'`. Le journal enregistre `type: 'fixture'` et le contrat
+  `next-dev-version-metadata-unavailable`. Ce refus synthétique de métadonnées
+  ne constitue pas une réponse 5xx de l'application.
+- Supabase password : POST token?grant_type=password refuse les identifiants avec
+  HTTP 400 invalid_credentials ; aucun token, utilisateur ou session n'est créé.
+- OAuth : la demande Google retourne un refus local 403, sans Location externe.
+  Un ancien test qui accepte cette navigation ne prouve pas un OAuth réel.
+- FAQ : lecture publique du schéma midas, sélection et ordre exacts, collection
+  synthétique vide.
+- Contact : insertion locale des quatre champs validés, comptée puis perdue à
+  l'arrêt. Le véritable garde Upstash de l'application est conservé. Son absence
+  ou son échec peut empêcher ce parcours ; aucune réponse générique de succès
+  ni faux limiteur n'est ajouté pour le masquer.
+
+Le transport fetch de test redirige uniquement les deux GET publics connus et
+préserve les métadonnées Request. Le contrat Next ci-dessus est traité localement,
+sans redirection ni transport. Toute autre requête externe, y compris une variante
+non prévue de ce contrat, est refusée et journalisée `unexpected-external-fetch`.
+Le namespace ferme aussi les autres transports du serveur et du navigateur.
+Après readiness, toute erreur du proxy ou réponse applicative 5xx
+rend le bilan négatif, même si une ancienne assertion l'accepte.
+
+## Fontes, provenance et licence
+
+Les trois CSS officiels sont figés dans scripts/e2e/fonts. Leurs URL, l'User-Agent
+Next 16.4.5, tailles et SHA256, ainsi que les neuf URL WOFF2, figurent dans
+scripts/e2e/fonts.lock.json. La préparation lit ces CSS locaux et ne télécharge
+que les WOFF2 par HTTPS avec validation TLS et empreintes strictes. Une divergence
+arrête la préparation ; les empreintes ne sont jamais actualisées automatiquement.
+
+Le premier CSS DM Sans observé le 11 novembre 2026 faisait 4 940 octets. Une lecture
+suivante, reproduite par Node et Python, a retourné une autre réponse officielle de
+4 405 octets. Cette réponse actuelle a été explicitement relue puis figée : cinq
+poids, deux sous-ensembles, style normal et display swap, sans affirmation
+d'identité de métriques avec un ancien corps non retenu. Les sept WOFF2 Orbitron
+et JetBrains Mono sont restés inchangés. Les deux nouveaux DM Sans et le CSS
+actuel ont des pins distincts, revus avant publication.
+
+Les familles sont distribuées sous SIL Open Font License. Sources et notices :
+
+- [Orbitron](https://github.com/google/fonts/tree/main/ofl/orbitron) et
+  [licence](https://github.com/google/fonts/blob/main/ofl/orbitron/OFL.txt).
+- [DM Sans](https://github.com/google/fonts/tree/main/ofl/dmsans) et
+  [licence](https://github.com/google/fonts/blob/main/ofl/dmsans/OFL.txt).
+- [JetBrains Mono](https://github.com/google/fonts/tree/main/ofl/jetbrainsmono) et
+  [licence](https://github.com/google/fonts/blob/main/ofl/jetbrainsmono/OFL.txt).
+
+Les binaires ne sont pas versionnés ici et le workflow retire leur répertoire
+temporaire. Toute redistribution ultérieure d'un bundle doit conserver les
+licences et notices de copyright applicables.
+
+NEXT_FONT_GOOGLE_MOCKED_RESPONSES est un mécanisme de test observé dans la source
+exacte [Next 16.4.5](https://github.com/vercel/next.js/blob/v16.4.5/crates/next-core/src/next_font/google/mod.rs).
+Sous Turbopack il remplace seulement le CSS. Le lanceur sert donc les vrais WOFF2
+vérifiés sur loopback ; il ne fabrique pas de Buffer et ne change pas le layout.
+Ce hook n'est pas présenté comme une API de production stable. Une évolution de
+Next impose une nouvelle revue de ce contrat.
+
+## Preuves et nettoyage
+
+Les reçus se trouvent dans test-results/e2e-isolation. Playwright nettoie uniquement
+test-results/browser, ce qui préserve les preuves avant campagne et leur journal.
+L'action d'upload couvre ces reçus et le rapport HTML, y compris sur échec.
+
+Le lanceur termine uniquement ses groupes de processus, attend leur absence dans
+une borne, ferme son frontal et retire son HOME temporaire. Une interruption
+produit un reçu PARTIEL et une sortie non nulle, même pendant le nettoyage.
+Une absence non prouvée reste une erreur. Un arrêt forcé du runner peut empêcher
+la finalisation ; les journaux partiels ne doivent pas être présentés comme un
+nettoyage observé. Ce dispositif ne modifie aucun service existant.

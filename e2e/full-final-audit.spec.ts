@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dismissCookies, collectErrors, PUBLIC_PAGES } from './helpers';
+import { dismissCookies, collectErrors, PUBLIC_PAGES, expectJsonResponse } from './helpers';
 
 // ============================================================
 // 1. PUBLIC PAGES — accessible sans auth, HTTP 200, pas d'erreur JS
@@ -88,20 +88,21 @@ test.describe('Login page elements', () => {
     expect(page.url()).toContain('/forgot-password');
   });
 
-  test('Google button triggers OAuth flow', async ({ page }) => {
+  test('Google button reaches the isolated local OAuth refusal', async ({ page, baseURL }) => {
+    expect(process.env.MIDAS_E2E_ISOLATED, 'This refusal contract requires the isolated fixture').toBe('1');
+    expect(baseURL).toBe('http://127.0.0.1:3000');
     await page.goto('/login');
     await dismissCookies(page);
-    const [popup] = await Promise.all([
-      page.waitForEvent('popup', { timeout: 5000 }).catch(() => null),
-      page.locator('[data-testid="google-button"]').click(),
-    ]);
-    // Either redirects to Google or opens popup
-    if (popup) {
-      expect(popup.url()).toContain('google');
-    } else {
-      // May redirect in same window
-      await page.waitForURL(/google|accounts\.google|auth\.purama/, { timeout: 5000 }).catch(() => {});
-    }
+    const refusal = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.origin === baseURL && url.pathname === '/__e2e/supabase/auth/v1/authorize';
+    });
+    await page.locator('[data-testid="google-button"]').click();
+    const response = await refusal;
+    expect(response.status()).toBe(403);
+    expect(response.headers()['content-type']).toContain('application/json');
+    expect((await response.json()).code).toBe('provider_disabled_for_fixture');
+    expect(new URL(page.url()).origin).toBe(baseURL);
   });
 });
 
@@ -238,36 +239,37 @@ test.describe('Landing page', () => {
 // 8. API ROUTES — public endpoints return correct status
 // ============================================================
 test.describe('API routes', () => {
-  test('/api/status returns JSON with status:ok', async ({ request }) => {
+  test('/api/status reports the synthetic market dependency as operational', async ({ request }) => {
     const response = await request.get('/api/status');
-    expect(response.status()).toBe(200);
-    const json = await response.json();
+    const json = await expectJsonResponse(response, 200);
     expect(json.status).toBe('ok');
     expect(json.app).toBeTruthy();
+    expect(json.app).toBe('midas');
+    expect(json.services.public_market_data).toBe('operational');
   });
 
   test('/api/chat requires auth (401)', async ({ request }) => {
     const response = await request.post('/api/chat', {
       data: { message: 'test' },
     });
-    expect(response.status()).toBe(401);
+    await expectJsonResponse(response, 401, 'Non autorise');
   });
 
   test('/api/admin/stats requires auth (401)', async ({ request }) => {
     const response = await request.get('/api/admin/stats');
-    expect(response.status()).toBe(401);
+    await expectJsonResponse(response, 401, 'Non autorise');
   });
 
   test('/api/wallet requires auth (401)', async ({ request }) => {
     const response = await request.get('/api/wallet');
-    expect(response.status()).toBe(401);
+    await expectJsonResponse(response, 401, 'Non authentifié');
   });
 
   test('/api/stripe/checkout bloqué NIYAMA D2=A (403 éducation-only)', async ({ request }) => {
     const response = await request.post('/api/stripe/checkout', {
       data: { plan: 'pro', interval: 'month' },
     });
-    expect(response.status()).toBe(403);
+    await expectJsonResponse(response, 403, 'MIDAS est limité à l’information générale et à la simulation éducative.');
   });
 
   test('/api/keys/save n’existe plus (404 — suppression NIYAMA, aucune clé exchange collectée)', async ({ request }) => {
@@ -277,10 +279,10 @@ test.describe('API routes', () => {
     expect(response.status()).toBe(404);
   });
 
-  test('/api/market/prices returns data', async ({ request }) => {
+  test('/api/market/prices transforms the synthetic market dependency', async ({ request }) => {
     const response = await request.get('/api/market/prices');
-    // Should return 200 with price data or empty array
-    expect([200, 500]).toContain(response.status()); // 500 if Binance API is down
+    const body = await expectJsonResponse(response, 200);
+    expect(body.prices.bitcoin).toEqual({ usd: 100, usd_24h_change: -3, usd_24h_vol: 1000 });
   });
 });
 
