@@ -139,6 +139,8 @@ test.describe('V3 Features — Responsive', () => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.goto('/');
     await expect(page.locator('h1')).toBeVisible();
+    const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(documentWidth).toBeLessThanOrEqual(769);
   });
 
   test('Pricing responsive at 375px', async ({ page }) => {
@@ -146,6 +148,8 @@ test.describe('V3 Features — Responsive', () => {
     await page.goto('/pricing');
     const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
     expect(bodyWidth).toBeLessThanOrEqual(376);
+    const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(documentWidth).toBeLessThanOrEqual(376);
   });
 });
 

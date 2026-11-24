@@ -8,6 +8,10 @@ test.describe('Public pages load correctly', () => {
   for (const { path, name } of PUBLIC_PAGES) {
     test(`${name} (${path}) loads with HTTP 200`, async ({ page }) => {
       const errors = collectErrors(page);
+      const consoleErrors: string[] = [];
+      page.on('console', message => {
+        if (message.type() === 'error') consoleErrors.push(message.text());
+      });
       const response = await page.goto(path, { waitUntil: 'domcontentloaded' });
       expect(response?.status()).toBe(200);
       await expect(page.locator('h1').first()).toBeVisible();
@@ -15,7 +19,14 @@ test.describe('Public pages load correctly', () => {
       // Hydration exceptions are errors, not an allowed catch-all.
       await page.evaluate(() => new Promise<void>(resolve =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      // Retain the former public-page diagnostic window; capture every console error.
+      await page.waitForTimeout(800);
+      const visibleText = await page.locator('body').innerText();
+      expect(visibleText.trim().length, `${path} must render meaningful content`).toBeGreaterThan(50);
+      expect(visibleText, `${path} must not render a raw repeated undefined`).not.toContain('undefined undefined');
+      expect(visibleText, `${path} must not render placeholder copy`).not.toMatch(/lorem ipsum/i);
       expect(errors).toEqual([]);
+      expect(consoleErrors, `${path} must not emit console errors while loading`).toEqual([]);
     });
   }
 });
@@ -76,9 +87,11 @@ test.describe('Login page elements', () => {
   test('register link navigates to /register', async ({ page }) => {
     await page.goto('/login');
     await dismissCookies(page);
+    await expect(page.locator('[data-testid="register-link"]')).toHaveAttribute('href', '/register');
     await page.locator('[data-testid="register-link"]').click();
     await page.waitForURL('**/register');
     expect(page.url()).toContain('/register');
+    await expect(page.getByTestId('register-button')).toBeVisible();
   });
 
   test('forgot password link navigates correctly', async ({ page }) => {
