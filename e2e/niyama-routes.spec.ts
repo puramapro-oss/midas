@@ -108,11 +108,13 @@ test.describe('Previously unqualified anonymous API branches', () => {
   }
 });
 
-test.describe('OAuth callback without a code is entirely local', () => {
+test.describe('Missing-code OAuth callback stays on the isolated Next server origin', () => {
   for (const suffix of ['', '?next=https://example.invalid/away', '?next=//example.invalid/away']) {
-    test(`missing code ignores unsafe continuation ${suffix || '(absent)'}`, async ({ request, baseURL }) => {
+    test(`missing code ignores unsafe continuation ${suffix || '(absent)'}`, async ({ request }) => {
       const response = await request.get(`/api/auth/callback${suffix}`, { maxRedirects: 0 });
-      expectRedirect(response, baseURL!, '/login?error=missing_code');
+      // The callback derives request.url from Next behind the unchanged port-3000 proxy.
+      // This asserts its internal Location, not the public browser origin or Google auth.
+      expectRedirect(response, 'http://localhost:3001', '/login?error=missing_code');
     });
   }
 });

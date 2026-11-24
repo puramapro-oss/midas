@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page, type Route } from '@playwright/test';
 
 test.beforeEach(async ({ baseURL }) => {
   expect(process.env.MIDAS_E2E_ISOLATED).toBe('1');
@@ -85,21 +85,59 @@ test.describe('Local forms without account creation or external messages', () =>
     await expect(input).toHaveValue('local-visibility-fixture');
   });
 
-  test('forgot-password rejects an invalid email locally without sending recovery', async ({ page, baseURL }) => {
+  test('forgot-password stays disabled until hydration and rejects invalid email locally', async ({ page, baseURL }) => {
     const posts: string[] = [];
+    const pageErrors: string[] = [];
     page.on('request', request => { if (request.method() === 'POST') posts.push(request.url()); });
-    await openPublic(page, '/forgot-password');
+    page.on('pageerror', error => pageErrors.push(error.message));
+    await page.addInitScript(() => localStorage.setItem('midas-cookie-consent',
+      JSON.stringify({ necessary: true, analytics: false, performance: false })));
+
+    let releaseScripts!: () => void;
+    const scriptsReleased = new Promise<void>(resolve => { releaseScripts = resolve; });
+    let blockedScripts = 0;
+    const delayNextScripts = async (route: Route) => {
+      if (route.request().resourceType() === 'script') {
+        blockedScripts += 1;
+        await scriptsReleased;
+      }
+      await route.continue();
+    };
+    await page.route('**/_next/static/**', delayNextScripts);
     const input = page.getByTestId('forgot-email-input');
-    await expect(input).toHaveAttribute('required', '');
-    await expect(page.getByTestId('forgot-submit')).toBeDisabled();
-    await input.fill('not-an-email');
-    expect(await input.evaluate(element => (element as HTMLInputElement).checkValidity())).toBe(false);
-    await page.getByTestId('forgot-submit').click();
-    await expect(page).toHaveURL(`${baseURL}/forgot-password`);
-    expect(posts).toEqual([]);
-    await page.locator('a[href="/login"]').first().click();
-    await expect(page).toHaveURL(`${baseURL}/login`);
-    await expect(page.getByTestId('login-button')).toBeVisible();
+    const submit = page.getByTestId('forgot-submit');
+
+    try {
+      // Deliberately held scripts prevent load/DOMContentLoaded from completing.
+      const response = await page.goto('/forgot-password', { waitUntil: 'commit' });
+      expect(response?.status()).toBe(200);
+      await expect.poll(() => blockedScripts).toBeGreaterThan(0);
+      await expect(input).toBeDisabled();
+      await expect(submit).toBeDisabled();
+      await expect(input).toHaveValue('');
+      await expect(input).toHaveAttribute('required', '');
+
+      releaseScripts();
+      await expect(input).toBeEnabled();
+      await expect(submit).toBeDisabled();
+      // Fill once: losing the value or failing to update React state must fail.
+      await input.fill('not-an-email');
+      await expect(input).toHaveValue('not-an-email');
+      await expect(submit).toBeEnabled();
+      expect(await input.evaluate(element => (element as HTMLInputElement).checkValidity())).toBe(false);
+      await submit.click();
+      await expect(input).toHaveValue('not-an-email');
+      await expect(page).toHaveURL(`${baseURL}/forgot-password`);
+      expect(posts).toEqual([]);
+      await page.locator('a[href="/login"]').first().click();
+      await expect(page).toHaveURL(`${baseURL}/login`);
+      await expect(page.getByTestId('login-button')).toBeVisible();
+      expect(posts).toEqual([]);
+      expect(pageErrors).toEqual([]);
+    } finally {
+      releaseScripts();
+      await page.unrouteAll({ behavior: 'wait' });
+    }
   });
 
   test('registration displays and stores a synthetic referral without creating an account', async ({ page }) => {
@@ -142,8 +180,13 @@ test.describe('Current public appearance contracts', () => {
     test(`saved ${theme} theme initializes the actual CSS variables`, async ({ page }) => {
       await page.addInitScript(value => localStorage.setItem('midas-theme', value), theme);
       await openPublic(page, '/login');
-      const readBackground = () => page.evaluate(() => getComputedStyle(document.documentElement)
-        .getPropertyValue('--bg-primary').trim().toUpperCase());
+      const readBackground = () => page.evaluate(() => {
+        const value = getComputedStyle(document.documentElement)
+          .getPropertyValue('--bg-primary').trim().toUpperCase();
+        // CSS optimization may serialize an equivalent six-digit color as #RGB.
+        return /^#[0-9A-F]{3}$/.test(value)
+          ? `#${[...value.slice(1)].map(channel => channel + channel).join('')}` : value;
+      });
       await expect.poll(readBackground).toBe(variable);
       expect(await page.locator('html').getAttribute('data-theme')).toBe(theme === 'dark' ? null : theme);
       await expect(page.locator('div.min-h-screen').first()).toHaveCSS('background-color', background);

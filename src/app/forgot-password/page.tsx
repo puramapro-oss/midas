@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Mail, Loader2, CheckCircle } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
@@ -10,7 +10,17 @@ const supabase = createBrowserClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
+// Keep server-rendered controls inactive until their React handlers are attached.
+const subscribeToHydration = () => () => undefined
+const getHydratedSnapshot = () => true
+const getServerHydratedSnapshot = () => false
+
 export default function ForgotPasswordPage() {
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getHydratedSnapshot,
+    getServerHydratedSnapshot,
+  )
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
@@ -86,6 +96,7 @@ export default function ForgotPasswordPage() {
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
                   <input
                     type="email"
+                    disabled={!hydrated}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="votre@email.com"
@@ -102,7 +113,7 @@ export default function ForgotPasswordPage() {
 
               <button
                 type="submit"
-                disabled={loading || !email}
+                disabled={!hydrated || loading || !email}
                 className="w-full py-3 rounded-xl bg-[#FFD700] text-[#0A0A0F] text-sm font-bold hover:bg-[#FFD700]/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 data-testid="forgot-submit"
               >
