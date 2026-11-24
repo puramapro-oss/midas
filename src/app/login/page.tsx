@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, Suspense } from 'react'
+import { useState, useSyncExternalStore, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
@@ -8,13 +8,24 @@ import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { z } from 'zod/v4'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/useAuth'
+import { getSafeReturnPath } from '@/lib/auth/return-path'
 
 const loginSchema = z.object({
   email: z.email('Adresse email invalide'),
   password: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caracteres'),
 })
 
+// Keep server-rendered controls inactive until their React handlers are attached.
+const subscribeToHydration = () => () => undefined
+const getHydratedSnapshot = () => true
+const getServerHydratedSnapshot = () => false
+
 function LoginContent() {
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getHydratedSnapshot,
+    getServerHydratedSnapshot,
+  )
   const router = useRouter()
   const searchParams = useSearchParams()
   const { signIn, signInWithGoogle } = useAuth()
@@ -27,10 +38,7 @@ function LoginContent() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [rememberMe, setRememberMe] = useState(false)
 
-  // Anti open-redirect : n'accepter qu'un chemin relatif interne (« /x », pas
-  // « //evil.com » ni URL absolue).
-  const rawNext = searchParams.get('next') ?? '/dashboard'
-  const nextUrl = rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/dashboard'
+  const nextUrl = getSafeReturnPath(searchParams.get('next'))
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -144,6 +152,7 @@ function LoginContent() {
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-tertiary)]" />
                 <input
                   type="email"
+                  disabled={!hydrated}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="votre@email.com"
@@ -165,6 +174,7 @@ function LoginContent() {
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-tertiary)]" />
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  disabled={!hydrated}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Votre mot de passe"
@@ -173,6 +183,7 @@ function LoginContent() {
                 />
                 <button
                   type="button"
+                  disabled={!hydrated}
                   onClick={() => setShowPassword(!showPassword)}
                   data-testid="toggle-password"
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
@@ -190,6 +201,7 @@ function LoginContent() {
               <label className="flex items-center gap-2 cursor-pointer group" data-testid="remember-me-label">
                 <input
                   type="checkbox"
+                  disabled={!hydrated}
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
                   data-testid="remember-me-checkbox"
@@ -211,7 +223,7 @@ function LoginContent() {
             {/* Submit */}
             <motion.button
               type="submit"
-              disabled={loading}
+              disabled={!hydrated || loading}
               whileTap={loading ? undefined : { scale: 0.97 }}
               whileHover={loading ? undefined : { scale: 1.02 }}
               transition={{ type: 'spring', stiffness: 400, damping: 17 }}
@@ -236,7 +248,7 @@ function LoginContent() {
           <motion.button
             type="button"
             onClick={handleGoogle}
-            disabled={googleLoading}
+            disabled={!hydrated || googleLoading}
             whileTap={googleLoading ? undefined : { scale: 0.97 }}
             whileHover={googleLoading ? undefined : { scale: 1.02 }}
             transition={{ type: 'spring', stiffness: 400, damping: 17 }}

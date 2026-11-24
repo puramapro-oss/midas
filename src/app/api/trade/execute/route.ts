@@ -18,7 +18,7 @@ const bodySchema = z.object({
   takeProfit: z.number().positive().optional(),
   isPaperTrade: z.boolean().default(false),
   botId: z.string().uuid().optional(),
-  exchangeConnectionId: z.string().uuid(),
+  idempotencyKey: z.string().uuid(),
 });
 
 async function getAuthUser() {
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Donnees invalides', details: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { pair, side, strategy, entryPrice, positionSizePct, quoteAmount, stopLoss, takeProfit, isPaperTrade, exchangeConnectionId } = parsed.data;
+    const { pair, side, strategy, entryPrice, positionSizePct, quoteAmount, stopLoss, takeProfit, isPaperTrade, idempotencyKey } = parsed.data;
 
     // Décision Tissma D2=A (2026-09-05) : MIDAS reste un outil
     // d'information/éducation. Une demande d'ordre réel est refusée avant
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
     // Fetch profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, plan, role, daily_trades_used, daily_questions_reset_at, paper_trading_until')
+      .select('id, plan, role')
       .eq('id', user.id)
       .single();
 
@@ -77,51 +77,12 @@ export async function POST(request: Request) {
     // bloc historique « paper trading obligatoire 7 jours » est devenu
     // inatteignable et a été retiré.
 
-    // Check trade limits (super_admin bypass)
-    if (profile.role !== 'super_admin') {
-      const plan = (profile.plan as MidasPlan) ?? 'free';
-      const limit = PLAN_LIMITS[plan]?.limits.daily_trades ?? 5;
-
-      if ((profile.daily_trades_used ?? 0) >= limit) {
-        return NextResponse.json(
-          { error: 'Limite de trades quotidiens atteinte', limit, used: profile.daily_trades_used },
-          { status: 429 }
-        );
-      }
-    }
-
-    // Verify exchange connection belongs to user
-    const { data: exchangeConn, error: exchangeError } = await supabase
-      .from('exchange_connections')
-      .select('id, exchange, is_active')
-      .eq('id', exchangeConnectionId)
-      .eq('user_id', user.id)
-      .single();
-
-    if (exchangeError || !exchangeConn) {
-      return NextResponse.json({ error: 'Connexion exchange introuvable' }, { status: 404 });
-    }
-
-    if (!exchangeConn.is_active) {
-      return NextResponse.json({ error: 'Connexion exchange inactive' }, { status: 400 });
-    }
-
-    // Check max positions
+    // Limits are enforced atomically with persistence, including concurrent requests.
     const plan = (profile.plan as MidasPlan) ?? 'free';
-    const maxPositions = PLAN_LIMITS[plan]?.limits.max_positions ?? 3;
-
-    const { count: openPositions } = await supabase
-      .from('trades')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .eq('status', 'open');
-
-    if ((openPositions ?? 0) >= maxPositions) {
-      return NextResponse.json(
-        { error: 'Nombre maximum de positions atteint', max: maxPositions },
-        { status: 429 }
-      );
-    }
+    const limits = PLAN_LIMITS[plan]?.limits ?? PLAN_LIMITS.free.limits;
+    const dailyLimit = profile.role === 'super_admin' || !Number.isFinite(limits.daily_trades)
+      ? 1000000000 : limits.daily_trades;
+    const maxPositions = Number.isFinite(limits.max_positions) ? limits.max_positions : 1000000000;
 
     // Build coordinator decision for the trade executor
     const decision: CoordinatorDecision = {
@@ -131,7 +92,7 @@ export async function POST(request: Request) {
       stop_loss: stopLoss ?? 0,
       take_profit: takeProfit ?? 0,
       confidence: 0.8,
-      composite_score: 75,
+      composite_score: 0, // Manual educational input, not an AI directional forecast.
       position_size_pct: positionSizePct,
       strategy,
       reasoning: `Manual ${side} ${pair} via dashboard`,
@@ -145,26 +106,22 @@ export async function POST(request: Request) {
     };
 
     // Execute trade (paper only, D2=A) through the full Shield pipeline
-    const result = await executeTrade(decision, user.id, { quoteAmount });
+    const result = await executeTrade(decision, user.id, { quoteAmount, operationId: idempotencyKey, dailyLimit, maxPositions });
 
     if (!result.success) {
       return NextResponse.json(
-        { error: result.error ?? 'Erreur execution trade' },
-        { status: 400 }
+        { error: result.error ?? 'Erreur execution trade', operation_id: result.operation_id, state: result.state },
+        { status: result.state === 'reconciliation_required' ? 409 : 400 }
       );
     }
-
-    // Increment daily_trades_used
-    await supabase
-      .from('profiles')
-      .update({
-        daily_trades_used: (profile.daily_trades_used ?? 0) + 1,
-      })
-      .eq('id', user.id);
 
     return NextResponse.json({
       trade: {
         id: result.trade_id,
+        operation_id: result.operation_id,
+        state: result.state,
+        audit_status: result.audit_status,
+        replayed: result.replayed ?? false,
         order_id: result.order_id,
         executed_price: result.executed_price,
         executed_quantity: result.executed_quantity,
@@ -172,7 +129,7 @@ export async function POST(request: Request) {
         slippage_pct: result.slippage_pct,
         is_paper: result.is_paper,
       },
-    }, { status: 201 });
+    }, { status: result.replayed ? 200 : 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur interne';
     return NextResponse.json({ error: message }, { status: 500 });

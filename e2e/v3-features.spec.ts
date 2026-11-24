@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { expectJsonResponse } from './helpers';
 
 test.describe('V3 Features — Public Pages', () => {
   test('Landing page loads and displays hero', async ({ page }) => {
@@ -8,18 +9,17 @@ test.describe('V3 Features — Public Pages', () => {
     await expect(page.locator('h1')).toContainText('sans ordre réel');
   });
 
-  test('/pricing loads with plan cards', async ({ page }) => {
+  test('/pricing renders current PURAMA access and its return link', async ({ page }) => {
     await page.goto('/pricing');
     await expect(page).toHaveURL(/pricing/);
-    await page.waitForTimeout(2000);
-    const body = await page.textContent('body');
-    const hasPlans = body?.includes('Free') || body?.includes('Gratuit') || body?.includes('Pro') || body?.includes('Ultra') || body?.includes('mois');
-    expect(hasPlans, 'Pricing should show plans').toBeTruthy();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Accès via PURAMA');
+    await expect(page.locator('main')).toContainText('Les droits et quotas proviennent de l’abonnement unique PURAMA.');
+    await expect(page.getByRole('link', { name: 'Retour à MIDAS' })).toHaveAttribute('href', '/');
   });
 
   test('/login page loads', async ({ page }) => {
     await page.goto('/login');
-    await expect(page.locator('input')).toBeTruthy();
+    await expect(page.locator('input').first()).toBeVisible();
   });
 
   test('/register page loads', async ({ page }) => {
@@ -69,73 +69,59 @@ test.describe('V3 Features — Dashboard Auth Guard', () => {
 test.describe('V3 Features — API Routes Auth', () => {
   test('GET /api/points without auth returns 401', async ({ request }) => {
     const res = await request.get('/api/points');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorisé');
+    expect(body.error).toBeTruthy();
+
   });
 
   test('GET /api/daily-gift without auth returns 401', async ({ request }) => {
     const res = await request.get('/api/daily-gift');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorisé');
+    expect(body.error).toBeTruthy();
+
   });
 
-  test('GET /api/boutique returns items (public)', async ({ request }) => {
+  test('GET /api/boutique refuses anonymous access (401)', async ({ request }) => {
     const res = await request.get('/api/boutique');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      // Either items array or auth error
-      expect(body.items || body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorisé');
+    expect(body.items || body.error).toBeTruthy();
+
   });
 
-  test('GET /api/achievements returns data', async ({ request }) => {
+  test('GET /api/achievements refuses anonymous access (401)', async ({ request }) => {
     const res = await request.get('/api/achievements');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.achievements || body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorisé');
+    expect(body.achievements || body.error).toBeTruthy();
+
   });
 
-  test('GET /api/lottery returns data', async ({ request }) => {
+  test('GET /api/lottery refuses anonymous access (401)', async ({ request }) => {
     const res = await request.get('/api/lottery');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.draws || body.current_draw || body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorisé');
+    expect(body.draws || body.current_draw || body.error).toBeTruthy();
+
   });
 
-  test('GET /api/cross-promo returns apps', async ({ request }) => {
+  test('GET /api/cross-promo refuses anonymous access (401)', async ({ request }) => {
     const res = await request.get('/api/cross-promo');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.apps || body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorisé');
+    expect(body.apps || body.error).toBeTruthy();
+
   });
 
   test('POST /api/feedback without auth returns error', async ({ request }) => {
     const res = await request.post('/api/feedback', {
       data: { rating: 5, comment: 'test' },
     });
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorisé');
+    expect(body.error).toBeTruthy();
+
   });
 
-  test('GET /api/market/prices returns data', async ({ request }) => {
+  test('GET /api/market/prices transforms the synthetic market dependency', async ({ request }) => {
     const res = await request.get('/api/market/prices');
-    expect([200, 307]).toContain(res.status());
+    const body = await expectJsonResponse(res, 200);
+    expect(body.prices.bitcoin).toEqual({ usd: 100, usd_24h_change: -3, usd_24h_vol: 1000 });
   });
 });
 
@@ -153,6 +139,8 @@ test.describe('V3 Features — Responsive', () => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.goto('/');
     await expect(page.locator('h1')).toBeVisible();
+    const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(documentWidth).toBeLessThanOrEqual(769);
   });
 
   test('Pricing responsive at 375px', async ({ page }) => {
@@ -160,26 +148,21 @@ test.describe('V3 Features — Responsive', () => {
     await page.goto('/pricing');
     const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
     expect(bodyWidth).toBeLessThanOrEqual(376);
+    const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(documentWidth).toBeLessThanOrEqual(376);
   });
 });
 
 test.describe('V3 Features — No Console Errors', () => {
-  test('Landing has no critical console errors', async ({ page }) => {
+  test('Landing emits no console errors while loading', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (msg) => {
       if (msg.type() === 'error') errors.push(msg.text());
     });
     await page.goto('/');
     await page.waitForTimeout(2000);
-    // Filter out known non-critical errors (3rd party, hydration warnings)
-    const critical = errors.filter(
-      (e) =>
-        !e.includes('favicon') &&
-        !e.includes('Failed to load resource') &&
-        !e.includes('hydrat') &&
-        !e.includes('PostHog')
-    );
-    expect(critical.length).toBe(0);
+    await expect(page.locator('h1')).toBeVisible();
+    expect(errors).toEqual([]);
   });
 });
 

@@ -22,6 +22,7 @@ import { ConnectAccountOnboarding } from '@stripe/react-connect-js';
 import ConnectRoot from '@/components/connect/ConnectRoot';
 import type { ConnectAccountSummary, ConnectOnboardingStage } from '@/types/database';
 import WithdrawButton from '@/components/connect/WithdrawButton';
+import { useAuth } from '@/hooks/useAuth';
 
 const STAGE_LABELS: Record<ConnectOnboardingStage, { label: string; tone: 'neutral' | 'warn' | 'ok' }> = {
   not_started: { label: 'Non démarré', tone: 'neutral' },
@@ -69,53 +70,87 @@ const QUICK_LINKS: Array<{ href: string; title: string; description: string }> =
 ];
 
 export default function CompteConnectHubPage() {
+  const { user, loading: authLoading } = useAuth();
+  const userId = user?.id ?? null;
+  // A new authenticated owner gets a fresh controller, including A → B → A.
+  return <ConnectHubContent key={authLoading ? 'loading' : userId ?? 'anonymous'} userId={userId} authLoading={authLoading} />;
+}
+
+function readAccountSnapshot(status: unknown, balance: unknown, userId: string) {
+  if (!status || typeof status !== 'object' || !balance || typeof balance !== 'object') {
+    throw new Error('Les informations du compte sont indisponibles.');
+  }
+  const account = status as Record<string, unknown>;
+  const wallet = balance as Record<string, unknown>;
+  if (account.user_id !== userId || wallet.user_id !== userId) {
+    throw new Error('Le compte a changé. Recharge les informations avant de continuer.');
+  }
+  const requirements = account.requirements_summary as Record<string, unknown> | null;
+  if (typeof account.stage !== 'string' || !Object.hasOwn(STAGE_LABELS, account.stage) ||
+      typeof account.payouts_enabled !== 'boolean' || typeof account.charges_enabled !== 'boolean' ||
+      typeof account.details_submitted !== 'boolean' ||
+      (account.disabled_reason !== null && typeof account.disabled_reason !== 'string') ||
+      (account.stripe_account_id !== null && (typeof account.stripe_account_id !== 'string' || !/^acct_[A-Za-z0-9]+$/.test(account.stripe_account_id))) ||
+      ((account.stage === 'verified' || account.payouts_enabled) && account.stripe_account_id === null) ||
+      !requirements || typeof requirements !== 'object' ||
+      !['currently_due', 'past_due', 'eventually_due'].every((key) => Array.isArray(requirements[key]) && requirements[key].every((item: unknown) => typeof item === 'string'))) {
+    throw new Error('Le statut Stripe reçu ne peut pas être confirmé.');
+  }
+  if (wallet.currency !== 'EUR' || typeof wallet.balance_eur !== 'number' ||
+      !Number.isFinite(wallet.balance_eur) || wallet.balance_eur < 0 ||
+      !Number.isSafeInteger(Math.round(wallet.balance_eur * 100)) ||
+      Math.round(wallet.balance_eur * 100) / 100 !== wallet.balance_eur) {
+    throw new Error('Le solde reçu ne peut pas être confirmé.');
+  }
+  return { summary: account as unknown as ConnectAccountSummary, balanceEur: wallet.balance_eur };
+}
+
+function ConnectHubContent({ userId, authLoading }: { userId: string | null; authLoading: boolean }) {
   const [summary, setSummary] = useState<ConnectAccountSummary | null>(null);
   const [balanceEur, setBalanceEur] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [fetching, setFetching] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const loading = authLoading || (userId !== null && fetching);
+  const error = fetchError ?? (!authLoading && !userId ? 'Connecte-toi pour consulter ton compte.' : null);
 
   useEffect(() => {
+    if (authLoading || !userId) return;
     let cancelled = false;
+    const controller = new AbortController();
 
     (async () => {
       try {
         const [statusRes, balanceRes] = await Promise.all([
-          fetch('/api/connect/status'),
-          fetch('/api/wallet/balance'),
+          fetch('/api/connect/status', { cache: 'no-store', signal: controller.signal }),
+          fetch('/api/wallet/balance', { cache: 'no-store', signal: controller.signal }),
         ]);
 
-        if (!statusRes.ok) {
-          throw new Error('Impossible de charger ton statut Stripe');
+        if (!statusRes.ok || !balanceRes.ok) {
+          throw new Error('Impossible de charger les informations de ton compte.');
         }
 
-        const statusData = (await statusRes.json()) as ConnectAccountSummary;
+        const [statusData, balanceData]: unknown[] = await Promise.all([statusRes.json(), balanceRes.json()]);
         if (cancelled) return;
-        setSummary(statusData);
-
-        if (balanceRes.ok) {
-          const balanceData = (await balanceRes.json()) as { balance_eur?: number };
-          if (!cancelled) {
-            setBalanceEur(
-              typeof balanceData.balance_eur === 'number' ? balanceData.balance_eur : 0,
-            );
-          }
-        }
+        const snapshot = readAccountSnapshot(statusData, balanceData, userId);
+        setSummary(snapshot.summary);
+        setBalanceEur(snapshot.balanceEur);
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Erreur inconnue');
+          setFetchError(e instanceof Error ? e.message : 'Erreur inconnue');
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setFetching(false);
       }
     })();
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, []);
+  }, [userId, authLoading]);
 
-  const stage = summary?.stage ?? 'not_started';
-  const stageMeta = STAGE_LABELS[stage];
+  const stage = summary?.stage ?? 'unavailable';
+  const stageMeta = stage === 'unavailable' ? { label: 'Indisponible', tone: 'neutral' } : STAGE_LABELS[stage];
   const isVerified = stage === 'verified' && summary?.payouts_enabled === true;
 
   return (
@@ -215,7 +250,7 @@ export default function CompteConnectHubPage() {
       </section>
 
       {/* --- ONBOARDING SECTION (si stage != verified) --- */}
-      {!loading && !isVerified ? (
+      {!loading && !error && summary && !isVerified ? (
         <section
           data-testid="connect-onboarding-section"
           className="mb-8"
@@ -240,7 +275,7 @@ export default function CompteConnectHubPage() {
       ) : null}
 
       {/* --- WITHDRAW SECTION (si verified) --- */}
-      {!loading && isVerified ? (
+      {!loading && !error && isVerified && userId && summary?.stripe_account_id && balanceEur !== null ? (
         <section
           data-testid="connect-withdraw-section"
           className="mb-8 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-card)] p-6"
@@ -249,13 +284,14 @@ export default function CompteConnectHubPage() {
             Retirer mes gains
           </h2>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
-            Transfert instantané vers ton compte Stripe. Seuil minimum : 20€.
-            Retire à partir de 50€ pour payer moins de frais Stripe (2,38€
-            contre 2,30€ à 20€).
+            Transfert vers ton compte Stripe. Montant minimum : 20€.
+            Le solde est actualisé après réception du résultat confirmé.
           </p>
           <div className="mt-4">
             <WithdrawButton
-              balanceEur={balanceEur ?? 0}
+              userId={userId}
+              stripeAccountId={summary.stripe_account_id}
+              balanceEur={balanceEur}
               onSuccess={(newBalance) => setBalanceEur(newBalance)}
             />
           </div>

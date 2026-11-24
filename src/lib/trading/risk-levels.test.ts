@@ -268,7 +268,7 @@ test('L5 can be disabled by configuration', () => {
 test('L6 caps concurrent positions at the stricter of config and profile', () => {
   const positions: OpenPosition[] = Array.from({ length: 5 }, (_, i) => ({
     id: `p${i}`, symbol: `ALT${i}/USDT`, side: 'buy', entry_price: 10, current_price: 10,
-    quantity: 1, unrealized_pnl: 0, leverage: 1, allocation_pct: 1, opened_at: Date.now(),
+    quantity: 1, quote_amount: 10, stop_loss: 9, fees: 0.01, unrealized_pnl: 0, leverage: 1, allocation_pct: 1, opened_at: Date.now(),
   }));
   const result = level6CheckDiversification(decision(), positions, PROFILE, CONFIG);
   assert.equal(result.passed, false);
@@ -278,7 +278,7 @@ test('L6 caps concurrent positions at the stricter of config and profile', () =>
 test('L6 caps exposure per token at 20 percent', () => {
   const positions: OpenPosition[] = [
     { id: 'p1', symbol: 'BTC/USDT', side: 'buy', entry_price: 100, current_price: 100,
-      quantity: 1, unrealized_pnl: 0, leverage: 1, allocation_pct: 19, opened_at: Date.now() },
+      quantity: 1, quote_amount: 100, stop_loss: 95, fees: 0.1, unrealized_pnl: 0, leverage: 1, allocation_pct: 19, opened_at: Date.now() },
   ];
   const result = level6CheckDiversification(decision({ position_size_pct: 2 }), positions, PROFILE, CONFIG);
   assert.equal(result.passed, false);

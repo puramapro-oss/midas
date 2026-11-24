@@ -11,17 +11,9 @@ import { fetchFreeCryptoNews, coinToNewsCategory } from '@/lib/data/free-crypto-
 import { getCryptoSubredditPosts, analyzeRedditSentiment } from '@/lib/data/reddit';
 import { getTrendingCryptoVideos, analyzeYouTubeSentiment } from '@/lib/data/youtube';
 import { askClaudeJSON } from '@/lib/ai/claude-client';
+import { validateSentiment, type SentimentClaudeResponse } from '@/lib/ai/model-json';
 
 // --- Types ---
-
-interface SentimentClaudeResponse {
-  overall_sentiment: 'bullish' | 'bearish' | 'neutral';
-  score: number;
-  confidence: number;
-  key_themes: string[];
-  risk_events: string[];
-  reasoning: string;
-}
 
 interface SentimentData {
   fear_greed_value: number;
@@ -165,6 +157,7 @@ export async function analyzeSentiment(pair: string): Promise<AgentResult> {
       claudeAnalysis = await askClaudeJSON<SentimentClaudeResponse>(
         SENTIMENT_SYSTEM_PROMPT,
         userMessage,
+        validateSentiment,
         2048
       );
     } catch {

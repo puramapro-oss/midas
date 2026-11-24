@@ -1,24 +1,3 @@
-// =============================================================================
-// MIDAS — POST /api/connect/withdraw (V4.1 Axe 3)
-//
-// Retire le solde wallet vers le compte Stripe Connect de l'user authentifié.
-// Seuil min 20€ (brief STRIPE_CONNECT_KARMA_V4.md §Grille frais).
-//
-// Flux :
-//   1. Auth + profil (email + wallet_balance)
-//   2. Vérif ligne connect_accounts (payouts_enabled=true)
-//   3. Zod validation body : {amount_eur?: number} (défaut = balance complet)
-//   4. Check amount >= 20 ET amount <= wallet_balance
-//   5. RPC debit_wallet_for_withdrawal (atomique, SELECT FOR UPDATE + check)
-//   6. stripe.transfers.create(destination=stripe_account_id)
-//   7. Si Stripe throw → reversal RPC credit_wallet_on_withdrawal_failure
-//      + log row status=failed
-//   8. Si OK → INSERT connect_withdrawals status=pending + transfer_id
-//
-// Codes réponse : 200 OK | 400 validation/insufficient | 401 auth | 403 payouts
-// disabled | 500 Stripe/DB error.
-// =============================================================================
-
 import { NextResponse, type NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
@@ -26,14 +5,9 @@ import { createClient as createServiceSupabase, type SupabaseClient } from '@sup
 import { z } from 'zod';
 import { getConnectAccountRow } from '@/lib/stripe/connect';
 import { getStripe } from '@/lib/stripe/helpers';
-import {
-  computeMidasTrustTier,
-  detectCollusionClusters,
-} from '@/lib/antifraud-helpers';
-
-// ---------------------------------------------------------------------------
-// Helpers auth / clients
-// ---------------------------------------------------------------------------
+import { computeMidasTrustTier, detectCollusionClusters } from '@/lib/antifraud-helpers';
+import { isWithdrawalAvailable } from '@/lib/phase';
+import { readWithdrawalReceipt, readWithdrawalRejection, readWithdrawalTransfer, type WithdrawalReceipt } from '@/lib/stripe/withdrawal-receipt';
 
 async function getAuthUser() {
   const cookieStore = await cookies();
@@ -65,275 +39,124 @@ function getServiceSupabase(): SupabaseClient {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Validation body
-// ---------------------------------------------------------------------------
-
 const bodySchema = z.object({
-  amount_eur: z
-    .number()
-    .positive('Le montant doit être positif')
-    .max(100_000, 'Montant maximum par retrait : 100 000€')
-    .optional(),
-  idempotencyKey: z.string().uuid().optional(),
+  amount_eur: z.number().finite().min(20).max(100_000)
+    .refine((amount) => Math.round(amount * 100) / 100 === amount, 'Deux décimales maximum').optional(),
+  idempotencyKey: z.string().uuid().transform(value => value.toLowerCase()),
+  expectedUserId: z.string().uuid().transform(value => value.toLowerCase()),
+  expectedAccountId: z.string().regex(/^acct_[A-Za-z0-9]+$/),
 });
 
-// Seuil min — brief V4.1 §Grille frais user (20€ = 2,30€ Stripe fee)
-const MIN_WITHDRAWAL_EUR = 20;
+function uncertain(withdrawalId?: string) {
+  return NextResponse.json({
+    error: 'Le résultat de cette demande reste à confirmer. Conserve cette demande ; aucun nouveau transfert ne sera envoyé lors de sa vérification.',
+    code: 'withdrawal_reconciliation_required',
+    withdrawal_id: withdrawalId,
+  }, { status: 409 });
+}
 
-// ---------------------------------------------------------------------------
-// Handler
-// ---------------------------------------------------------------------------
+function confirmed(receipt: WithdrawalReceipt, replayed: boolean) {
+  return NextResponse.json({
+    ok: true, withdrawal_id: receipt.id, user_id: receipt.user_id,
+    idempotency_key: receipt.request_key, stripe_account_id: receipt.stripe_account_id,
+    transfer_id: receipt.stripe_transfer_id, amount_eur: receipt.amount_eur,
+    new_balance_eur: receipt.wallet_balance, status: receipt.status,
+    reversed_amount_eur: receipt.credited_reversal_eur, replayed,
+  });
+}
 
 export async function POST(req: NextRequest) {
+  // Keep the existing phase decision in the handler, including direct invocation.
+  if (!isWithdrawalAvailable()) {
+    return NextResponse.json({ error: 'Les retraits monétaires ne sont pas activés.', code: 'PHASE_1_LOCKED' }, { status: 403 });
+  }
   try {
-    // 1. Auth
     const { user } = await getAuthUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-    }
-
-    // 2. Parse body (optionnel — si vide = retrait de tout le solde)
-    let parsedBody: z.infer<typeof bodySchema> = {};
+    if (!user) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    let body: z.infer<typeof bodySchema>;
     try {
-      const raw = await req.text();
-      if (raw.trim().length > 0) {
-        const json: unknown = JSON.parse(raw);
-        parsedBody = bodySchema.parse(json);
-      }
-    } catch (e) {
-      if (e instanceof z.ZodError) {
-        return NextResponse.json(
-          { error: 'Données invalides', details: e.issues },
-          { status: 400 },
-        );
-      }
-      return NextResponse.json({ error: 'JSON invalide' }, { status: 400 });
+      body = bodySchema.parse(await req.json());
+    } catch {
+      return NextResponse.json({ error: 'Montant, compte ou identifiant de demande invalide.', code: 'withdrawal_invalid_request' }, { status: 400 });
+    }
+    if (body.expectedUserId !== user.id) {
+      return NextResponse.json({ error: 'Le compte connecté a changé. Recharge ton compte avant de continuer.', code: 'withdrawal_account_changed' }, { status: 409 });
     }
 
     const service = getServiceSupabase();
-
-    // 3. Wallet balance via RPC get_wallet_balance (midas.profiles n'est pas
-    //    exposé sur PostgREST, on passe par RPC SECURITY DEFINER search_path
-    //    pinned sur midas).
-    const { data: balanceData, error: balanceErr } = await service.rpc(
-      'get_wallet_balance',
-      { p_user_id: user.id },
-    );
-
-    if (balanceErr) {
-      return NextResponse.json(
-        { error: `Lecture du solde impossible : ${balanceErr.message}` },
-        { status: 500 },
-      );
-    }
-
-    const walletBalance = Number(balanceData ?? 0);
-
-    // 4. Détermine le montant final
-    const requestedAmount = parsedBody.amount_eur ?? walletBalance;
-    const amountEur = Math.round(requestedAmount * 100) / 100; // round 2 dec
-
-    if (amountEur < MIN_WITHDRAWAL_EUR) {
-      return NextResponse.json(
-        {
-          error: `Montant minimum ${MIN_WITHDRAWAL_EUR}€ pour un retrait.`,
-          code: 'below_minimum',
-          min_eur: MIN_WITHDRAWAL_EUR,
-          current_balance_eur: walletBalance,
-        },
-        { status: 400 },
-      );
-    }
-
-    if (amountEur > walletBalance) {
-      return NextResponse.json(
-        {
-          error: 'Solde insuffisant',
-          code: 'insufficient_balance',
-          requested_eur: amountEur,
-          current_balance_eur: walletBalance,
-        },
-        { status: 400 },
-      );
-    }
-
-    // 5. Vérif compte Connect prêt (payouts_enabled=true)
     const connectAccount = await getConnectAccountRow(service, user.id);
-    if (!connectAccount) {
-      return NextResponse.json(
-        {
-          error: 'Compte Stripe Connect non créé. Commence par /compte/connect.',
-          code: 'no_connect_account',
-        },
-        { status: 403 },
-      );
+    if (!connectAccount || connectAccount.stripe_account_id !== body.expectedAccountId) {
+      return NextResponse.json({ error: 'Le compte de retrait a changé. Recharge ton compte avant de continuer.', code: 'withdrawal_account_changed' }, { status: 409 });
     }
-
-    if (!connectAccount.payouts_enabled) {
-      return NextResponse.json(
-        {
-          error:
-            'Ton compte n\'est pas encore prêt pour les retraits. Termine la vérification sur /compte/connect.',
-          code: 'payouts_disabled',
-          stripe_account_id: connectAccount.stripe_account_id,
-        },
-        { status: 403 },
-      );
+    if (!connectAccount.payouts_enabled || !connectAccount.kyc_verified_at) {
+      return NextResponse.json({ error: 'Termine la vérification du compte de retrait.', code: 'payouts_disabled' }, { status: 403 });
     }
-
-    // 5b. Anti-fraude : palier de confiance + plafond retrait (@purama/antifraud layer 2)
-    const { data: profile } = await service
-      .from('profiles')
-      .select('phone_verified_at')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    // Détection collusion (cluster risque élevé → gel préventif)
-    const collusionClusters = await detectCollusionClusters(service, [user.id]);
-    const hasActiveCollusionFlag = collusionClusters.some((c) => c.shouldFreeze);
-
+    const { data: profile, error: profileError } = await service.from('profiles')
+      .select('phone_verified_at').eq('id', user.id).maybeSingle();
+    if (profileError || !profile) return NextResponse.json({ error: 'Vérification du profil indisponible.' }, { status: 503 });
+    const clusters = await detectCollusionClusters(service, [user.id]);
     const trustTier = await computeMidasTrustTier({
       kycVerifiedAt: connectAccount.kyc_verified_at,
-      phoneVerifiedAt: profile?.phone_verified_at ?? null,
-      hasActiveCollusionFlag,
+      phoneVerifiedAt: profile.phone_verified_at ?? null,
+      hasActiveCollusionFlag: clusters.some((cluster) => cluster.shouldFreeze),
     });
-
-    // Plafond retrait/jour serveur-side (jamais uniquement UI)
-    const capEuros = trustTier.withdrawalCapEuros ?? 999999; // null = illimité (palier 3)
-    if (amountEur > capEuros) {
-      return NextResponse.json(
-        {
-          error: `Retrait refusé : ton palier actuel (${trustTier.label}) autorise max ${capEuros}€/retrait. ${trustTier.nextTierRequirements.join(', ')}.`,
-          code: 'withdrawal_cap_exceeded',
-          tier: trustTier.tier,
-          cap_eur: capEuros,
-          requested_eur: amountEur,
-        },
-        { status: 403 },
-      );
-    }
-
-    // Porte liveness au 1er retrait (layer 4) : checkFirstWithdrawalGate exige un
-    // faceEmbedding réel qu'aucun provider (Onfido/Veriff) ne fournit encore côté midas.
-    // Proxy honnête en attendant : KYC Stripe Connect (kyc_verified_at) fait office de
-    // contrôle d'identité au 1er retrait.
-    const { data: withdrawalHistory } = await service
-      .from('connect_withdrawals')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('status', 'completed')
-      .limit(1)
-      .maybeSingle();
-
-    const isFirstWithdrawal = !withdrawalHistory;
-    if (isFirstWithdrawal && !connectAccount.kyc_verified_at) {
-      // Premier retrait sans KYC = refus (proxy liveness tant que provider pas intégré)
-      return NextResponse.json(
-        {
-          error:
-            'Premier retrait bloqué : termine la vérification d\'identité Stripe Connect (KYC) avant ton premier retrait.',
-          code: 'first_withdrawal_kyc_required',
-        },
-        { status: 403 },
-      );
-    }
-
-    // 6. Débit wallet atomique (SELECT FOR UPDATE + CHECK balance)
-    //    Si insuffisant → RAISE 'insufficient_balance' → erreur Supabase.
-    const { data: debitData, error: debitErr } = await service.rpc(
-      'debit_wallet_for_withdrawal',
-      {
-        p_user_id: user.id,
-        p_amount: amountEur,
-      },
-    );
-
-    if (debitErr) {
-      const msg = debitErr.message || 'Erreur débit';
-      if (msg.includes('insufficient_balance')) {
-        return NextResponse.json(
-          {
-            error: 'Solde insuffisant (concurrence détectée)',
-            code: 'insufficient_balance',
-          },
-          { status: 400 },
-        );
-      }
-      return NextResponse.json({ error: msg, code: 'debit_failed' }, { status: 500 });
-    }
-
-    const newBalance = typeof debitData === 'number' ? debitData : walletBalance - amountEur;
-
-    // 7. Stripe Transfer
-    //    Si échec → reverser immédiatement + log row failed pour audit.
+    const cap = trustTier.withdrawalCapEuros ?? 100_000;
+    if (!Number.isFinite(cap) || cap < 0) return NextResponse.json({ error: 'Plafond de retrait indisponible.' }, { status: 503 });
+    // Validate provider configuration before reserving any funds.
     const stripe = getStripe();
-    let transferId: string | null = null;
-    let stripeError: string | null = null;
+    const { data, error } = await service.rpc('admit_connect_withdrawal', {
+      p_user_id: user.id, p_request_key: body.idempotencyKey,
+      p_amount: body.amount_eur ?? null, p_destination: connectAccount.stripe_account_id,
+      p_cap: Math.min(cap, 100_000),
+    });
+    if (error) {
+      const code = error.message ?? '';
+      if (code.includes('withdrawal_idempotency_conflict')) return NextResponse.json({ error: 'Cette demande correspond déjà à un autre montant ou compte.', code: 'withdrawal_idempotency_conflict' }, { status: 409 });
+      // An exception rolls the transaction back; it cannot seal a request key.
+      return uncertain();
+    }
+    let admission: WithdrawalReceipt;
+    try {
+      const rejection = readWithdrawalRejection(data, {
+        userId: user.id, requestKey: body.idempotencyKey, destination: connectAccount.stripe_account_id, amount: body.amount_eur,
+      });
+      if (rejection) return NextResponse.json(rejection, { status: rejection.code === 'withdrawal_cap_exceeded' ? 403 : 400 });
+      admission = readWithdrawalReceipt(data, {
+        userId: user.id, requestKey: body.idempotencyKey,
+        destination: connectAccount.stripe_account_id, amount: body.amount_eur,
+      });
+    } catch { return uncertain(); }
+    if (!admission.applied) {
+      return admission.provider_confirmed ? confirmed(admission, true) : uncertain(admission.id);
+    }
+    if (admission.provider_confirmed) return uncertain(admission.id);
 
+    // Only the transaction's first admission may send. A replay never relies on
+    // Stripe retaining its idempotency key indefinitely (keys can expire).
     try {
       const transfer = await stripe.transfers.create({
-        amount: Math.round(amountEur * 100),
-        currency: 'eur',
-        destination: connectAccount.stripe_account_id,
-        description: `Retrait wallet MIDAS user ${user.id}`,
-        metadata: {
-          user_id: user.id,
-          app: 'midas',
-          source: 'connect_withdraw',
-        },
-      }, { idempotencyKey: parsedBody.idempotencyKey ?? crypto.randomUUID() });
-      transferId = transfer.id;
-    } catch (e) {
-      stripeError = e instanceof Error ? e.message : 'Stripe transfer failed';
-    }
-
-    // 8. Insert row connect_withdrawals (toujours, pending ou failed)
-    const status = stripeError ? 'failed' : 'pending';
-    const { error: insertErr } = await service
-      .from('connect_withdrawals')
-      .insert({
-        user_id: user.id,
-        stripe_account_id: connectAccount.stripe_account_id,
-        stripe_transfer_id: transferId,
-        amount_eur: amountEur,
-        status,
-        error: stripeError,
+        amount: Math.round(admission.amount_eur * 100), currency: 'eur',
+        destination: admission.stripe_account_id,
+        description: 'Retrait wallet MIDAS',
+        metadata: { user_id: user.id, withdrawal_id: admission.id, app: 'midas', source: 'connect_withdraw' },
+      }, { idempotencyKey: `midas-withdrawal-${admission.id}` });
+      const observation = readWithdrawalTransfer(transfer);
+      if (observation.p_user_id !== user.id || observation.p_withdrawal_id !== admission.id ||
+          observation.p_destination !== admission.stripe_account_id || observation.p_amount !== admission.amount_eur) return uncertain(admission.id);
+      const { data: receiptData, error: receiptError } = await service.rpc('reconcile_connect_withdrawal', observation);
+      if (receiptError) return uncertain(admission.id);
+      const receipt = readWithdrawalReceipt(receiptData, {
+        userId: user.id, requestKey: body.idempotencyKey, withdrawalId: admission.id,
+        destination: admission.stripe_account_id, amount: admission.amount_eur, transferId: transfer.id,
       });
-
-    if (insertErr) {
-      // Log best-effort : même si on ne peut pas logger la ligne, on a déjà
-      // débité (si status=pending) ou on va reverser (si status=failed).
-      // On n'échoue pas la réponse pour ne pas induire un double-débit au retry.
+      if (!receipt.provider_confirmed) return uncertain(admission.id);
+      return confirmed(receipt, false);
+    } catch {
+      // A timeout can follow a real transfer. Keep its debit and journal for a
+      // signed receipt/reconciliation; never invent a refund or send again.
+      return uncertain(admission.id);
     }
-
-    if (stripeError) {
-      // Reverser le débit wallet pour ne pas léser l'user
-      await service.rpc('credit_wallet_on_withdrawal_failure', {
-        p_user_id: user.id,
-        p_amount: amountEur,
-      });
-      return NextResponse.json(
-        {
-          error: `Transfert Stripe échoué : ${stripeError}. Ton solde a été restauré.`,
-          code: 'stripe_transfer_failed',
-        },
-        { status: 500 },
-      );
-    }
-
-    return NextResponse.json({
-      ok: true,
-      transfer_id: transferId,
-      amount_eur: amountEur,
-      new_balance_eur: newBalance,
-      status,
-    });
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : 'Erreur interne lors du retrait';
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: 'Le service de retrait est indisponible.' }, { status: 503 });
   }
 }
-
-// GET intentionnellement non défini → Next.js renvoie 405 Method Not Allowed.

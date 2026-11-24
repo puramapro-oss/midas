@@ -1,6 +1,6 @@
 // =============================================================================
 // MIDAS — Health Check CRON
-// Verifie tous les services: Binance, Claude, Stripe, Supabase, Redis
+// Verifie Binance, Stripe, Supabase et Redis ; configuration seule pour Claude.
 // Utilise les circuit breakers pour chaque verification
 // =============================================================================
 
@@ -11,11 +11,12 @@ import { redis } from '@/lib/cache/upstash';
 import { getRequiredEnvironmentErrors } from '@/lib/integrations/registry';
 import { assertCronAuth } from '@/lib/cron-auth';
 
-type ServiceStatus = 'up' | 'down' | 'degraded';
+type ServiceStatus = 'up' | 'down' | 'degraded' | 'unverified';
 
 interface ServiceCheck {
   status: ServiceStatus;
   latencyMs: number;
+  verification?: 'configuration-only';
   error?: string;
 }
 
@@ -36,7 +37,8 @@ const SERVICE_TIMEOUT_MS = 10_000;
  */
 async function checkService(
   name: string,
-  fn: () => Promise<void>
+  fn: () => Promise<void>,
+  verifiesAvailability = true
 ): Promise<ServiceCheck> {
   const breaker = getCircuitBreaker(name, {
     failureThreshold: 3,
@@ -47,8 +49,9 @@ async function checkService(
   try {
     await breaker.execute(fn);
     return {
-      status: 'up',
+      status: verifiesAvailability ? 'up' : 'unverified',
       latencyMs: Date.now() - start,
+      ...(!verifiesAvailability ? { verification: 'configuration-only' as const } : {}),
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -161,7 +164,8 @@ export async function GET(request: NextRequest) {
     const [configuration, binance, claude, stripe, supabase, redisCheck] = await Promise.all([
       checkService('configuration', checkConfiguration),
       checkService('binance', checkBinance),
-      checkService('claude', checkClaude),
+      // A configured key is not proof of provider authentication or availability.
+      checkService('claude', checkClaude, false),
       checkService('stripe', checkStripe),
       checkService('supabase', checkSupabase),
       checkService('redis', checkRedis),
@@ -200,7 +204,7 @@ export async function GET(request: NextRequest) {
     }
 
     const response: HealthCheckResponse = {
-      success: true,
+      success: allUp,
       status: overallStatus,
       services,
       circuitBreakers,
@@ -208,7 +212,8 @@ export async function GET(request: NextRequest) {
     };
 
     return NextResponse.json(response, {
-      status: overallStatus === 'unhealthy' ? 503 : 200,
+      status: allUp ? 200 : 503,
+      headers: { 'Cache-Control': 'no-store' },
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur interne';
@@ -219,7 +224,7 @@ export async function GET(request: NextRequest) {
         error: message,
         timestamp: new Date().toISOString(),
       },
-      { status: 500 }
+      { status: 500, headers: { 'Cache-Control': 'no-store' } }
     );
   }
 }

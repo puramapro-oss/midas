@@ -6,7 +6,7 @@ export async function GET() {
   const startedAt = Date.now()
   let marketData: 'operational' | 'degraded' = 'degraded'
   try {
-    const response = await fetch(BINANCE_PING_URL, { signal: AbortSignal.timeout(5000) })
+    const response = await fetch(BINANCE_PING_URL, { cache: 'no-store', signal: AbortSignal.timeout(5000) })
     marketData = response.ok ? 'operational' : 'degraded'
   } catch {
     marketData = 'degraded'
@@ -19,6 +19,7 @@ export async function GET() {
     latency_ms: Date.now() - startedAt,
     timestamp: new Date().toISOString(),
   }, {
-    headers: { 'Cache-Control': 'public, max-age=30, stale-while-revalidate=60' },
+    status: marketData === 'operational' ? 200 : 503,
+    headers: { 'Cache-Control': 'no-store' },
   })
 }

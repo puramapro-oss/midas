@@ -21,6 +21,7 @@ import { calculateCompositeScore } from '@/lib/ai/scoring';
 import { analyzeConfluences, getDominantDirection, getConfluenceMultiplier } from '@/lib/ai/confluence-scoring';
 import { calculateFinalWeights, weightsToRecord } from '@/lib/ai/dynamic-weighting';
 import { askClaudeJSON } from '@/lib/ai/claude-client';
+import { validateDecision, type ClaudeDecisionResponse } from './model-json';
 
 // --- Types ---
 
@@ -39,17 +40,6 @@ interface CoordinatorInput {
   current_token_exposure_pct?: number;
   /** Corrélation max avec une position ouverte (Pearson 0-1) */
   max_correlation_with_open_positions?: number;
-}
-
-interface ClaudeDecisionResponse {
-  action: 'buy' | 'sell' | 'hold';
-  entry_price: number;
-  stop_loss: number;
-  take_profit: number;
-  position_size_pct: number;
-  strategy: string;
-  reasoning: string;
-  risk_reward_ratio: number;
 }
 
 // --- Constants ---
@@ -252,6 +242,7 @@ export async function coordinate(input: CoordinatorInput): Promise<CoordinatorDe
     claudeDecision = await askClaudeJSON<ClaudeDecisionResponse>(
       COORDINATOR_SYSTEM_PROMPT,
       claudeMessage,
+      validateDecision,
       2048
     );
   } catch {

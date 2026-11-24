@@ -1,6 +1,6 @@
 // =============================================================================
 // MIDAS — Agent Bus
-// Registre Redis (Upstash REST) pour heartbeats, signaux et statut des 9 agents.
+// Registre Redis (Upstash REST) pour heartbeats, signaux et statut des agents.
 // Compatible serverless : pas de pub/sub temps réel, mais clés TTL + listes.
 // =============================================================================
 
@@ -12,6 +12,8 @@ export const AGENT_NAMES = [
   'technical',
   'sentiment',
   'onchain',
+  'calendar',
+  'pattern',
   'macro',
   'defi',
   'risk',

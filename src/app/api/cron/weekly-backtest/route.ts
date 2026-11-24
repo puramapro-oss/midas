@@ -18,13 +18,14 @@ export async function GET(request: NextRequest) {
     const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - 7);
 
-    const { data: recentSignals } = await supabase
+    const { data: recentSignals, error: signalsError } = await supabase
       .from('signals')
       .select('pair, direction, strength, composite_score, entry_price, stop_loss, take_profit, created_at')
       .gte('created_at', weekStart.toISOString())
       .eq('is_active', false)
       .order('created_at', { ascending: false })
       .limit(100);
+    if (signalsError) return NextResponse.json({ error: 'Inventaire des signaux indisponible' }, { status: 503 });
 
     const signalCount = recentSignals?.length ?? 0;
     const pairs = [...new Set(recentSignals?.map((s) => s.pair) ?? [])];
@@ -32,9 +33,10 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.from('market_cache').upsert(
       {
         key: 'weekly_backtest',
-        type: 'backtest_report',
+        type: 'signal_inventory',
         data: {
-          status: 'completed',
+          status: 'inventory_completed',
+          backtest_executed: false,
           period_start: weekStart.toISOString(),
           period_end: now,
           signals_analyzed: signalCount,
@@ -53,7 +55,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      status: 'completed',
+      status: 'inventory_completed',
+      backtest_executed: false,
       signals_analyzed: signalCount,
       pairs: pairs,
       timestamp: now,

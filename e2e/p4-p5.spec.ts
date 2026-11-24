@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { expectJsonResponse } from './helpers';
 
 test.describe('P4 — Admin Pages', () => {
   test('/admin redirects to /login when not authenticated', async ({ page }) => {
@@ -50,80 +51,58 @@ test.describe('P4 — FAQ Page', () => {
 });
 
 test.describe('P4 — API Routes', () => {
-  test('POST /api/contact with valid data returns success', async ({ request }) => {
+  test('POST /api/contact returns success with the local database dependency fixture', async ({ request }) => {
     const res = await request.post('/api/contact', {
-      data: {
-        name: 'Test User',
-        email: 'test@example.com',
-        subject: 'Test Subject',
-        message: 'Ceci est un message de test.',
-      },
+      data: { name: 'Test User', email: 'test@example.com', subject: 'Test Subject', message: 'Ceci est un message de test.' },
     });
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      // Either success or DB error (table might not exist in test env)
-      expect(body.success || body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 200);
+    expect(body.success || body.error).toBeTruthy();
+    expect(body.success).toBe(true);
+    expect(body).toEqual({ success: true });
   });
 
   test('POST /api/contact with invalid data returns 400', async ({ request }) => {
     const res = await request.post('/api/contact', {
       data: { name: '' },
     });
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 400, 'Le nom est requis');
+    expect(body.error).toBeTruthy();
   });
 
-  test('GET /api/faq returns articles', async ({ request }) => {
+  test('GET /api/faq returns the isolated empty public collection', async ({ request }) => {
     const res = await request.get('/api/faq');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.articles || body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 200);
+    expect(body.articles || body.error).toBeTruthy();
+    expect(Array.isArray(body.articles)).toBe(true);
+    expect(body.articles).toEqual([]);
   });
 
   test('GET /api/admin/monitoring without auth returns error', async ({ request }) => {
     const res = await request.get('/api/admin/monitoring');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorise');
+    expect(body.error).toBeTruthy();
   });
 
   test('GET /api/admin/financement without auth returns error', async ({ request }) => {
     const res = await request.get('/api/admin/financement');
-    const ct = res.headers()['content-type'] ?? '';
-    if (ct.includes('application/json')) {
-      const body = await res.json();
-      expect(body.error).toBeTruthy();
-    }
+    const body = await expectJsonResponse(res, 401, 'Non autorise');
+    expect(body.error).toBeTruthy();
   });
 });
 
 test.describe('P5 — Design & Animations', () => {
-  test('Landing page has cursor glow wrapper', async ({ page }) => {
+  test('Landing page displays its educational heading', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('h1')).toBeVisible();
+    await expect(page.locator('h1')).toHaveText('Comprendre les marchés crypto sans ordre réel ni conseil personnalisé.');
   });
 
-  test('Landing page all sections render', async ({ page }) => {
+  test('Landing page renders both educational articles and its footer', async ({ page }) => {
     await page.goto('/');
     // Landing NIYAMA D2=A : H1 éducation, sans branding ni sections trading
     await expect(page.locator('h1')).toContainText('crypto');
-    // Scroll down to trigger reveals
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForTimeout(1000);
-    // Footer should be visible after scroll
+    await expect(page.locator('main article')).toHaveCount(2);
     const footer = page.locator('footer');
-    if (await footer.count() > 0) {
-      await expect(footer.first()).toBeVisible();
-    }
+    await expect(footer).toBeVisible();
   });
 
   test('No horizontal overflow on landing at 375px', async ({ page }) => {
@@ -137,15 +116,20 @@ test.describe('P5 — Design & Animations', () => {
   test('No horizontal overflow on landing at 1920px', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto('/');
+    const heading = page.locator('h1').first();
+    await expect(heading).toBeVisible();
+    await expect(heading).toHaveText(/\S/);
     const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
     expect(bodyWidth).toBeLessThanOrEqual(1921);
+    const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(documentWidth).toBeLessThanOrEqual(1921);
   });
 });
 
 test.describe('P5 — i18n', () => {
-  test('Landing has lang attribute', async ({ page }) => {
+  test('Landing uses French in the fr-FR browser context', async ({ page }) => {
     await page.goto('/');
     const lang = await page.locator('html').getAttribute('lang');
-    expect(lang).toBeTruthy();
+    expect(lang).toBe('fr');
   });
 });

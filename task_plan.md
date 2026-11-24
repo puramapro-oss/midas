@@ -125,7 +125,7 @@ Compléter MIDAS avec TOUTES les features du CLAUDE.md V3 ULTIMATE.
 - [x] app.json nettoye (trailing commas, googleServicesFile removed)
 
 ## Restant — BLOQUE par EXPO_TOKEN expire
-Le token `EXPO_TOKEN=ruJtqpy756415UEEU5mDrJnh6mPQ0lqRBS9q0um2` du CLAUDE.md est invalide.
+Le token `EXPO_TOKEN=[ANCIENNE VALEUR RETIREE]` était présenté comme invalide dans ce jalon historique. Son expiration, sa révocation et son retrait de l’historique Git ne sont pas établis par cette correction documentaire.
 
 Pour debloquer :
 1. `cd ~/purama/midas/mobile && npx eas-cli login` (email + password Expo)

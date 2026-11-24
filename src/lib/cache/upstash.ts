@@ -1,6 +1,8 @@
 import { Redis } from '@upstash/redis';
+import { createSingleFlight } from './single-flight';
 
 const PREFIX = 'midas:';
+const coalesce = createSingleFlight();
 
 let _redis: Redis | null = null;
 function getRedis(): Redis {
@@ -50,12 +52,14 @@ export async function cacheGetOrSet<T>(
   fetcher: () => Promise<T>,
   ttlSeconds: number,
 ): Promise<T> {
-  const cached = await cacheGet<T>(key);
-  if (cached !== null) return cached;
-
-  const fresh = await fetcher();
-  await cacheSet(key, fresh, ttlSeconds);
-  return fresh;
+  if (!Number.isInteger(ttlSeconds) || ttlSeconds <= 0) throw new Error('Invalid cache TTL');
+  return coalesce(key, async () => {
+    const cached = await cacheGet<T>(key);
+    if (cached !== null) return cached;
+    const fresh = await fetcher();
+    await cacheSet(key, fresh, ttlSeconds);
+    return fresh;
+  });
 }
 
 export async function cacheIncrement(key: string, ttlSeconds?: number): Promise<number> {
