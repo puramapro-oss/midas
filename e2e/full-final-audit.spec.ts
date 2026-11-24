@@ -10,11 +10,12 @@ test.describe('Public pages load correctly', () => {
       const errors = collectErrors(page);
       const response = await page.goto(path, { waitUntil: 'domcontentloaded' });
       expect(response?.status()).toBe(200);
-      // Allow React hydration warnings but no real errors
-      const criticalErrors = errors.filter(
-        (e) => !e.includes('Hydration') && !e.includes('hydrat') && !e.includes('minified React')
-      );
-      expect(criticalErrors).toHaveLength(0);
+      await expect(page.locator('h1').first()).toBeVisible();
+      await page.waitForLoadState('load');
+      // Hydration exceptions are errors, not an allowed catch-all.
+      await page.evaluate(() => new Promise<void>(resolve =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      expect(errors).toEqual([]);
     });
   }
 });
@@ -102,7 +103,14 @@ test.describe('Login page elements', () => {
     expect(response.status()).toBe(403);
     expect(response.headers()['content-type']).toContain('application/json');
     expect((await response.json()).code).toBe('provider_disabled_for_fixture');
-    expect(new URL(page.url()).origin).toBe(baseURL);
+    await expect(page).toHaveURL(url => url.origin === baseURL &&
+      url.pathname === '/__e2e/supabase/auth/v1/authorize' &&
+      url.searchParams.get('provider') === 'google');
+    const destination = new URL(page.url());
+    const callback = new URL(destination.searchParams.get('redirect_to')!);
+    expect(callback.origin).toBe(baseURL);
+    expect(callback.pathname).toBe('/api/auth/callback');
+    // This proves the intercepted local destination, never a Google session.
   });
 });
 
@@ -134,20 +142,13 @@ test.describe('Register page elements', () => {
 // 5. PRICING PAGE — plans and buttons
 // ============================================================
 test.describe('Pricing page', () => {
-  test('displays plan cards with prices', async ({ page }) => {
+  test('displays PURAMA access without a separate MIDAS subscription', async ({ page }) => {
     await page.goto('/pricing');
     await dismissCookies(page);
 
-    // Check that pricing section exists with plan cards
-    const pageContent = await page.textContent('body');
-    expect(pageContent).toBeTruthy();
-
-    // Should show at least "Gratuit" or "Free" and price values
-    const hasPlans = pageContent?.includes('Gratuit') ||
-                     pageContent?.includes('Free') ||
-                     pageContent?.includes('0') ||
-                     pageContent?.includes('€');
-    expect(hasPlans).toBeTruthy();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Accès via PURAMA');
+    await expect(page.locator('main')).toContainText('MIDAS ne propose aucun abonnement propre.');
+    await expect(page.locator('main')).toContainText('Sur mobile, aucun achat ni lien d’achat n’est présenté.');
   });
 
   test('Pricing NIYAMA : aucun CTA d’achat, lien retour accueil présent', async ({ page }) => {
@@ -178,9 +179,10 @@ test.describe('Legal pages have content', () => {
   for (const { path, minChars, keyword } of legalPages) {
     test(`${path} has real content (>=${minChars} chars, contains "${keyword}")`, async ({ page }) => {
       await page.goto(path);
-      const text = await page.textContent('body');
-      expect(text?.length).toBeGreaterThan(minChars);
-      expect(text?.toLowerCase()).toContain(keyword);
+      await expect(page.locator('h1')).toBeVisible();
+      const text = await page.locator('body').innerText();
+      expect(text.length).toBeGreaterThan(minChars);
+      expect(text.toLowerCase()).toContain(keyword);
     });
   }
 });
@@ -189,49 +191,39 @@ test.describe('Legal pages have content', () => {
 // 7. LANDING PAGE — sections and navigation
 // ============================================================
 test.describe('Landing page', () => {
-  test('has hero section with CTA', async ({ page }) => {
+  test('has the educational heading and the two current CTAs', async ({ page }) => {
     await page.goto('/');
     await dismissCookies(page);
 
-    // Should have MIDAS title
-    const text = await page.textContent('body');
-    expect(text).toContain('MIDAS');
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+      'Comprendre les marchés crypto sans ordre réel ni conseil personnalisé.');
+    await expect(page.getByRole('link', { name: 'Accéder à l’espace éducatif' })).toHaveAttribute('href', '/register');
+    await expect(page.getByRole('link', { name: 'Lire l’avertissement' })).toHaveAttribute('href', '/legal/disclaimer');
   });
 
   test('footer has legal links', async ({ page }) => {
     await page.goto('/');
     await dismissCookies(page);
 
-    // Scroll to footer
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForTimeout(500);
-
     const footer = page.locator('footer');
-    if (await footer.isVisible().catch(() => false)) {
-      const footerText = await footer.textContent();
-      // Footer should contain legal-related links
-      const hasLegalLinks =
-        footerText?.includes('Mentions') ||
-        footerText?.includes('mentions') ||
-        footerText?.includes('legal') ||
-        footerText?.includes('Confidential') ||
-        footerText?.includes('CGU') ||
-        footerText?.includes('CGV');
-      expect(hasLegalLinks).toBeTruthy();
+    await expect(footer).toBeVisible();
+    await expect(footer.getByRole('navigation', { name: 'Liens légaux' })).toBeVisible();
+    const legalDestinations = ['/legal/cgu', '/legal/cgv', '/legal/privacy', '/legal/mentions'];
+    await expect(footer.getByRole('link')).toHaveCount(legalDestinations.length);
+    for (const href of legalDestinations) {
+      await expect(footer.locator(`a[href="${href}"]`)).toBeVisible();
     }
   });
 
-  test('pricing section has plans', async ({ page }) => {
+  test('landing explains general learning and explicit limits', async ({ page }) => {
     await page.goto('/');
     await dismissCookies(page);
 
-    // Scroll down to find pricing
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight / 2));
-    await page.waitForTimeout(500);
-
-    const text = await page.textContent('body');
-    const hasPricing = text?.includes('€') || text?.includes('Gratuit') || text?.includes('pricing') || text?.includes('plan');
-    expect(hasPricing).toBeTruthy();
+    await expect(page.locator('main article')).toHaveCount(2);
+    await expect(page.getByRole('heading', { name: 'Apprentissage général' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Limites explicites' })).toBeVisible();
+    const visibleText = await page.locator('main').innerText();
+    expect(visibleText).not.toMatch(/Lorem ipsum|\\u[0-9a-f]{4}/i);
   });
 });
 
@@ -335,10 +327,8 @@ test.describe('SEO meta tags', () => {
       expect(title.length).toBeGreaterThan(5);
 
       const desc = await page.locator('meta[name="description"]').getAttribute('content');
-      // Some pages may not have description, but title is mandatory
-      if (desc) {
-        expect(desc.length).toBeGreaterThan(10);
-      }
+      expect(desc, 'The root metadata supplies a description for these pages').toBeTruthy();
+      expect(desc!.length).toBeGreaterThan(10);
     });
   }
 });

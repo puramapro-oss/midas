@@ -1,24 +1,26 @@
 import { test, expect } from '@playwright/test';
+import { expectJsonResponse } from './helpers';
 
 test.describe('Security', () => {
-  test('XSS in search params is escaped', async ({ page }) => {
-    // Inject a script tag via query parameter
+  test('landing query containing a script does not open a dialog', async ({ page }) => {
+    const dialogs: string[] = [];
+    // Attach before navigation: synchronous script execution must be observed.
+    page.on('dialog', async dialog => {
+      dialogs.push(dialog.message());
+      await dialog.dismiss();
+    });
     await page.goto('/?q=<script>alert("xss")</script>');
-
-    // The page should load without executing the script
-    // Check that no alert dialog appeared (Playwright would catch it)
-    const dialogPromise = page.waitForEvent('dialog', { timeout: 2000 }).catch(() => null);
-    const dialog = await dialogPromise;
-    expect(dialog).toBeNull();
-
-    // The page should still render normally (landing NIYAMA : h1 éducation)
     await expect(page.locator('h1')).toBeVisible();
+    await page.waitForTimeout(2000);
+    expect(dialogs).toEqual([]);
   });
 
-  test('SQL injection in query params does not cause 500', async ({ page }) => {
+  test('landing renders normally for an SQL-shaped unused query value', async ({ page }) => {
     const response = await page.goto('/?id=1%27%20OR%201%3D1%20--');
     expect(response).not.toBeNull();
-    expect(response!.status()).not.toBe(500);
+    expect(response!.status()).toBe(200);
+    await expect(page.locator('h1')).toHaveText('Comprendre les marchés crypto sans ordre réel ni conseil personnalisé.');
+    // The landing does not query a database; this is not a SQL security proof.
   });
 
   test('security headers are present', async ({ page }) => {
@@ -37,13 +39,12 @@ test.describe('Security', () => {
     expect(['DENY', 'SAMEORIGIN', 'deny', 'sameorigin']).toContain(xFrameOptions);
   });
 
-  test('API endpoints reject malformed JSON gracefully', async ({ request }) => {
+  test('anonymous chat refuses malformed JSON before parsing it', async ({ request }) => {
     const response = await request.post('/api/chat', {
       headers: { 'content-type': 'application/json' },
       data: 'not-valid-json{{{',
     });
 
-    // Should not return 500 - any 4xx is acceptable
-    expect(response.status()).not.toBe(500);
+    await expectJsonResponse(response, 401, 'Non autorise');
   });
 });

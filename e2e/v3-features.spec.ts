@@ -9,13 +9,12 @@ test.describe('V3 Features — Public Pages', () => {
     await expect(page.locator('h1')).toContainText('sans ordre réel');
   });
 
-  test('/pricing loads with plan cards', async ({ page }) => {
+  test('/pricing renders current PURAMA access and its return link', async ({ page }) => {
     await page.goto('/pricing');
     await expect(page).toHaveURL(/pricing/);
-    await page.waitForTimeout(2000);
-    const body = await page.textContent('body');
-    const hasPlans = body?.includes('Free') || body?.includes('Gratuit') || body?.includes('Pro') || body?.includes('Ultra') || body?.includes('mois');
-    expect(hasPlans, 'Pricing should show plans').toBeTruthy();
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Accès via PURAMA');
+    await expect(page.locator('main')).toContainText('Les droits et quotas proviennent de l’abonnement unique PURAMA.');
+    await expect(page.getByRole('link', { name: 'Retour à MIDAS' })).toHaveAttribute('href', '/');
   });
 
   test('/login page loads', async ({ page }) => {
@@ -151,22 +150,15 @@ test.describe('V3 Features — Responsive', () => {
 });
 
 test.describe('V3 Features — No Console Errors', () => {
-  test('Landing has no critical console errors', async ({ page }) => {
+  test('Landing emits no console errors while loading', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (msg) => {
       if (msg.type() === 'error') errors.push(msg.text());
     });
     await page.goto('/');
     await page.waitForTimeout(2000);
-    // Filter out known non-critical errors (3rd party, hydration warnings)
-    const critical = errors.filter(
-      (e) =>
-        !e.includes('favicon') &&
-        !e.includes('Failed to load resource') &&
-        !e.includes('hydrat') &&
-        !e.includes('PostHog')
-    );
-    expect(critical.length).toBe(0);
+    await expect(page.locator('h1')).toBeVisible();
+    expect(errors).toEqual([]);
   });
 });
 

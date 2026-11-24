@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('Auth Session Security', () => {
+test.describe('Anonymous auth preferences and local session markers', () => {
   test.beforeEach(async ({ page }) => {
     // Pre-accept cookies to prevent banner from overlaying the form
     await page.goto('/login');
     await page.evaluate(() => {
-      localStorage.setItem('midas-cookie-consent', JSON.stringify({ essential: true, analytics: true, marketing: true }));
+      localStorage.setItem('midas-cookie-consent', JSON.stringify({ necessary: true, analytics: false, performance: false }));
     });
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
@@ -38,8 +38,8 @@ test.describe('Auth Session Security', () => {
     // Check remember me
     await page.locator('[data-testid="remember-me-checkbox"]').check();
 
-    // Fill valid credentials (won't actually authenticate but will store prefs)
-    await page.locator('[data-testid="email-input"]').fill('test@purama.dev');
+    // The isolated fixture refuses these synthetic credentials.
+    await page.locator('[data-testid="email-input"]').fill('local-fixture@example.invalid');
     await page.locator('[data-testid="password-input"]').fill('testpassword123');
     await page.locator('[data-testid="login-button"]').click();
 
@@ -55,37 +55,33 @@ test.describe('Auth Session Security', () => {
 
   test('login without remember-me stores false preference', async ({ page }) => {
     // Don't check remember me (default unchecked)
-    await page.locator('[data-testid="email-input"]').fill('test@purama.dev');
+    await page.locator('[data-testid="email-input"]').fill('local-fixture@example.invalid');
     await page.locator('[data-testid="password-input"]').fill('testpassword123');
     await page.locator('[data-testid="login-button"]').click();
 
     await expect.poll(() => page.evaluate(() => localStorage.getItem('midas_remember'))).toBe('false');
   });
 
-  test('signout button sets forced logout flag and redirects to /login', async ({ page }) => {
-    // Go to dashboard (will be redirected to login if not authenticated)
-    await page.goto('/dashboard');
-
-    // If we end up on login, simulate what happens when user clicks logout
-    // by testing the UserMenu's logout function directly
-    await page.goto('/login');
-
-    // Simulate forced logout flag being set (as handleLogout does)
-    await page.evaluate(() => {
-      localStorage.setItem('midas_forced_logout', 'true');
-      localStorage.removeItem('midas_remember');
-      sessionStorage.removeItem('midas_session_valid');
+  test('invalid local credentials produce the visible login error without a session', async ({ page, baseURL }) => {
+    expect(process.env.MIDAS_E2E_ISOLATED).toBe('1');
+    expect(baseURL).toBe('http://127.0.0.1:3000');
+    const refused = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.origin === baseURL && url.pathname === '/__e2e/supabase/auth/v1/token' &&
+        url.searchParams.get('grant_type') === 'password' && response.request().method() === 'POST';
     });
-
-    // Verify the flag persists
-    await expect.poll(() => page.evaluate(() => localStorage.getItem('midas_forced_logout'))).toBe('true');
-
-    // Verify we're on login page
-    await expect(page).toHaveURL(/\/login/);
-    await expect(page.locator('[data-testid="login-button"]')).toBeVisible();
+    await page.getByTestId('email-input').fill('local-fixture@example.invalid');
+    await page.getByTestId('password-input').fill('not-a-real-password');
+    await page.getByTestId('login-button').click();
+    const response = await refused;
+    expect(response.status()).toBe(400);
+    expect((await response.json()).code).toBe('invalid_credentials');
+    await expect(page.getByText('Email ou mot de passe incorrect', { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(`${baseURL}/login`);
+    // The real logout handlers are exercised in local-protocols.spec.ts.
   });
 
-  test('forced logout flag prevents auto-reconnection on page reload', async ({ page }) => {
+  test('anonymous login remains usable with a forced-logout marker after reload', async ({ page }) => {
     // Set the forced logout flag
     await page.evaluate(() => {
       localStorage.setItem('midas_forced_logout', 'true');
@@ -99,8 +95,8 @@ test.describe('Auth Session Security', () => {
     await expect(page.locator('[data-testid="remember-me-checkbox"]')).toBeVisible();
   });
 
-  test('session without remember-me is cleared when midas_session_valid is missing', async ({ page }) => {
-    // Simulate: user logged in without remember-me, browser was closed (sessionStorage cleared)
+  test('false remember preference is cleared when its local session marker is absent', async ({ page }) => {
+    // Synthetic markers only: no authenticated session is created.
     await page.evaluate(() => {
       localStorage.setItem('midas_remember', 'false');
       // sessionStorage.midas_session_valid is NOT set (simulates browser close)
@@ -115,8 +111,8 @@ test.describe('Auth Session Security', () => {
     expect(remember).toBeNull();
   });
 
-  test('session with remember-me survives page reload', async ({ page }) => {
-    // Simulate: user logged in with remember-me
+  test('true remember preference survives reload with its local session marker', async ({ page }) => {
+    // Persistence of local markers does not prove persistence of a Supabase session.
     await page.evaluate(() => {
       localStorage.setItem('midas_remember', 'true');
       sessionStorage.setItem('midas_session_valid', 'true');

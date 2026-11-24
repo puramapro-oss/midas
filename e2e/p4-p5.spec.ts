@@ -91,23 +91,18 @@ test.describe('P4 — API Routes', () => {
 });
 
 test.describe('P5 — Design & Animations', () => {
-  test('Landing page has cursor glow wrapper', async ({ page }) => {
+  test('Landing page displays its educational heading', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('h1')).toBeVisible();
+    await expect(page.locator('h1')).toHaveText('Comprendre les marchés crypto sans ordre réel ni conseil personnalisé.');
   });
 
-  test('Landing page all sections render', async ({ page }) => {
+  test('Landing page renders both educational articles and its footer', async ({ page }) => {
     await page.goto('/');
     // Landing NIYAMA D2=A : H1 éducation, sans branding ni sections trading
     await expect(page.locator('h1')).toContainText('crypto');
-    // Scroll down to trigger reveals
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForTimeout(1000);
-    // Footer should be visible after scroll
+    await expect(page.locator('main article')).toHaveCount(2);
     const footer = page.locator('footer');
-    if (await footer.count() > 0) {
-      await expect(footer.first()).toBeVisible();
-    }
+    await expect(footer).toBeVisible();
   });
 
   test('No horizontal overflow on landing at 375px', async ({ page }) => {
@@ -127,9 +122,9 @@ test.describe('P5 — Design & Animations', () => {
 });
 
 test.describe('P5 — i18n', () => {
-  test('Landing has lang attribute', async ({ page }) => {
+  test('Landing uses French in the fr-FR browser context', async ({ page }) => {
     await page.goto('/');
     const lang = await page.locator('html').getAttribute('lang');
-    expect(lang).toBeTruthy();
+    expect(lang).toBe('fr');
   });
 });
