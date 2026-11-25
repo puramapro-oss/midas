@@ -1,17 +1,24 @@
 import Link from 'next/link';
 import { BookOpen, ShieldCheck } from 'lucide-react';
+import InvestmentModeActions from '@/components/trading/InvestmentModeActions';
+import OrderCostComparison from '@/components/trading/OrderCostComparison';
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-[#06080F] text-white">
       <section className="mx-auto flex min-h-[78vh] max-w-5xl flex-col justify-center px-6 py-20">
         <p className="mb-5 text-sm font-semibold uppercase tracking-[0.2em] text-[#FFD700]">Information générale · Éducation</p>
-        <h1 className="max-w-4xl text-4xl font-bold leading-tight sm:text-6xl">Comprendre les marchés crypto sans ordre réel ni conseil personnalisé.</h1>
+        <h1 className="max-w-4xl text-4xl font-bold leading-tight sm:text-6xl">Comprendre les actions, les ETF et les crypto-actifs sans ordre réel ni conseil personnalisé.</h1>
         <p className="mt-6 max-w-3xl text-lg leading-relaxed text-white/70">MIDAS explique des notions de marché et propose des simulations pédagogiques. Le service ne se connecte à aucun exchange, ne collecte aucune clé API, ne recommande aucun actif et ne déclenche aucune opération.</p>
         <div className="mt-9 flex flex-wrap gap-4">
           <Link href="/register" className="min-h-11 rounded-xl bg-[#FFD700] px-6 py-3 font-semibold text-black">Accéder à l’espace éducatif</Link>
           <Link href="/legal/disclaimer" className="min-h-11 rounded-xl border border-white/20 px-6 py-3 font-semibold">Lire l’avertissement</Link>
         </div>
+      </section>
+      <section aria-labelledby="modes-investissement" className="mx-auto max-w-5xl space-y-5 px-6 pb-16 [--text-primary:#f8fafc] [--text-secondary:#bfc7d4]">
+        <h2 id="modes-investissement" className="text-2xl font-semibold">Investir soi-même ou déléguer à un gestionnaire</h2>
+        <InvestmentModeActions />
+        <OrderCostComparison />
       </section>
       <section className="mx-auto grid max-w-5xl gap-5 px-6 pb-20 md:grid-cols-2">
         <article className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
