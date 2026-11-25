@@ -39,6 +39,33 @@ test.describe('Landing page (NIYAMA D2=A)', () => {
     await expect(page.getByRole('link', { name: /Lire l’avertissement/ })).toBeVisible();
   });
 
+  test('compare deux offres sans compte depuis le lien manuel', async ({ page }) => {
+    await page.getByRole('link', { name: 'Comparer un ordre manuel' }).click();
+    await expect(page).toHaveURL(/\/#comparer-les-couts$/);
+    const comparison = page.getByRole('region', { name: 'Comparer le coût de deux offres' });
+    const costs = comparison.getByRole('row', { name: /Coût de l’aller-retour/ }).getByRole('cell');
+    await expect(costs.nth(0)).toContainText('2,20');
+    await expect(costs.nth(1)).toContainText('0,80');
+    await comparison.getByLabel('Quantité d’unités').fill('2');
+    await expect(costs.nth(0)).toContainText('2,40');
+    await expect(costs.nth(1)).toContainText('1,60');
+    await comparison.getByLabel('Quantité d’unités').fill('0');
+    await expect(costs.nth(0)).toHaveText('—');
+    await expect(costs.nth(1)).toHaveText('—');
+  });
+
+  test('explique le mandat automatique depuis l’accueil', async ({ page }) => {
+    const mode = page.getByText('Comprendre le mode automatique', { exact: true });
+    const info = page.getByText('Dans le parcours envisagé', { exact: false });
+    await expect(info).toBeHidden();
+    await mode.focus();
+    await mode.press('Enter');
+    await expect(info).toBeVisible();
+    await expect(page.getByText('en argent réel est indisponible', { exact: false })).toBeVisible();
+    await mode.press('Enter');
+    await expect(info).toBeHidden();
+  });
+
   test('footer légal : CGU, CGV, Confidentialité, Mentions légales', async ({ page }) => {
     for (const label of ['CGU', 'CGV', 'Confidentialité', 'Mentions légales']) {
       await expect(page.getByRole('link', { name: label, exact: true })).toBeVisible();
