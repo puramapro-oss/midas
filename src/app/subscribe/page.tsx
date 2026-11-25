@@ -12,15 +12,14 @@ export const metadata: Metadata = {
   description: 'Active ton abonnement MIDAS et reçois ta prime de bienvenue.',
 };
 
-export default function SubscribePage({
+export default async function SubscribePage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const plan = (typeof searchParams?.plan === 'string' ? searchParams.plan : 'pro') as 'pro' | 'ultra';
-  const period = (typeof searchParams?.period === 'string' ? searchParams.period : 'monthly') as
-    | 'monthly'
-    | 'yearly';
+  const params = await searchParams;
+  const plan = (typeof params.plan === 'string' ? params.plan : 'pro') as 'pro' | 'ultra';
+  const period = (typeof params.period === 'string' ? params.period : 'monthly') as 'monthly' | 'yearly';
 
   return <SubscribeClient plan={plan} period={period} />;
 }

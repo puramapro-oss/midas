@@ -11,11 +11,11 @@ export const metadata: Metadata = {
   description: 'Ton abonnement est actif. Ta prime de bienvenue est créditée.',
 };
 
-export default function ConfirmationPage({
+export default async function ConfirmationPage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const plan = typeof searchParams?.plan === 'string' ? searchParams.plan : 'pro';
-  return <ConfirmationClient plan={plan} />;
+  const { plan } = await searchParams;
+  return <ConfirmationClient plan={typeof plan === 'string' ? plan : 'pro'} />;
 }
