@@ -17,3 +17,63 @@
 | D-EN05 | UI /dashboard/entraide : 3 tabs (Missions Collectives, Traders Compatibles, Demandes Contact). Vocabulaire adapté domaine trading. Design GOD MODE (tokens CSS, glass cards, responsive 375px, dark mode). Sidebar ajouté : "Cercle de Traders" (icône Users2) après "Communauté". VRAIES lectures/écritures DB dès l'écriture initiale (0 mock) — respect consigne critique. |
 | D-EN06 | Limites assumées : anti-abus multi-comptes KYC non implémenté (MIDAS n'a pas de KYC natif pour entraide, clé reste `user_id` comme 13 pilotes @purama/retention précédents, MOULE-ENTRAIDE §5). Bug public.subscriptions pré-existant (D-MI01) non corrigé, hors périmètre. |
 | D-EN07 | Bug bloquant corrigé (2026-09-04) : la feature entraide était **inutilisable** — aucune route ni formulaire pour créer/éditer son propre profil entraide (midas.entraide_profils). Sans profil créé, `/api/entraide/matches` retourne TOUJOURS liste vide (0 traders compatibles), aucun matching possible (Loi 9 CLAUDE.md). Ajouté : `/api/entraide/profil/route.ts` (GET : lit profil via service_role scoped auth.uid(), retourne null si absent ; PUT : upsert skills_offered/needed, availability_days, radius_km, location_lat/lng, validation Zod). UI : nouvel onglet "Mon Profil" (distinct de "Traders Compatibles" qui affiche les matches) avec formulaire réel : compétences trading offertes/demandées (input texte séparé virgules), disponibilités (boutons jours semaine), rayon km (range 5-500). États loading/saving/error réels, vocabulaire domaine trading (CLAUDE.md Loi 12). Prouvé : tsc 0 erreur, build réussi. |
+
+
+<!-- MIDAS:ASSISTED_AUTOMATIC:20261126:BEGIN -->
+## Deux modes MIDAS et responsabilité des ordres
+
+Décision de Matiss du 26 novembre 2026 (Europe/Paris), précisant le parcours multi-actifs existant. Deux choix principaux, un seul MIDAS et un moteur d’analyse partagé. Le mode manuel demandé est une assistance par analyse et notifications ; il ne donne aucune autorisation d’exécuter à l’IA, même après lecture ou validation d’une alerte.
+
+| Mode | Travail de MIDAS | Autorité sur les ordres |
+| --- | --- | --- |
+| Assisté — je passe mes ordres | Analyser les marchés couverts, expliquer les conditions et risques, notifier une entrée, une modification, une invalidation ou une sortie. | L’utilisateur ouvre, modifie, annule et ferme lui-même via le parcours de courtage autorisé. Aucun ordre IA en réponse à une alerte, à son acquittement ou au silence. |
+| Automatique — MIDAS exécute | Réutiliser la même analyse puis gérer les positions dans le cadre du mandat. | Chaque action IA exige le mandat actif, le compte et les droits vérifiés, le périmètre d’actifs/actions et les limites applicables. Pause et révocation restent possibles. |
+
+### Réutilisation et compatibilité
+
+- Conserver `InvestmentModeActions` comme présentation partagée pour l’accueil, le panneau de trading et les paramètres. Ne pas créer une seconde application, un second moteur ou un registre financier parallèle.
+- Réutiliser `generate-and-persist`, les signaux, les préférences et composants de notifications, le suivi des positions et les contrôles de risque existants après qualification. Un code présent ne prouve pas un circuit opérationnel.
+- Le champ historique `auto_trade_enabled` reste en place ; il ne constitue ni un mandat signé, ni une preuve d’habilitation, ni une activation réelle. Aucun nouveau champ concurrent de mode n’est créé dans ce lot.
+- Si un ancien parcours « je valide puis MIDAS transmet » est retrouvé, préserver son historique et le distinguer du mode assisté. Ne pas le migrer silencieusement et ne pas ajouter un troisième choix dans l’interface principale.
+- Un plan d’investissement que le client a programmé explicitement conserve sa nature d’instruction programmée. Il ne transforme pas une notification en ordre et ne constitue pas le mode assisté par alertes.
+- Les règles existantes de frais, de performance et de réserve des gains restent attachées à des opérations confirmées. Une alerte, sa lecture ou une simulation ne crée ni gain réalisé ni commission ; changer de mode ne facture pas une seconde fois le même événement.
+
+### Contrat à qualifier avant ouverture du service
+
+Une alerte exploitable doit identifier l’instrument et son marché, le sens, les conditions d’entrée ou de sortie, l’invalidation, les risques et coûts connus, la source et l’âge des données, sa version et son expiration. Le niveau de confiance n’est pas une probabilité de gain garantie. Une donnée essentielle absente, une alerte périmée ou une opportunité invalidée empêche de présenter l’idée comme active. L’inaction est un résultat possible.
+
+Une alerte n’est pas une position. Distinguer une opération confirmée par le courtier, une opération déclarée par l’utilisateur et un état inconnu. Si le compte n’est pas lisible, MIDAS ne peut pas attester que l’entrée ou la sortie a eu lieu. Une recommandation de sortie en mode assisté déclenche uniquement une notification.
+
+Au dernier point avant tout appel courtier, le serveur doit recontrôler l’autorité de l’action, le mode actuel, la version du mandat, sa révocation et les limites. Cela couvre agents, files, crons, webhooks, contrôles de risque et reprises. Le parcours manuel initié explicitement par l’utilisateur conserve ses propres vérifications.
+
+Le passage automatique → assisté bloque les nouvelles initiatives IA et invalide les travaux non transmis. Les appels déjà engagés et les réponses incertaines doivent être rapprochés ; le changement de mode ne liquide pas les positions et n’annule pas les stops ou objectifs existants chez le courtier. Ceux-ci peuvent encore se déclencher. Le passage assisté → automatique ne rejoue pas les anciennes alertes et n’adopte pas les positions manuelles hors du mandat. Dédupliquer séparément recommandations, notifications et ordres.
+
+| Vérification future | Résultat attendu |
+| --- | --- |
+| Lecture, validation ou notification répétée en assisté | Aucun appel d’ouverture, modification, annulation ou clôture par l’IA. |
+| Recommandation de sortie | Notification seulement ; la position ne devient pas « fermée » sans preuve. |
+| Mode modifié ou mandat révoqué pendant un travail en attente | Refus au contrôle final ; rapprochement des effets déjà engagés. |
+| Activation automatique avec anciennes alertes ou positions manuelles | Aucun rejeu ni prise en charge silencieuse. |
+| Timeout courtier ou état incomplet | État incertain conservé et rapproché avant nouvelle tentative. |
+| Notification expirée, donnée manquante ou livraison non confirmée | Statut explicite ; aucune exécution déduite d’un accusé ou d’une absence de réponse. |
+
+### Portée du correctif
+
+Base examinée : PR #34, `56da045e6fc32d47f9709b8ec73c89ab98917bea`. La présentation partagée distingue les deux modes et leur indisponibilité actuelle ; les faux interrupteurs locaux d’activation du trading et de protection Shield sont remplacés par cette présentation et un état explicite. Les réglages de démonstration sont signalés comme non enregistrés. Les API d’ordres, la persistance des mandats, les alertes en direct et leur livraison ne sont pas implémentées par ce changement de présentation. Le contrôle D2=A existant reste appliqué.
+
+L’absence d’exécution automatique ne dispense pas de qualifier une recommandation personnalisée : voir [ESMA, définition du conseil sous MiFID II, §26 et §33](https://www.esma.europa.eu/sites/default/files/2023-07/ESMA35-43-3861_Supervisory_briefing_on_understanding_the_definition_of_advice_under_MiFID_II.pdf). L’ouverture des alertes actionnables et de la gestion déléguée exige leurs capacités, autorisations et qualifications propres.
+### Vérification de cette présentation
+
+Contrôle du 26 novembre 2026, après correction du contraste clair détecté à 4,338:1 :
+
+- **PASS** — 87 tests unitaires existants ; modules métier testés non modifiés par ce lot.
+- **PASS** — TypeScript ciblé sur le composant partagé, `TradingTab`, leurs dépendances et les tests de l’accueil ; contrôle `git diff --check` et contrat NIYAMA existant.
+- **PASS** — construction Next.js 16.3.5 / React 19.2.4 d’un hôte isolé utilisant la page publique réelle et les composants réels du dépôt. Cet hôte n’inclut pas les API financières et ne remplace pas un build complet de MIDAS.
+- **PASS** — 15 scénarios de `e2e/landing.spec.ts` exécutés à 375 et 1 280 pixels, soit 30 exécutions. Deux contrôles supplémentaires du composant paramètres (clair/sombre), aux deux largeurs, donnent 4 exécutions. Total : **34 réussites, aucun échec, aucun test ignoré, aucune reprise** sur la campagne finale.
+- **PASS au périmètre observé** — contenu des deux modes, ouverture/fermeture des détails au clavier, comparaison et favori existants, absence de requête d’écriture/d’ordre pendant les interactions testées, absence de débordement horizontal et contraste d’au moins 4,5:1 pour les textes visibles des deux modes en paramètres. Captures mobile sombre et ordinateur clair examinées.
+- Le bouton de sauvegarde est masqué pour l’onglet Trading, dont les réglages restent un aperçu sans persistance ; cette condition du parent a été revue statiquement. Le parent complet avec authentification n’a pas été exécuté dans l’hôte de vérification.
+- **NON TESTÉ** — application complète avec dépendances privées, authentification réelle, iOS/Android natifs, alertes actionnables, livraison de notifications, mandats et contrôle serveur spécifique des deux modes, ordres courtier et service déployé. Les contrôles d’interface ne prouvent aucun de ces services.
+
+La livraison complète la PR #34 existante ; les déploiements Git Vercel sont désactivés uniquement pour sa branche `feat/trading-cost-comparison` afin de conserver le brouillon sans publication automatique. Aucune autre branche ni règle d’accès n’est modifiée.
+
+<!-- MIDAS:ASSISTED_AUTOMATIC:20261126:END -->

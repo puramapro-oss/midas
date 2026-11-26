@@ -87,6 +87,41 @@ test.describe('Landing page (NIYAMA D2=A)', () => {
     await expect(info).toBeHidden();
   });
 
+  test('distingue les deux modes et conserve la main à l’utilisateur en assisté', async ({ page }) => {
+    const modes = page.getByRole('region', { name: 'Modes MIDAS' });
+    await expect(modes.getByRole('article')).toHaveCount(2);
+    const assisted = modes.getByTestId('midas-assisted-mode');
+    await expect(assisted.getByRole('heading', { name: 'Assisté — je passe mes ordres' })).toBeVisible();
+    await expect(assisted).toContainText('Tu ouvres, modifies et fermes chaque position toi-même.');
+    await expect(assisted).toContainText('Lire ou valider une alerte ne transmet aucun ordre.');
+    await expect(assisted).toContainText('Les alertes de trading en direct sont indisponibles.');
+    await expect(modes.getByRole('heading', { name: 'Automatique — MIDAS exécute' })).toBeVisible();
+    const alertDetails = assisted.getByText('Comprendre les alertes', { exact: true });
+    const exitExplanation = assisted.getByText('Une alerte de sortie restera une recommandation', { exact: false });
+    await expect(exitExplanation).toBeHidden();
+    await alertDetails.focus();
+    await alertDetails.press('Enter');
+    await expect(exitExplanation).toBeVisible();
+    await expect(assisted.getByText('Une alerte devra préciser', { exact: false })).toBeVisible();
+    await alertDetails.press('Enter');
+    await expect(exitExplanation).toBeHidden();
+  });
+
+  test('consulter les deux modes et comparer ne déclenche aucune écriture ni demande d’ordre', async ({ page }) => {
+    const unexpectedRequests: string[] = [];
+    page.on('request', (request) => {
+      const pathname = new URL(request.url()).pathname;
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method()) || /^\/api\/(trade|bot|signals|exchange|agents)(\/|$)/.test(pathname)) {
+        unexpectedRequests.push(`${request.method()} ${pathname}`);
+      }
+    });
+    await page.getByText('Comprendre les alertes', { exact: true }).click();
+    await page.getByText('Comprendre le mode automatique', { exact: true }).click();
+    await page.getByRole('link', { name: 'Comparer un ordre manuel' }).click();
+    await expect(page).toHaveURL(/\/#comparer-les-couts$/);
+    expect(unexpectedRequests).toEqual([]);
+  });
+
   test('footer légal : CGU, CGV, Confidentialité, Mentions légales', async ({ page }) => {
     for (const label of ['CGU', 'CGV', 'Confidentialité', 'Mentions légales']) {
       await expect(page.getByRole('link', { name: label, exact: true })).toBeVisible();

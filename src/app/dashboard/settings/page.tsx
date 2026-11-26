@@ -35,8 +35,6 @@ export default function SettingsPage() {
   const [defaultSl, setDefaultSl] = useState(3);
   const [defaultTp, setDefaultTp] = useState(6);
   const [maxDailyLoss, setMaxDailyLoss] = useState(5);
-  const [autoTrade, setAutoTrade] = useState(true);
-  const [shieldActive, setShieldActive] = useState(true);
 
   // Notifications state
   const [notifEmail, setNotifEmail] = useState(true);
@@ -75,10 +73,6 @@ export default function SettingsPage() {
             setDefaultTp={setDefaultTp}
             maxDailyLoss={maxDailyLoss}
             setMaxDailyLoss={setMaxDailyLoss}
-            autoTrade={autoTrade}
-            setAutoTrade={setAutoTrade}
-            shieldActive={shieldActive}
-            setShieldActive={setShieldActive}
           />
         );
       case 'notifications':
@@ -144,7 +138,7 @@ export default function SettingsPage() {
         {renderTabContent()}
 
         {/* Save button */}
-        {activeTab !== 'donnees' && activeTab !== 'voix' && (
+        {activeTab !== 'donnees' && activeTab !== 'voix' && activeTab !== 'trading' && (
           <div className="mt-8 pt-4 border-t border-white/[0.06] flex justify-end">
             <Button
               variant="primary"
