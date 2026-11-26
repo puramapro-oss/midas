@@ -1,16 +1,16 @@
 import Link from 'next/link';
 import { Bot, Calculator, ChevronDown } from 'lucide-react';
 
-export default function InvestmentModeActions() {
+export default function InvestmentModeActions({ comparisonAvailable = true }: { comparisonAvailable?: boolean }) {
   return (
     <div className="space-y-2">
       <a
-        href="#comparer-les-couts"
+        href={comparisonAvailable ? "#comparer-les-couts" : "#marches"}
         className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-semibold hover:bg-emerald-500/20"
         data-testid="execute-trade"
       >
         <Calculator aria-hidden="true" className="h-4 w-4 shrink-0" />
-        Comparer un ordre manuel
+        {comparisonAvailable ? 'Comparer un ordre manuel' : 'Choisir un actif à comparer'}
       </a>
       <details className="group rounded-xl border border-[#FFD700]/20 bg-[#FFD700]/10">
         <summary

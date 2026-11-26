@@ -10,10 +10,11 @@ test.describe('Landing page (NIYAMA D2=A)', () => {
     await page.goto('/');
   });
 
-  test('H1 annonce éducation sans ordre réel', async ({ page }) => {
+  test('H1 annonce la plateforme et précise la disponibilité', async ({ page }) => {
     const h1 = page.locator('h1');
     await expect(h1).toBeVisible();
-    await expect(h1).toContainText('sans ordre réel');
+    await expect(h1).toHaveText('Investir et trader');
+    await expect(page.getByText(/les ordres en argent réel sont indisponibles/i)).toBeVisible();
   });
 
   test('page has correct meta title', async ({ page }) => {
@@ -21,21 +22,24 @@ test.describe('Landing page (NIYAMA D2=A)', () => {
     expect(title.toLowerCase()).toContain('midas');
   });
 
-  test('badge Information générale · Éducation visible', async ({ page }) => {
-    await expect(page.getByText('Information générale · Éducation')).toBeVisible();
+  test('le marché est visible sans inscription', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: 'Marchés', exact: true })).toBeVisible();
   });
 
   test('mention aucune clé API collectée', async ({ page }) => {
     await expect(page.getByText(/ne se connecte à aucun exchange/i)).toBeVisible();
   });
 
-  test('2 cartes : Apprentissage général + Limites explicites', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'Apprentissage général' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Limites explicites' })).toBeVisible();
+  test('recherche et filtre se combinent', async ({ page }) => {
+    await page.getByRole('combobox', { name: 'Marché' }).selectOption('Cryptos');
+    await page.getByRole('searchbox').fill('eth');
+    await expect(page.getByRole('link', { name: /ETH\/EUR/ })).toBeVisible();
+    await page.getByRole('searchbox').fill('airbus');
+    await expect(page.getByText(/Aucun résultat/)).toBeVisible();
   });
 
   test('CTA register + lien disclaimer existent', async ({ page }) => {
-    await expect(page.getByRole('link', { name: /Accéder à l’espace éducatif/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /Mon espace/ })).toBeVisible();
     await expect(page.getByRole('link', { name: /Lire l’avertissement/ })).toBeVisible();
   });
 
@@ -52,6 +56,23 @@ test.describe('Landing page (NIYAMA D2=A)', () => {
     await comparison.getByLabel('Quantité d’unités').fill('0');
     await expect(costs.nth(0)).toHaveText('—');
     await expect(costs.nth(1)).toHaveText('—');
+  });
+
+  test('EUR/USD compare les dollars par euro et le favori survit au rechargement', async ({ page }) => {
+    await page.getByRole('searchbox').fill('eurusd');
+    await page.getByRole('link', { name: /Forex EUR\/USD/ }).click();
+    await page.getByRole('button', { name: /Définir comme favori/ }).click();
+    await page.getByRole('link', { name: 'Comparer les offres pour EUR/USD' }).click();
+    const offer = page.getByRole('group', { name: 'Offre A' });
+    await expect(offer.getByLabel('Prix unitaire d’achat (USD)')).toHaveValue('');
+    await page.getByLabel('Quantité d’unités').fill('100');
+    await offer.getByLabel('Prix unitaire d’achat (USD)').fill('1,10');
+    await offer.getByLabel('Prix unitaire de vente (USD)').fill('1,09');
+    await expect(page.getByRole('row', { name: /Achat · montant débité/ }).getByRole('cell').first()).toContainText('110,00');
+    await expect(page.getByRole('row', { name: /Coût de l’aller-retour/ }).getByRole('cell').first()).toContainText('1,00');
+    await page.reload();
+    await page.getByRole('link', { name: 'Mon favori · EUR/USD' }).click();
+    await expect(page.getByRole('button', { name: /Retirer des favoris/ })).toBeVisible();
   });
 
   test('explique le mandat automatique depuis l’accueil', async ({ page }) => {

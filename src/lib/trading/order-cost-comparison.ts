@@ -54,7 +54,7 @@ export function compareOrderCost(units: string, quote: CostQuote) {
   const roundTrip = purchase - sale;
   // The shared EUR formatter uses Number. Stay within its cent precision.
   if ([purchase, sale, spread, roundTrip].some(value => Math.abs(value) > 100_000_000_000_000)) {
-    return { error: 'Le montant dépasse la plage de calcul de ce simulateur (1 000 milliards d’euros).' } as const;
+    return { error: 'Le montant dépasse la plage de calcul de ce simulateur (1 000 milliards dans la devise de calcul).' } as const;
   }
   return { purchase, sale, spread, roundTrip } as const;
 }

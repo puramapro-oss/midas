@@ -24,10 +24,20 @@ const totals = [
   ['spread', 'Dont écart des prix'],
 ] as const;
 
-export default function OrderCostComparison() {
+export interface QuoteContext {
+  label: string;
+  currency: 'EUR' | 'USD';
+  unit: string;
+}
+
+export default function OrderCostComparison({ context }: { context?: QuoteContext }) {
+  const currency = context?.currency ?? 'EUR';
+  const currencyLabel = currency === 'EUR' ? '€' : 'USD';
   const id = useId();
   const [units, setUnits] = useState('1');
-  const [quotes, setQuotes] = useState(examples);
+  const [quotes, setQuotes] = useState<CostQuote[]>(() => context
+    ? examples.map(() => ({ ask: '', bid: '', commission: '0', fees: '0' }))
+    : examples);
   const results = quotes.map(quote => compareOrderCost(units, quote));
 
   function updateQuote(index: number, changes: Partial<CostQuote>) {
@@ -41,7 +51,9 @@ export default function OrderCostComparison() {
           Comparer le coût de deux offres
         </h2>
         <p className="my-4 text-sm text-[var(--text-primary)]">
-          Simulation en euros pour des actions, ETF ou cryptos au comptant. Remplace les exemples par les prix du même actif au même instant pour la même quantité.
+          {context
+            ? `Simulation de ${context.label}. Saisis deux offres pour la même quantité. Chaque prix est en ${currency} par unité (${context.unit}).`
+            : 'Exemple fictif en euros. Compare les prix du même actif au même instant pour la même quantité.'}
         </p>
         <div className="max-w-60">
           <label htmlFor={id + '-units'} className="mb-1 block text-sm">Quantité d’unités</label>
@@ -55,7 +67,7 @@ export default function OrderCostComparison() {
                 {fields.map(({ key, label }) => (
                   <div key={key} className="min-w-0 text-sm">
                     <label htmlFor={id + index + key} className="mb-1 block">
-                      {quote.saleCharges ? label.replace('par ordre', 'à l’achat') : label}
+                      {(quote.saleCharges ? label.replace('par ordre', 'à l’achat') : label).replace('€', currencyLabel)}
                     </label>
                     <Input className="text-[var(--text-primary)]" id={id + index + key} inputMode="decimal" value={quote[key]} onChange={e => updateQuote(index, { [key]: e.target.value })} />
                   </div>
@@ -72,7 +84,7 @@ export default function OrderCostComparison() {
                   {(['commission', 'fees'] as const).map(key => (
                     <div key={key} className="text-sm">
                       <label htmlFor={id + index + 'sale' + key} className="mb-1 block">
-                        {key === 'commission' ? 'Commission à la vente (%)' : 'Autres frais à la vente (€)'}
+                        {key === 'commission' ? 'Commission à la vente (%)' : `Autres frais à la vente (${currencyLabel})`}
                       </label>
                       <Input className="text-[var(--text-primary)]" id={id + index + 'sale' + key} inputMode="decimal" value={quote.saleCharges?.[key]} onChange={e => updateQuote(index, {
                         saleCharges: { ...quote.saleCharges!, [key]: e.target.value },
@@ -85,10 +97,10 @@ export default function OrderCostComparison() {
           ))}
         </div>
         <p className="my-3 text-xs text-[var(--text-secondary)]">
-          Ajoute les taxes et frais externes connus dans « Autres frais » pour le sens concerné. Pour une devise étrangère, convertis les prix en euros et compte les frais de change une seule fois. Saisie jusqu’à 12 chiffres entiers et 8 décimales. Chaque montant d’ordre est arrondi au centime. L’aller-retour suppose des prix stables.
+          Ajoute les taxes et frais externes connus dans « Autres frais » pour le sens concerné. Exprime les frais en {currency} et compte les frais de change une seule fois. Saisie jusqu’à 12 chiffres entiers et 8 décimales. Chaque montant d’ordre est arrondi au centime. L’aller-retour suppose des prix stables.
         </p>
         <div aria-live="polite" aria-atomic="true">
-          {results.map((result, index) => result.error && (
+          {results.map((result, index) => result.error && (!context || quotes[index].ask || quotes[index].bid) && (
             <p key={index} className="my-2 text-sm text-amber-300">Offre {index === 0 ? 'A' : 'B'} · {result.error}</p>
           ))}
           <table className="w-full table-fixed text-left text-xs sm:text-sm">
@@ -102,7 +114,7 @@ export default function OrderCostComparison() {
                   <th scope="row" className="py-2 pr-1 font-normal">{label}</th>
                   {results.map((result, index) => (
                     <td key={index} className="break-words pr-1 tabular-nums">
-                      {result.error ? '—' : formatPrice(result[key] / 100)}
+                      {result.error ? '—' : formatPrice(result[key] / 100, currency)}
                     </td>
                   ))}
                 </tr>
