@@ -22,6 +22,15 @@ test.describe('Landing page (NIYAMA D2=A)', () => {
     expect(title.toLowerCase()).toContain('midas');
   });
 
+  test('consulte les accès et frais et revient aux marchés sans connexion', async ({ page }) => {
+    await page.getByRole('link', { name: 'Accès et frais' }).click();
+    await expect(page).toHaveURL(/\/pricing$/);
+    await expect(page.getByRole('heading', { name: 'Accès via PURAMA' })).toBeVisible();
+    await page.getByRole('link', { name: 'Retour à MIDAS' }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('heading', { name: 'Investir et trader' })).toBeVisible();
+  });
+
   test('le marché est visible sans inscription', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Marchés', exact: true })).toBeVisible();
   });

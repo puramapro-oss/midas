@@ -18,7 +18,10 @@ export default function Home() {
       <section className="mx-auto max-w-5xl px-6 pb-8 pt-12 sm:pt-16">
         <div className="mb-5 flex items-center justify-between gap-3 text-sm">
           <span className="font-semibold text-violet-300">PURAMA · MIDAS</span>
-          <Link href="/dashboard" className="underline">Mon espace</Link>
+          <nav aria-label="Navigation principale" className="flex flex-wrap items-center justify-end gap-x-4">
+            <Link href="/pricing" className="inline-flex min-h-11 items-center underline">Accès et frais</Link>
+            <Link href="/dashboard" className="inline-flex min-h-11 items-center underline">Mon espace</Link>
+          </nav>
         </div>
         <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">Investir et trader</h1>
         <p className="mt-4 text-lg text-white/80">Choisis ton marché et compare le coût d’un achat ou d’une vente.</p>
