@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import AIDisclosure from '@/lib/legal/components/AIDisclosure';
 import { fetchRealCandles, type CandleData } from '@/lib/trading/utils';
 import PairSelector from '@/components/trading/PairSelector';
@@ -8,6 +8,7 @@ import TimeframeSelector from '@/components/trading/TimeframeSelector';
 import PriceDisplay from '@/components/trading/PriceDisplay';
 import TradingChart from '@/components/trading/TradingChart';
 import SignalPanel from '@/components/trading/SignalPanel';
+import OrderCostComparison from '@/components/trading/OrderCostComparison';
 import RecentSignals from '@/components/trading/RecentSignals';
 
 export default function TradingPage() {
@@ -15,7 +16,6 @@ export default function TradingPage() {
   const [selectedTimeframe, setSelectedTimeframe] = useState('1h');
   const [candles, setCandles] = useState<CandleData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [analyzing, setAnalyzing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,11 +35,6 @@ export default function TradingPage() {
     };
   }, [selectedPair, selectedTimeframe]);
 
-  const handleAnalyze = useCallback(() => {
-    setAnalyzing(true);
-    setTimeout(() => setAnalyzing(false), 2000);
-  }, []);
-
   const lastCandle = candles[candles.length - 1];
   const prevCandle = candles[candles.length - 2];
 
@@ -47,7 +42,7 @@ export default function TradingPage() {
     <div className="space-y-4">
       <AIDisclosure
         appName="MIDAS"
-        extra="Ce n'est pas un conseil personnalisé : MIDAS n'est ni CIF (conseiller en investissement financier) ni PSAN (prestataire de services sur actifs numériques)."
+        extra="Cet espace propose des informations générales et des simulations pédagogiques. Les ordres réels et les recommandations personnalisées sont indisponibles."
         className="text-[11px] text-white/40 border border-white/[0.06] bg-white/[0.02] rounded-xl px-4 py-2.5"
       />
 
@@ -64,14 +59,11 @@ export default function TradingPage() {
           <TradingChart candles={candles} loading={loading} />
         </div>
         <div className="lg:col-span-1">
-          <SignalPanel
-            selectedPair={selectedPair}
-            analyzing={analyzing}
-            onAnalyze={handleAnalyze}
-          />
+          <SignalPanel selectedPair={selectedPair} />
         </div>
       </div>
 
+      <OrderCostComparison />
       <RecentSignals />
     </div>
   )

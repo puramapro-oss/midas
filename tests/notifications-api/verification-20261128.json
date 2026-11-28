@@ -1,0 +1,32 @@
+{
+  "date": "2026-11-28",
+  "status": "PASS",
+  "node": "v24.22.3",
+  "dependencies": {
+    "next": "16.3.5",
+    "react": "19.2.4",
+    "zod": "4.3.6",
+    "@supabase/supabase-js": "2.100.1",
+    "@supabase/ssr": "0.9.0"
+  },
+  "command": "npm run test:notifications",
+  "results": {
+    "tests": 75,
+    "pass": 75,
+    "fail": 0,
+    "skipped": 0
+  },
+  "unit_regression": {
+    "command": "npm run test:unit",
+    "tests": 87,
+    "pass": 87,
+    "fail": 0
+  },
+  "source_sha256": {
+    "src/app/api/notifications/route.ts": "aedd8d5c34febeb16bd51661dde2dd97962b3cedc3ab9be13968fc74d6c5d24c",
+    "src/app/api/notifications/preferences/route.ts": "e17fa12b7c08ac363eec4a9f5bcc27879abd843be3f71fda8862600ff03dbcbe",
+    "src/app/api/signals/route.ts": "0f2100dbd27c1c9fc460677ae68debc7ceb0f713a863f62448cb161ffcfe9c90",
+    "src/lib/signals/generate-and-persist.ts": "6a93068fa409b902092410f5803fe53d01dcd6b59f30dd2ea4a962d4f15b5034"
+  },
+  "scope": "Real route handlers and NextResponse; authenticated database and external analysis replaced at boundaries. Network refused. No deployed database, RLS or financial effect qualified."
+}

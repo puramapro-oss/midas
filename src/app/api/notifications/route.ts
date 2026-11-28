@@ -1,82 +1,85 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
-async function getAuthClient() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      // public schema
-      cookies: {
-        getAll() { return cookieStore.getAll(); },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch { /* ignore */ }
-        },
-      },
-    }
-  );
-}
+const privateHeaders = { 'Cache-Control': 'private, no-store' };
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const supabase = await getAuthClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError && (authError.status ?? 0) >= 500) {
+      return NextResponse.json({ error: 'Authentification temporairement indisponible.' }, { status: 503, headers: privateHeaders });
+    }
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401, headers: privateHeaders });
+    }
+    const expectedAccount = req.headers.get('x-midas-account-id');
+    if (expectedAccount !== null && expectedAccount !== user.id) {
+      return NextResponse.json({ error: 'Votre session a changé. Actualisez la page.' }, { status: 409, headers: privateHeaders });
     }
 
-    const { data: notifs, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(50);
-
-    if (error) {
-      return NextResponse.json({ notifications: [], unread: 0 });
+    const [list, total] = await Promise.all([
+      supabase.from('notifications').select('*').eq('user_id', user.id)
+        .order('created_at', { ascending: false }).limit(50),
+      supabase.from('notifications').select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id).not('read', 'is', true),
+    ]);
+    if (list.error || total.error || !Array.isArray(list.data)
+      || total.count === null || !Number.isSafeInteger(total.count) || total.count < 0) {
+      return NextResponse.json({ error: 'Impossible de charger les notifications.' }, { status: 500, headers: privateHeaders });
     }
 
-    const unread = (notifs ?? []).filter((n) => !n.read).length;
-    return NextResponse.json({ notifications: notifs ?? [], unread });
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({
+      notifications: list.data.map((notification) => ({
+        ...notification,
+        // Older rows permit NULL; other malformed values remain visible to validation.
+        read: notification.read === null ? false : notification.read,
+      })),
+      unread: total.count,
+    }, { headers: privateHeaders });
+  } catch {
+    return NextResponse.json({ error: 'Impossible de charger les notifications.' }, { status: 500, headers: privateHeaders });
   }
 }
 
-const patchSchema = z.object({
-  ids: z.array(z.string().uuid()).optional(),
-  all: z.boolean().optional(),
-});
+const patchSchema = z.union([
+  z.object({ all: z.literal(true) }).strict(),
+  z.object({ ids: z.array(z.string().uuid()).min(1).max(100) }).strict(),
+]);
 
 export async function PATCH(req: NextRequest) {
   try {
-    const supabase = await getAuthClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError && (authError.status ?? 0) >= 500) {
+      return NextResponse.json({ error: 'Authentification temporairement indisponible.' }, { status: 503, headers: privateHeaders });
+    }
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401, headers: privateHeaders });
+    }
+    const expectedAccount = req.headers.get('x-midas-account-id');
+    if (expectedAccount !== null && expectedAccount !== user.id) {
+      return NextResponse.json({ error: 'Votre session a changé. Actualisez la page.' }, { status: 409, headers: privateHeaders });
     }
 
-    const body = patchSchema.parse(await req.json().catch(() => ({})));
+    const parsed = patchSchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Choisis les notifications à marquer comme lues, ou toutes les notifications.' }, { status: 400, headers: privateHeaders });
+    }
 
-    let query = supabase.from('notifications').update({ read: true }).eq('user_id', user.id);
-    if (!body.all && body.ids && body.ids.length > 0) {
-      query = query.in('id', body.ids);
+    // An acknowledgement only changes read state; it never authorizes an order.
+    let query = supabase.from('notifications').update({ read: true })
+      .eq('user_id', user.id).not('read', 'is', true);
+    if ('ids' in parsed.data) {
+      query = query.in('id', [...new Set(parsed.data.ids)]);
     }
     const { error } = await query;
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: 'Impossible de marquer les notifications comme lues.' }, { status: 500, headers: privateHeaders });
     }
-    return NextResponse.json({ ok: true });
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: msg }, { status: 400 });
+    return NextResponse.json({ ok: true }, { headers: privateHeaders });
+  } catch {
+    return NextResponse.json({ error: 'Impossible de marquer les notifications comme lues.' }, { status: 500, headers: privateHeaders });
   }
 }

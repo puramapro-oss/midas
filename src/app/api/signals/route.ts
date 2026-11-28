@@ -1,44 +1,33 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@/lib/supabase/server';
 
-async function getAuthUser() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll(); },
-        setAll() {},
-      },
-    }
-  );
-  const { data: { user } } = await supabase.auth.getUser();
-  return { user, supabase };
-}
+const privateHeaders = { 'Cache-Control': 'private, no-store' };
 
 export async function GET() {
   try {
-    const { user, supabase } = await getAuthUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError && (authError.status ?? 0) >= 500) {
+      return NextResponse.json({ error: 'Authentification temporairement indisponible.' }, { status: 503, headers: privateHeaders });
+    }
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401, headers: privateHeaders });
     }
 
     const { data: signals, error } = await supabase
       .from('signals')
       .select('*')
       .eq('is_active', true)
+      .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false })
       .limit(20);
 
-    if (error) {
-      return NextResponse.json({ error: 'Erreur recuperation signaux' }, { status: 500 });
+    if (error || !Array.isArray(signals)) {
+      return NextResponse.json({ error: 'Impossible de charger les signaux.' }, { status: 500, headers: privateHeaders });
     }
 
-    return NextResponse.json({ signals: signals ?? [] });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Erreur interne';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ signals }, { headers: privateHeaders });
+  } catch {
+    return NextResponse.json({ error: 'Impossible de charger les signaux.' }, { status: 500, headers: privateHeaders });
   }
 }

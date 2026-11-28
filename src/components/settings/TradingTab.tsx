@@ -2,7 +2,7 @@
 
 import { Select } from '@/components/ui/Select';
 import { Slider } from '@/components/ui/Slider';
-import { Toggle } from '@/components/ui/Toggle';
+import InvestmentModeActions from '@/components/trading/InvestmentModeActions';
 
 const riskOptions = [
   { value: 'conservative', label: 'Conservateur' },
@@ -19,10 +19,6 @@ interface TradingTabProps {
   setDefaultTp: (v: number) => void;
   maxDailyLoss: number;
   setMaxDailyLoss: (v: number) => void;
-  autoTrade: boolean;
-  setAutoTrade: (v: boolean) => void;
-  shieldActive: boolean;
-  setShieldActive: (v: boolean) => void;
 }
 
 export default function TradingTab({
@@ -30,11 +26,15 @@ export default function TradingTab({
   defaultSl, setDefaultSl,
   defaultTp, setDefaultTp,
   maxDailyLoss, setMaxDailyLoss,
-  autoTrade, setAutoTrade,
-  shieldActive, setShieldActive,
 }: TradingTabProps) {
   return (
     <div className="space-y-6" data-testid="settings-trading">
+      <InvestmentModeActions comparisonHref="/#comparer-les-couts" />
+
+      <p className="text-sm text-[var(--text-primary)]">
+        Les réglages ci-dessous sont un aperçu. Ils ne sont pas enregistrés et ne pilotent aucun compte.
+      </p>
+
       <Select label="Profil de risque" options={riskOptions} value={riskProfile} onChange={setRiskProfile} />
 
       <Slider label="Stop Loss par defaut" min={1} max={15} step={0.5} value={defaultSl} onChange={setDefaultSl} formatValue={(v) => `${v}%`} />
@@ -43,9 +43,11 @@ export default function TradingTab({
 
       <Slider label="Perte journaliere max" min={1} max={20} step={0.5} value={maxDailyLoss} onChange={setMaxDailyLoss} formatValue={(v) => `${v}%`} />
 
-      <div className="pt-4 border-t border-white/[0.06] space-y-4">
-        <Toggle checked={autoTrade} onChange={setAutoTrade} label="Trading automatique" description="Autorise les bots a executer des trades" />
-        <Toggle checked={shieldActive} onChange={setShieldActive} label="MIDAS Shield" description="Protection automatique contre les pertes excessives" />
+      <div className="space-y-2 border-t border-[var(--border-default)] pt-4">
+        <p className="text-sm font-medium text-[var(--text-primary)]">MIDAS Shield — protection réelle indisponible</p>
+        <p className="text-sm text-[var(--text-primary)]">
+          Aucun portefeuille réel n’est surveillé ou protégé depuis cet écran.
+        </p>
       </div>
     </div>
   );
