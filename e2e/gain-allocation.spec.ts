@@ -25,3 +25,58 @@ test('annual fee, voluntary allocation and a cancelled or unfunded shopping exam
   await expect(amount(page, 'Commission de performance estimée')).toHaveText(/^0,00\s*€/);
   await expect(amount(page, 'Gain disponible à répartir')).toHaveText(/^0,00\s*€/);
 });
+
+test('saving, correcting and undoing annual statements recomputes once and keeps the draft', async ({ page }) => {
+  await page.goto('/pricing');
+  const realized = page.getByRole('textbox', { name: /Résultat réalisé des opérations/ });
+  const subscription = page.getByRole('textbox', { name: /Abonnement imputable/ });
+  const cash = page.getByRole('textbox', { name: /Trésorerie effectivement disponible/ });
+  const save = page.getByRole('button', { name: /^Enregistrer l’arrêté de l’année/ });
+  const history = page.getByRole('region', { name: 'Arrêtés enregistrés' });
+  const csv = page.getByRole('button', { name: /Télécharger les arrêtés/ });
+
+  await expect(csv).toHaveCount(0);
+  await save.click();
+  await expect(history.getByRole('listitem')).toHaveCount(1);
+  await expect(save).toBeDisabled();
+  await expect(cash).toHaveValue('');
+  await realized.fill('-50');
+  await subscription.fill('0');
+  await expect(amount(page, 'Pertes restant à rattraper')).toHaveText(/50,00\s*€/);
+  await save.click();
+
+  await realized.fill('70');
+  await subscription.fill('0');
+  await expect(amount(page, 'Commission de performance estimée')).toHaveText(/0,60\s*€/);
+  await save.click();
+  await expect(history.getByRole('listitem').last()).toContainText(/cumul des commissions 3,30\s*€/);
+  await realized.fill('15');
+  await cash.fill('12');
+  await page.getByRole('button', { name: 'Corriger l’année 2' }).click();
+  await expect(realized).toBeFocused();
+  await expect(realized).toHaveValue('-50');
+  await expect(cash).toHaveValue('');
+  await realized.fill('-10');
+  await page.getByRole('button', { name: 'Appliquer la correction' }).click();
+  await expect(history.getByRole('listitem')).toHaveCount(3);
+  await expect(history.getByRole('listitem').last()).toContainText(/Commission 1,80\s*€ · cumul des commissions 4,50\s*€/);
+  await expect(realized).toHaveValue('15');
+  await expect(cash).toHaveValue('');
+
+  await page.getByRole('button', { name: 'Corriger l’année 1' }).click();
+  await realized.fill('999');
+  await page.getByRole('button', { name: 'Abandonner la correction' }).click();
+  await expect(history.getByRole('listitem').last()).toContainText(/cumul des commissions 4,50\s*€/);
+  const downloaded = page.waitForEvent('download');
+  await csv.click();
+  expect((await downloaded).suggestedFilename()).toBe('MIDAS-simulation-arretes.csv');
+  await cash.fill('10');
+  await page.getByRole('button', { name: 'Essayer 40 / 30 / 20 / 10 %' }).click();
+  await page.getByRole('button', { name: 'Annuler le dernier arrêté' }).click();
+  await expect(cash).toHaveValue('');
+  await expect(page.getByRole('textbox', { name: /Retrait vers ma banque/ })).toHaveValue('0');
+  await expect(page.getByRole('status').filter({ hasText: 'Le brouillon porte désormais sur l’année 3' })).toBeVisible();
+  await expect(history.getByRole('listitem')).toHaveCount(2);
+  await expect(history.getByRole('listitem').last()).toContainText(/cumul des commissions 2,70\s*€/);
+  await expect(realized).toHaveValue('15');
+});

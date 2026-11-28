@@ -1,4 +1,4 @@
-// An educational first-anniversary projection in one currency. No account or ledger access.
+// Educational anniversary projections in one currency. No account or ledger access.
 const MAX_MINOR = 9_999_999_999;
 
 export const destinations = ['bank', 'savings', 'investment', 'shopping'] as const;
@@ -25,18 +25,73 @@ function validAmount(value: number, signed = false) {
   return Number.isSafeInteger(value) && Math.abs(value) <= MAX_MINOR && (signed || value >= 0);
 }
 
-export function projectFirstYear(input: FirstYear) {
-  const { realized, marketCosts, subscription, earlierLoss, openPnl, target } = input;
-  if (!validAmount(realized, true) || !validAmount(openPnl, true) ||
-      ![marketCosts, subscription, earlierLoss, target].every(value => validAmount(value))) {
-    throw new RangeError('Montants hors limites.');
+export interface AnnualProjection {
+  realizedNet: number;
+  annualEconomicGain: number;
+  economicGain: number;
+  previousHigh: number;
+  highWaterMark: number;
+  lossToRecover: number;
+  feeBase: number;
+  cumulativeFeeBase: number;
+  fee: number;
+  totalFees: number;
+  annualNetGain: number;
+  netGain: number;
+}
+
+/**
+ * Chronological anniversaries of a single mandate, in integer cents. Realized P&L,
+ * costs, fixed fees and any separate realized losses are flows for that year only.
+ * Inputs exclude capital movements and performance-fee debits. Open P&L is the
+ * closing snapshot. Target is the required gain for that year, already adjusted
+ * for changes in capital; this example does not compute a benchmark from deposits.
+ */
+export function projectGainHistory(years: readonly FirstYear[]): AnnualProjection[] {
+  const history: AnnualProjection[] = [];
+  let cumulativeRealized = 0;
+  let openingEconomicGain = 0;
+  let previousHigh = 0;
+  let cumulativeFeeBase = 0;
+  let previousFees = 0;
+
+  for (const { realized, marketCosts, subscription, earlierLoss, openPnl, target } of years) {
+    if (!validAmount(realized, true) || !validAmount(openPnl, true) ||
+        ![marketCosts, subscription, earlierLoss, target].every(value => validAmount(value))) {
+      throw new RangeError('Montants hors limites.');
+    }
+    const realizedNet = realized - earlierLoss - marketCosts - subscription;
+    cumulativeRealized += realizedNet;
+    const economicGain = cumulativeRealized + Math.min(0, openPnl);
+    const annualEconomicGain = economicGain - openingEconomicGain;
+    const highWaterMark = Math.max(previousHigh, economicGain);
+    // Every new economic high is retained, including gains exempted by the annual target.
+    const newHighGain = highWaterMark - previousHigh;
+    const outperformance = Math.max(0, annualEconomicGain - target);
+    const feeBase = Math.min(newHighGain, outperformance);
+    cumulativeFeeBase += feeBase;
+    const hundredthsOfCent = cumulativeFeeBase * 3;
+    const lossToRecover = highWaterMark - economicGain;
+    const totalFees = Math.floor(hundredthsOfCent / 100);
+    const fee = totalFees - previousFees;
+    const netGain = economicGain - totalFees;
+    if (![cumulativeRealized, economicGain, lossToRecover, hundredthsOfCent, netGain].every(Number.isSafeInteger)) {
+      throw new RangeError('Historique hors des limites de précision en centimes.');
+    }
+    history.push({
+      realizedNet, annualEconomicGain, economicGain, previousHigh, highWaterMark, lossToRecover,
+      feeBase, cumulativeFeeBase, fee, totalFees, annualNetGain: annualEconomicGain - fee, netGain,
+    });
+    openingEconomicGain = economicGain;
+    previousHigh = highWaterMark;
+    previousFees = totalFees;
   }
-  const realizedNet = realized - earlierLoss - marketCosts - subscription;
-  const economicGain = realizedNet + Math.min(0, openPnl);
-  const feeBase = Math.max(0, economicGain - target);
-  const fee = Math.floor(feeBase * 3 / 100);
-  const netGain = economicGain - fee;
-  return { realizedNet, economicGain, feeBase, fee, netGain, lossToRecover: Math.max(0, -economicGain) };
+  return history;
+}
+
+export function projectFirstYear(input: FirstYear) {
+  const { realizedNet, economicGain, feeBase, fee, netGain, lossToRecover } = projectGainHistory([input])[0];
+  return { realizedNet, economicGain, feeBase, fee, netGain, lossToRecover };
 }
 
 export function allocateGain(netGain: number, availableCash: number, percentages: Allocation) {
