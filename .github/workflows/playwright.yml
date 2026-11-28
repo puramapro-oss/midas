@@ -4,21 +4,84 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+permissions:
+  contents: read
+
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  core:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          node-version: 20
-      - run: npm ci
-      - run: npx playwright install chromium
-      - run: npx playwright test
-      - uses: actions/upload-artifact@v4
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - run: npm run test:unit
+      - run: node scripts/check-niyama-decisions.mjs
+
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: midas
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: midas
+          persist-credentials: false
+      - name: Check out the reviewed MIDAS dependency and fixture tools
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: puramapro-oss/midas
+          ref: fd5e69ff847bd952966804d9c2064d9895dfe10c
+          path: ci-tools
+          persist-credentials: false
+          sparse-checkout: |
+            /scripts/install-private-dependencies.mjs
+            /scripts/bootstrap-shared-packages.mjs
+            /tooling/shared-packages.lock.json
+            /scripts/e2e/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+      - name: Fetch only digest-listed shared sources with the repository read key
+        env:
+          PURAMA_PACKAGES_READ_SSH_KEY: ${{ secrets.PURAMA_PACKAGES_READ_SSH_KEY }}
+          TMPDIR: ${{ runner.temp }}/midas-package-source
+        run: |
+          mkdir -m 700 -- "$TMPDIR"
+          trap 'rm -rf -- "$TMPDIR"' EXIT
+          node ../ci-tools/scripts/install-private-dependencies.mjs --shared-source "$GITHUB_WORKSPACE/shared-source"
+      - name: Verify and install the four genuine sibling packages
+        run: node ../ci-tools/scripts/bootstrap-shared-packages.mjs "$GITHUB_WORKSPACE/shared-source" "$GITHUB_WORKSPACE/packages"
+      - name: Install this candidate's lock without lifecycle scripts
+        env:
+          SMARANA_READ_SSH_KEY: ${{ secrets.SMARANA_READ_SSH_KEY }}
+          TMPDIR: ${{ runner.temp }}/midas-dependency-install
+        run: |
+          mkdir -m 700 -- "$TMPDIR"
+          trap 'rm -rf -- "$TMPDIR"' EXIT
+          node ../ci-tools/scripts/install-private-dependencies.mjs
+          git diff --exit-code -- package.json package-lock.json
+      - name: Rebuild without credentials and install both locked browser engines
+        run: |
+          npm rebuild --no-audit --no-fund
+          node node_modules/@playwright/test/cli.js install --with-deps chromium webkit
+      - name: Prepare verified public font bytes for the offline browsers
+        id: prepare
+        run: node ../ci-tools/scripts/e2e/prepare-fonts.mjs "$RUNNER_TEMP/midas-browser-fonts"
+      - name: Test the actual gain-allocation route on desktop and mobile
+        run: bash .github/ci/run-browser.sh gain
+      - name: Run the entire original Playwright campaign
+        if: ${{ !cancelled() && steps.prepare.outcome == 'success' }}
+        run: bash .github/ci/run-browser.sh all
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: playwright-report
-          path: playwright-report/
+          path: midas/playwright-report/
           retention-days: 7
