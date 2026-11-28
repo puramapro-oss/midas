@@ -1,0 +1,294 @@
+{
+  "status": "PASS",
+  "date": "2026-11-28",
+  "scope": "Actual notification components compiled in an isolated Next fixture; mocked auth and HTTP boundaries, not a production qualification.",
+  "commands": {
+    "build": "npm run build --prefix tests/notifications-ui/fixture",
+    "browser": "MIDAS_CHROMIUM_PATH=/workspace/scratch/4374c4227430/midas-chromium-152/chromium node node_modules/@playwright/test/cli.js test --config tests/notifications-ui/playwright.config.ts"
+  },
+  "runtime": {
+    "node": "24.22.3",
+    "next": "16.3.5",
+    "react": "19.2.4",
+    "playwright": "1.62.1",
+    "chromium": "152.0.7977.0",
+    "playwright_default_chromium": "151.0.7922.34",
+    "custom_binary_sha256": "0144b4a0f456005a8185bb6a4629e909c8dd1f162b557364aaf5f1b12d4c1dc6",
+    "custom_browser_note": "No sparticuz151 version published; 152.0.0 was the closest available. Binary extracted to a persistent workspace path and its version checked."
+  },
+  "result": {
+    "startTime": "2026-11-28T01:45:30.575Z",
+    "duration": 22464.709,
+    "expected": 38,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "checks": [
+    {
+      "project": "mobile-375",
+      "name": "failed inbox GET is not an empty inbox and retry recovers",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "failed acknowledgement preserves unread state and offers retry",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "two immediate clicks send one PATCH and re-read a newly arrived alert",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "an older polling GET cannot undo a confirmed acknowledgement",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "confirmed acknowledgement plus failed refresh has an honest intermediate message",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "A to B to A discards an old response from the first A session",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "signed-out session makes no notification request and removes account data",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "malformed inbox and acknowledgement payloads do not create a false success",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "failed preferences GET has no editable defaults and retry recovers",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "unsaved defaults become persisted only after save and survive reload",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "failed preferences PATCH preserves choices without success",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "save sends only changed fields and the expected account header",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "a pending save cannot display its success in another account",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "malformed preference GET does not expose a form",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "unconfirmed preference response cannot display saved status",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "lost save response requires reconfirmation even after reverting to the old value",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "HTTP 409 removes stale notification state before another account can act",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "HTTP 409 removes stale editable preferences and asks to reload the session",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "mobile-375",
+      "name": "keyboard, escape focus, light theme and viewport remain usable",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "failed inbox GET is not an empty inbox and retry recovers",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "failed acknowledgement preserves unread state and offers retry",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "two immediate clicks send one PATCH and re-read a newly arrived alert",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "an older polling GET cannot undo a confirmed acknowledgement",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "confirmed acknowledgement plus failed refresh has an honest intermediate message",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "A to B to A discards an old response from the first A session",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "signed-out session makes no notification request and removes account data",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "malformed inbox and acknowledgement payloads do not create a false success",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "failed preferences GET has no editable defaults and retry recovers",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "unsaved defaults become persisted only after save and survive reload",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "failed preferences PATCH preserves choices without success",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "save sends only changed fields and the expected account header",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "a pending save cannot display its success in another account",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "malformed preference GET does not expose a form",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "unconfirmed preference response cannot display saved status",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "lost save response requires reconfirmation even after reverting to the old value",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "HTTP 409 removes stale notification state before another account can act",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "HTTP 409 removes stale editable preferences and asks to reload the session",
+      "status": "expected",
+      "attempts": 1
+    },
+    {
+      "project": "desktop-1280",
+      "name": "keyboard, escape focus, light theme and viewport remain usable",
+      "status": "expected",
+      "attempts": 1
+    }
+  ],
+  "light_contrast": [
+    {
+      "project": "mobile-375",
+      "offKnob": 16.29196796512974,
+      "offBoundary": 4.215488009516811,
+      "saveText": 5.245696961921662
+    },
+    {
+      "project": "desktop-1280",
+      "offKnob": 16.29196796512974,
+      "offBoundary": 4.215488009516811,
+      "saveText": 5.245696961921662
+    }
+  ],
+  "product_source_sha256": {
+    "src/components/layout/NotificationBell.tsx": "fb07b2b75731ec092655beab57ee8764255f9a744e9b17e6ced37188139909f1",
+    "src/components/settings/NotificationsTab.tsx": "523c389d1c548c91f75485d009e44b6ce88bfdeaa8bcae5aaf6259400e037c22",
+    "src/components/settings/notifications-tab.module.css": "75ec3755a84df972854657f0efc62e284f7191e413654a628dbbfab6c1dea360",
+    "src/hooks/useNotificationSession.ts": "b7054952d6db1f54b243a9948121cf1668f4bf7fcae765ee5dea7ae82be196ef",
+    "src/components/ui/Toggle.tsx": "cfca84c0fa18f915ebc6b294401e277eae9caf2a09c0dfd838a143fde23f142e",
+    "src/app/globals.css": "9b93a46e634cd998089d20d56e8031187b20f3bcb240cdbb75b44b46606b2578"
+  },
+  "report_sha256": "0d196f3a85564ae0372d4e62155b88cbcd025278c34e13abe54c556753e2e991",
+  "observed_and_resolved": [
+    "Initial signed-out test locator also matched Next route announcer; scoped to preferences region.",
+    "An unverified /tmp/chromium produced intermittent page crashes. Its version cannot be inferred from the installed package.",
+    "Initial isolated-browser harness attempted to start tracing twice; removed duplicate tracing and always close browser in finally. One interrupted run exited137; no product PASS claimed from it.",
+    "Default npm cache on /home/agent was full; separate workspace cache used for browser install. Next test server now starts directly via Node.",
+    "Low visibility of off toggles in the light theme was corrected in the product CSS module; final rendered contrast verified."
+  ],
+  "limits": [
+    "No deployed database or RLS test",
+    "No real authentication, email, push or broker traffic",
+    "No complete authenticated MIDAS dashboard build",
+    "No trading mandate or real financial effect",
+    "Custom Chromium152 differs from Playwright bundled target151"
+  ]
+}

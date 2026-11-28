@@ -1,0 +1,5 @@
+fixture/.next/
+fixture/next-env.d.ts
+fixture/tsconfig.tsbuildinfo
+test-results/
+playwright-report/

@@ -36,15 +36,6 @@ export default function SettingsPage() {
   const [defaultTp, setDefaultTp] = useState(6);
   const [maxDailyLoss, setMaxDailyLoss] = useState(5);
 
-  // Notifications state
-  const [notifEmail, setNotifEmail] = useState(true);
-  const [notifPush, setNotifPush] = useState(true);
-  const [notifSms, setNotifSms] = useState(false);
-  const [notifTrades, setNotifTrades] = useState(true);
-  const [notifSignals, setNotifSignals] = useState(true);
-  const [notifPnl, setNotifPnl] = useState(true);
-  const [notifNews, setNotifNews] = useState(false);
-
   // Interface state
   const [timezone, setTimezone] = useState('Europe/Paris');
   const [compactMode, setCompactMode] = useState(false);
@@ -76,24 +67,7 @@ export default function SettingsPage() {
           />
         );
       case 'notifications':
-        return (
-          <NotificationsTab
-            notifEmail={notifEmail}
-            setNotifEmail={setNotifEmail}
-            notifPush={notifPush}
-            setNotifPush={setNotifPush}
-            notifSms={notifSms}
-            setNotifSms={setNotifSms}
-            notifTrades={notifTrades}
-            setNotifTrades={setNotifTrades}
-            notifSignals={notifSignals}
-            setNotifSignals={setNotifSignals}
-            notifPnl={notifPnl}
-            setNotifPnl={setNotifPnl}
-            notifNews={notifNews}
-            setNotifNews={setNotifNews}
-          />
-        );
+        return <NotificationsTab />;
       case 'interface':
         return (
           <InterfaceTab
@@ -138,7 +112,7 @@ export default function SettingsPage() {
         {renderTabContent()}
 
         {/* Save button */}
-        {activeTab !== 'donnees' && activeTab !== 'voix' && activeTab !== 'trading' && (
+        {activeTab !== 'donnees' && activeTab !== 'voix' && activeTab !== 'trading' && activeTab !== 'notifications' && (
           <div className="mt-8 pt-4 border-t border-white/[0.06] flex justify-end">
             <Button
               variant="primary"

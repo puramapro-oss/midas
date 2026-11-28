@@ -1,0 +1,24 @@
+.preferenceToggle span {
+  color: var(--text-primary);
+}
+
+.preferenceToggle [role='switch'] {
+  border: 1px solid var(--text-secondary);
+}
+
+.preferenceToggle [role='switch'][aria-checked='false'] {
+  background: var(--bg-elevated);
+}
+
+.preferenceToggle [role='switch'][aria-checked='false'] > div {
+  background: var(--text-primary);
+}
+
+.preferenceToggle [role='switch'][aria-checked='true'] {
+  background: #2563eb;
+  box-shadow: none;
+}
+
+.preferenceToggle [role='switch'][aria-checked='true'] > div {
+  background: #fff;
+}

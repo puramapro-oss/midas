@@ -76,4 +76,29 @@ Contrôle du 26 novembre 2026, après correction du contraste clair détecté à
 
 La livraison complète la PR #34 existante ; les déploiements Git Vercel sont désactivés uniquement pour sa branche `feat/trading-cost-comparison` afin de conserver le brouillon sans publication automatique. Aucune autre branche ni règle d’accès n’est modifiée.
 
+
+### Réception fonctionnelle du 28 novembre 2026 — notifications et signaux
+
+Ce lot prolonge les deux modes existants. Les neuf fichiers de départ liés aux modes, aux notifications et aux signaux ont été comparés octet pour octet entre la tête de PR34 `10f38d06918ed631a07d58e82185ab8e7c1ca97d` et le candidat consolidé `b1d36246a118c0a0428b29424f3c2f109068a68d` : identité confirmée. Le bundle de ce candidat, retrouvé sur le Mac, a été vérifié et importé en lecture de référence ; son prérequis est PR27 `fd5e69ff847bd952966804d9c2064d9895dfe10c`. Aucun nouveau moteur d'analyse, connecteur ou suivi de positions n'est créé.
+
+**Comportement réalisé :**
+
+- L'acquittement exige soit une liste non vide de 1 à 100 UUID, soit `all:true`, exclusivement. Les requêtes vides, ambiguës et les champs d'autorité supplémentaires sont refusés. Seul l'état lu des notifications du compte authentifié est modifié, y compris les anciennes lignes `read=NULL`.
+- La boîte distingue une panne d'une liste vide. Le compteur porte sur toutes les notifications non lues du compte, indépendamment des 50 dernières affichées. La liste et le compteur proviennent de deux lectures : aucun instantané transactionnel commun n'est revendiqué.
+- La cloche attend l'acquittement puis relit le serveur. Double clic, réponse tardive, notification arrivée entre-temps et rafraîchissement échoué sont traités sans faux succès.
+- L'onglet Notifications utilise l'API de préférences existante. GET ne crée plus de ligne. Une absence prouvée affiche des valeurs par défaut non enregistrées ; une panne ne fabrique pas de valeurs. PATCH valide les champs existants et attend le retour de la même écriture.
+- Le formulaire envoie seulement les champs modifiés ou dont la dernière écriture est incertaine. Une réponse perdue après écriture ne permet plus d'afficher « enregistré » sur la seule comparaison avec l'ancien état. Les réglages sans persistance individuelle restent explicitement indisponibles.
+- Les deux composants sont isolés par compte et génération de session. Le serveur compare le compte attendu par le client à l'identité authentifiée, puis utilise uniquement cette dernière pour la base. Une différence produit 409 avant toute requête DB. Le retour rapide A → B → A est couvert.
+- La lecture des signaux exclut ceux dont l'expiration est dépassée ou inconnue. Une erreur de désactivation arrête la génération avant analyse. Une insertion ne réussit qu'avec un reçu complet d'UUID uniques ; un reçu perdu ou incohérent laisse l'état explicitement non confirmé, sans nouvelle insertion ni rollback supposé.
+- Les états clair/sombre réutilisent les composants existants. Le contraste de l'interrupteur éteint a été corrigé localement, sans modifier le Toggle partagé.
+
+**PASS :** 87 tests unitaires existants ; 75 tests de contrats des vrais handlers ; TypeScript strict ciblé des routes ; construction réelle de la fixture Next 16.3.5 / React 19.2.4 et typage des tests ; 38 scénarios navigateur (19 à 375 px et 19 à 1 280 px), zéro échec, reprise ou test ignoré dans la campagne finale. NIYAMA D1=C / D2=A et `git diff --check` passent. Les captures mobile sombre et ordinateur clair ont été examinées. Contrastes mesurés : curseur éteint 16,29:1, contour 4,22:1, texte du bouton actif 5,25:1.
+
+Les preuves et commandes sont dans `tests/notifications-api/` et `tests/notifications-ui/`. Les premiers essais du navigateur ont rencontré des erreurs de harnais et des arrêts de processus ; ils sont distincts du reçu final. La campagne finale utilise un binaire Chromium 152.0.7977.0 identifié par SHA256 dans le workspace, pas un chemin temporaire dont la version serait supposée.
+
+**PARTIEL pour le service MIDAS complet.** Ces tests exécutent les composants et les handlers réels avec frontières auth, base et HTTP simulées ; ils ne prouvent pas la base déployée, les politiques RLS, l'authentification réelle ou le dashboard complet. Le build complet de MIDAS et ESLint ne sont pas revendiqués pour ce lot. Les alertes actionnables, leur distribution réelle, les mandats, la séparation serveur complète assisté/automatique, les connecteurs et le déploiement restent à qualifier. Les mécanismes paper et de risque de PR27 restent à préserver lors de la consolidation.
+
+Le lot opérationnel Capital.com du 27 novembre demeure distinct, sur OVH, avec MetaApi/Vantage conservés. Le rapport filtré disponible sur OVH, relu le 28 novembre et daté du 27 novembre à 00:54 UTC, porte encore `BLOCKED` : il ne constitue pas une authentification ou une qualification d'exécution réussie. Aucun secret, ordre, envoi réel de notification ou service de production n'est modifié par cette réception.
+
+
 <!-- MIDAS:ASSISTED_AUTOMATIC:20261126:END -->
