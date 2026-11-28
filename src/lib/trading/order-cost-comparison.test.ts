@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { compareOrderCost, type CostQuote } from './order-cost-comparison.ts';
+import { compareOrderCost, previewOrderCost, type CostQuote } from './order-cost-comparison.ts';
 
 const quote: CostQuote = { ask: '100.10', bid: '99.90', commission: '0', fees: '1' };
 
@@ -37,4 +37,21 @@ test('rejects incomplete, crossed, malformed, excessive or negative inputs', () 
     { ask: '999999999999', bid: '999999999999' }]) {
     assert.ok(compareOrderCost('2', { ...quote, ...changes }).error);
   }
+});
+
+test('previews one side without demanding the other price or its fees', () => {
+  const oneSide = { ask: '1,10', bid: '', commission: '0.5', fees: '1', saleCharges: { commission: '', fees: '' } };
+  assert.deepEqual(previewOrderCost('100', oneSide, 'buy'), { gross: 11000, totalFees: 155, net: 11155 });
+  assert.ok(previewOrderCost('100', oneSide, 'sell').error);
+  assert.deepEqual(previewOrderCost('100', { ...oneSide, ask: '', bid: '1,09', commission: '',
+    saleCharges: { commission: '1', fees: '2' } }, 'sell'), { gross: 10900, totalFees: 309, net: 10591 });
+});
+
+test('rounded ticket amounts reconcile for both directions and reject invalid or excessive inputs', () => {
+  const costs = { ask: '1.005', bid: '1.005', commission: '0', fees: '.005' };
+  assert.deepEqual(previewOrderCost('1', costs, 'buy'), { gross: 101, totalFees: 0, net: 101 });
+  assert.deepEqual(previewOrderCost('1', costs, 'sell'), { gross: 101, totalFees: 1, net: 100 });
+  assert.deepEqual(previewOrderCost('1', { ...costs, fees: '2' }, 'sell'), { gross: 101, totalFees: 201, net: -100 });
+  for (const quantity of ['0', '-1', 'Infinity', '.000000001']) assert.ok(previewOrderCost(quantity, costs, 'buy').error);
+  assert.ok(previewOrderCost('999999999999', { ...costs, ask: '999999999999' }, 'buy').error);
 });

@@ -10,14 +10,19 @@ interface Instrument {
   family: string;
   unit?: string;
   currency?: QuoteContext['currency'];
+  listing?: { isin: string; venue: string; url: string };
   note?: string;
 }
 
 const instruments: Instrument[] = [
-  { symbol: 'AAPL', name: 'Apple', family: 'Actions', unit: 'action', currency: 'USD' },
-  { symbol: 'AIR', name: 'Airbus', family: 'Actions', unit: 'action', currency: 'EUR' },
-  { symbol: 'CW8', name: 'Amundi MSCI World Swap UCITS ETF EUR Acc', family: 'ETF', unit: 'part', currency: 'EUR' },
-  { symbol: 'SPY', name: 'SPDR S&P 500 ETF Trust', family: 'ETF', unit: 'part', currency: 'USD' },
+  { symbol: 'AAPL', name: 'Apple', family: 'Actions', unit: 'action', currency: 'USD',
+    listing: { isin: 'US0378331005', venue: 'Nasdaq', url: 'https://www.nasdaq.com/market-activity/stocks/aapl' } },
+  { symbol: 'AIR', name: 'Airbus', family: 'Actions', unit: 'action', currency: 'EUR',
+    listing: { isin: 'NL0000235190', venue: 'Euronext Paris', url: 'https://live.euronext.com/en/product/equities/NL0000235190-XPAR' } },
+  { symbol: 'CW8', name: 'Amundi MSCI World Swap UCITS ETF EUR Acc', family: 'ETF', unit: 'part', currency: 'EUR',
+    listing: { isin: 'LU1681043599', venue: 'Euronext Paris', url: 'https://live.euronext.com/en/product/etfs/LU1681043599-XPAR' } },
+  { symbol: 'SPY', name: 'SPDR S&P 500 ETF Trust', family: 'ETF', unit: 'part', currency: 'USD',
+    listing: { isin: 'US78462F1030', venue: 'NYSE Arca', url: 'https://www.nyse.com/quote/ARCX:SPY' } },
   { symbol: 'EUR/USD', name: 'Euro / Dollar américain', family: 'Forex', unit: 'euro', currency: 'USD', note: 'Change au comptant. Un cours de 1,10 signifie 1,10 dollar pour un euro. Les produits forex à levier ont des coûts et des risques différents.' },
   { symbol: 'GBP/EUR', name: 'Livre sterling / Euro', family: 'Forex', unit: 'livre sterling', currency: 'EUR', note: 'Change au comptant. Le prix indique le nombre d’euros pour une livre sterling. La simulation exclut marge, intérêts et effet de levier.' },
   { symbol: 'BTC/EUR', name: 'Bitcoin', family: 'Cryptos', unit: 'bitcoin', currency: 'EUR' },
@@ -34,8 +39,11 @@ function normalize(value: string) {
 }
 
 function matchesFilter(item: Instrument, family: string, query: string) {
-  return (family === 'Tous' || item.family === family)
-    && [item.name, item.symbol, item.family].some(value => normalize(value).includes(normalize(query)));
+  if (family !== 'Tous' && item.family !== family) return false;
+  if (!query.trim()) return true;
+  const term = normalize(query);
+  const fields = [item.name, item.symbol, item.family, item.listing?.isin, item.listing?.venue];
+  return term.length > 0 && fields.some(value => value && normalize(value).includes(term));
 }
 
 const favoriteKey = 'midas-favori-marche';
@@ -89,7 +97,7 @@ export default function MarketExplorer() {
         <div className="flex flex-wrap items-end gap-3">
           <label className="grow text-sm">Rechercher un instrument
             <input type="search" value={query} onChange={e => filter(family, e.target.value)}
-              placeholder="Nom ou symbole, par exemple EUR/USD" className="mt-1 block min-h-11 w-full rounded-xl border border-white/25 bg-[#101722] px-3" />
+              placeholder="Nom, symbole ou code ISIN" className="mt-1 block min-h-11 w-full rounded-xl border border-white/25 bg-[#101722] px-3" />
           </label>
           <label className="text-sm">Marché
             <select value={family} onChange={e => filter(e.target.value, query)} className="mt-1 block min-h-11 rounded-xl border border-white/25 bg-[#101722] px-3">
@@ -113,6 +121,11 @@ export default function MarketExplorer() {
         <div id="fiche-instrument" tabIndex={-1} className="scroll-mt-5" aria-live="polite">
           {selected && <div className="rounded-xl border border-violet-400/40 px-5 py-4">
             <h3 className="text-lg font-semibold">{selected.name} · {selected.symbol}</h3>
+            {selected.listing && (
+              <p className="mt-1 text-sm text-white/75">
+                ISIN {selected.listing.isin} · <a className="underline" href={selected.listing.url} rel="noreferrer">Fiche de cotation sur {selected.listing.venue}</a>
+              </p>
+            )}
             <button type="button" aria-pressed={favorite?.symbol === selected.symbol} onClick={() => toggleFavorite(selected)} className="my-2 text-sm text-violet-200 underline">
               {favorite?.symbol === selected.symbol ? 'Retirer des favoris' : 'Définir comme favori sur cet appareil'}
             </button>

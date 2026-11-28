@@ -25,36 +25,49 @@ function cents(amount: bigint, divisor: bigint) {
   return Number(amount < 0 ? -rounded : rounded);
 }
 
-export function compareOrderCost(units: string, quote: CostQuote) {
+export type OrderSide = 'buy' | 'sell';
+const maxCents = 100_000_000_000_000;
+const rangeError = 'Le montant dépasse la plage de calcul de ce simulateur (1 000 milliards dans la devise de calcul).';
+
+export function previewOrderCost(units: string, quote: CostQuote, side: OrderSide) {
   const quantity = decimal(units);
-  const ask = decimal(quote.ask);
-  const bid = decimal(quote.bid);
-  const rate = decimal(quote.commission);
-  const fees = decimal(quote.fees);
-  const saleRate = decimal(quote.saleCharges?.commission ?? quote.commission);
-  const saleFees = decimal(quote.saleCharges?.fees ?? quote.fees);
+  const buying = side === 'buy';
+  const price = decimal(buying ? quote.ask : quote.bid);
+  const charges = buying ? quote : (quote.saleCharges ?? quote);
+  const rate = decimal(charges.commission);
+  const fees = decimal(charges.fees);
   if (quantity === null || quantity <= 0) {
     return { error: 'Indique une quantité positive, avec au plus 8 décimales.' } as const;
   }
-  if (ask === null || bid === null || ask <= 0 || bid <= 0) {
-    return { error: 'Indique deux prix positifs, avec au plus 8 décimales.' } as const;
+  if (price === null || price <= 0) {
+    return { error: 'Indique un prix unitaire positif, avec au plus 8 décimales.' } as const;
   }
-  if (bid > ask) {
-    return { error: 'À un même instant, le prix de vente doit être inférieur ou égal au prix d’achat.' } as const;
-  }
-  if (rate === null || rate > percentBase || fees === null || saleRate === null || saleRate > percentBase || saleFees === null) {
+  if (rate === null || rate > percentBase || fees === null) {
     return { error: 'Indique une commission de 0 à 100 % et des frais positifs ou nuls (8 décimales maximum).' } as const;
   }
-
-  const divisor = scale * scale * percentBase;
-  const fixedFeeUnit = scale * percentBase;
-  const purchase = cents(quantity * ask * (percentBase + rate) + fees * fixedFeeUnit, divisor);
-  const sale = cents(quantity * bid * (percentBase - saleRate) - saleFees * fixedFeeUnit, divisor);
-  const spread = cents(quantity * ask, scale * scale) - cents(quantity * bid, scale * scale);
-  const roundTrip = purchase - sale;
-  // The shared EUR formatter uses Number. Stay within its cent precision.
-  if ([purchase, sale, spread, roundTrip].some(value => Math.abs(value) > 100_000_000_000_000)) {
-    return { error: 'Le montant dépasse la plage de calcul de ce simulateur (1 000 milliards dans la devise de calcul).' } as const;
+  const notional = quantity * price;
+  const chargeNumerator = notional * rate + fees * scale * percentBase;
+  const gross = cents(notional, scale * scale);
+  const net = cents(notional * percentBase + (buying ? chargeNumerator : -chargeNumerator),
+    scale * scale * percentBase);
+  // Reconcile the displayed fees to the two rounded cash amounts.
+  const totalFees = buying ? net - gross : gross - net;
+  if ([gross, net, totalFees].some(value => Math.abs(value) > maxCents)) {
+    return { error: rangeError } as const;
   }
-  return { purchase, sale, spread, roundTrip } as const;
+  return { gross, totalFees, net } as const;
+}
+
+export function compareOrderCost(units: string, quote: CostQuote) {
+  const buy = previewOrderCost(units, quote, 'buy');
+  const sell = previewOrderCost(units, quote, 'sell');
+  if (buy.error !== undefined) return { error: buy.error } as const;
+  if (sell.error !== undefined) return { error: sell.error } as const;
+  // Compare unrounded prices even when the two cash amounts round to the same cent.
+  if (decimal(quote.bid)! > decimal(quote.ask)!) {
+    return { error: 'À un même instant, le prix de vente doit être inférieur ou égal au prix d’achat.' } as const;
+  }
+  const roundTrip = buy.net - sell.net;
+  if (Math.abs(roundTrip) > maxCents) return { error: rangeError } as const;
+  return { purchase: buy.net, sale: sell.net, spread: buy.gross - sell.gross, roundTrip } as const;
 }
